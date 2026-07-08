@@ -25,7 +25,13 @@ function App() {
     <ThemeProvider>
     <AuthProvider>
       <ToastProvider>
-      <BrowserRouter>
+      <BrowserRouter
+        basename={
+          import.meta.env.BASE_URL.endsWith('/')
+            ? import.meta.env.BASE_URL.slice(0, -1) || undefined
+            : import.meta.env.BASE_URL || undefined
+        }
+      >
         <Routes>
           <Route path="/setup" element={<SetupPage />} />
           <Route path="/login" element={<LoginPage />} />
