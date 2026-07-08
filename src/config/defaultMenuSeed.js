@@ -1,0 +1,40 @@
+/** Default catalog — seeded into Firestore once (admin can edit after) */
+
+export const DEFAULT_CATEGORIES = [
+  { id: 'vegetables', labelEn: 'Vegetables / Curry', labelGu: 'શાક', order: 1 },
+  { id: 'carbs', labelEn: 'Carbohydrates', labelGu: 'કારબોદિત', order: 2 },
+  { id: 'dalRice', labelEn: 'Dal & Rice', labelGu: 'દાળ / ભાત', order: 3 },
+  { id: 'special', labelEn: 'Special Items', labelGu: 'સ્પેશિયલ', order: 4 },
+]
+
+export const DEFAULT_ITEMS = [
+  { id: 'mag-nu-rasawalu', categoryId: 'vegetables', en: 'Mag nu Rasawalu', gu: 'મગનુરસાવાળું' },
+  { id: 'paneer-nu-shaak', categoryId: 'vegetables', en: 'Paneer nu Shaak', gu: 'પનીરનુંશાક' },
+  { id: 'dudhi-dal', categoryId: 'vegetables', en: 'Dudhi Dal', gu: 'દુધી દાળ' },
+  { id: 'cabbage', categoryId: 'vegetables', en: 'Cabbage', gu: 'કોબીનુંશાક' },
+  { id: 'totha', categoryId: 'vegetables', en: 'Totha', gu: 'ટોઠા' },
+  { id: 'bhindo', categoryId: 'vegetables', en: 'Bhindo', gu: 'ભીંડો' },
+  { id: 'bateka-nu-rasawalu', categoryId: 'vegetables', en: 'Bateka nu Rasawalu', gu: 'બટેકાનુરસાવાળું' },
+  { id: 'chana', categoryId: 'vegetables', en: 'Chana', gu: 'ચણા' },
+  { id: 'mag-nu-koru', categoryId: 'vegetables', en: 'Mag nu Koru', gu: 'મગનુંકોરુ' },
+  { id: 'mix-dal', categoryId: 'vegetables', en: 'Mix Dal', gu: 'મિક્ષ દાળ' },
+  { id: 'cheese-corn', categoryId: 'vegetables', en: 'Cheese Corn', gu: 'ચીઝ કોર્ન' },
+  { id: 'bateka-ni-suki', categoryId: 'vegetables', en: 'Bateka ni Suki', gu: 'બટેકાની સકુી' },
+  { id: 'bateka-chips', categoryId: 'vegetables', en: 'Bateka Chips', gu: 'બટેકા ચીપ્સ' },
+  { id: 'sev-tameta', categoryId: 'vegetables', en: 'Sev Tameta', gu: 'સવે ટામટેા' },
+  { id: 'roti', categoryId: 'carbs', en: 'Roti', gu: 'રોટલી' },
+  { id: 'parotha', categoryId: 'carbs', en: 'Parotha', gu: 'પરોઠા' },
+  { id: 'dudhi-thepla', categoryId: 'carbs', en: 'Dudhi Thepla', gu: 'દુધી થપેલા' },
+  { id: 'farali-roti', categoryId: 'carbs', en: 'Farali Roti', gu: 'ફરાળી રોટલી' },
+  { id: 'bhakhri', categoryId: 'carbs', en: 'Bhakhri', gu: 'ભાખરી' },
+  { id: 'aloo-parotha', categoryId: 'carbs', en: 'Aloo Parotha', gu: 'આલુપરોઠા' },
+  { id: 'dal', categoryId: 'dalRice', en: 'Dal', gu: 'દાળ' },
+  { id: 'rice', categoryId: 'dalRice', en: 'Rice', gu: 'ભાત' },
+  { id: 'sprite', categoryId: 'special', en: 'Sprite', gu: 'Sprite' },
+  { id: 'panipuri', categoryId: 'special', en: 'Panipuri', gu: 'પાણીપરુી' },
+  { id: 'ragda-petis', categoryId: 'special', en: 'Ragda Petis', gu: 'રગડા પટેીસ' },
+  { id: 'dal-bati', categoryId: 'special', en: 'Dal Bati', gu: 'દાળ બાટી' },
+  { id: 'sabudana', categoryId: 'special', en: 'Sabudana / Faral', gu: 'સાબદુ ાણાના' },
+  { id: 'manchurian', categoryId: 'special', en: 'Manchurian', gu: 'મન્ચરિુરિયન' },
+  { id: 'kheer', categoryId: 'special', en: 'Kheer', gu: 'ખીર' },
+]

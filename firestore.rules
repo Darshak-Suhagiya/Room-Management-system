@@ -1,0 +1,89 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function isAdmin() {
+      return isSignedIn() && userDoc().data.role == 'admin';
+    }
+
+    function isMaharaj() {
+      return isSignedIn() && userDoc().data.role == 'maharaj';
+    }
+
+    function canManageVoteLocks() {
+      return isAdmin() || isMaharaj();
+    }
+
+    /** Vote dashboard needs member names; maharaj is read-only there. */
+    function canReadAllUsers() {
+      return isAdmin() || isMaharaj();
+    }
+
+    function isApproved() {
+      return isSignedIn() && (
+        isAdmin() ||
+        userDoc().data.status == 'approved' ||
+        !('status' in userDoc().data)
+      );
+    }
+
+    function slotLocked(dateId, slot) {
+      return exists(/databases/$(database)/documents/voteLocks/$(dateId + '_' + slot)) &&
+        get(/databases/$(database)/documents/voteLocks/$(dateId + '_' + slot)).data.locked == true;
+    }
+
+    match /users/{userId} {
+      allow read: if isSignedIn() && (
+        request.auth.uid == userId || canReadAllUsers()
+      );
+      allow create: if isSignedIn() && request.auth.uid == userId;
+      allow update: if isAdmin() || (
+        isSignedIn() &&
+        request.auth.uid == userId &&
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'status'])
+      );
+      allow delete: if isAdmin();
+    }
+
+    match /voteLocks/{lockId} {
+      allow read: if isSignedIn();
+      allow write: if canManageVoteLocks();
+    }
+
+    match /mealParticipation/{docId} {
+      allow read: if isSignedIn();
+      allow create, update: if isApproved() &&
+        request.resource.data.userId == request.auth.uid &&
+        !slotLocked(request.resource.data.date, request.resource.data.slot);
+      allow delete: if isAdmin();
+    }
+
+    match /menus/{menuId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    match /menuCategories/{id} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    match /menuItems/{id} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    match /sevaRoom/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+  }
+}

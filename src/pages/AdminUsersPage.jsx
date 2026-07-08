@@ -1,0 +1,354 @@
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Ban, CircleCheck, Clock, Users as UsersIcon } from 'lucide-react'
+import { useAuth } from '../contexts/AuthContext'
+import { ROLES, USER_STATUS } from '../config/constants'
+import { ROLE_LABELS } from '../config/rolePermissions'
+import { useToast } from '../contexts/ToastContext'
+import { getUserInitials } from '../utils/userDisplay'
+import {
+  deleteUserByAdmin,
+  listAllUsers,
+  updateUserByAdmin,
+  updateUserStatus,
+} from '../services/userService'
+
+const STATUS_LABEL = {
+  pending: 'Pending',
+  approved: 'Approved',
+  deactivated: 'Deactivated',
+}
+
+const ROLE_LABEL = ROLE_LABELS
+
+function draftFromUser(u) {
+  return { displayName: u.displayName ?? '', role: u.role ?? ROLES.RESIDENT }
+}
+
+function draftChanged(u, draft) {
+  const name = draft.displayName.trim()
+  return (
+    name !== (u.displayName ?? '').trim() || draft.role !== (u.role ?? ROLES.RESIDENT)
+  )
+}
+
+export function AdminUsersPage() {
+  const { user } = useAuth()
+  const toast = useToast()
+  const [users, setUsers] = useState([])
+  const [drafts, setDrafts] = useState({})
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [busyId, setBusyId] = useState(null)
+  const [statusFilter, setStatusFilter] = useState('all')
+
+  const loadUsers = useCallback(async () => {
+    setLoading(true)
+    setError('')
+    try {
+      const list = await listAllUsers()
+      setUsers(list)
+      setDrafts(Object.fromEntries(list.map((u) => [u.id, draftFromUser(u)])))
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadUsers()
+  }, [loadUsers])
+
+  const counts = useMemo(() => {
+    const c = { all: users.length, approved: 0, pending: 0, deactivated: 0 }
+    for (const u of users) {
+      if (u.status === USER_STATUS.APPROVED) c.approved += 1
+      else if (u.status === USER_STATUS.PENDING) c.pending += 1
+      else if (u.status === USER_STATUS.DEACTIVATED) c.deactivated += 1
+    }
+    return c
+  }, [users])
+
+  const visibleUsers = useMemo(
+    () =>
+      statusFilter === 'all'
+        ? users
+        : users.filter((u) => u.status === statusFilter),
+    [users, statusFilter],
+  )
+
+  const statCards = [
+    { id: 'all', label: 'All members', value: counts.all, icon: UsersIcon, tone: 'tone-primary' },
+    { id: USER_STATUS.APPROVED, label: 'Approved', value: counts.approved, icon: CircleCheck, tone: 'tone-primary' },
+    { id: USER_STATUS.PENDING, label: 'Pending', value: counts.pending, icon: Clock, tone: 'tone-morning' },
+    { id: USER_STATUS.DEACTIVATED, label: 'Deactivated', value: counts.deactivated, icon: Ban, tone: 'tone-accent' },
+  ]
+
+  const setDraft = (userId, patch) => {
+    setDrafts((prev) => ({
+      ...prev,
+      [userId]: { ...prev[userId], ...patch },
+    }))
+  }
+
+  const setStatus = async (userId, status) => {
+    setBusyId(userId)
+    setError('')
+    try {
+      await updateUserStatus(userId, status, user?.uid)
+      await loadUsers()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  const removeUser = async (target) => {
+    if (target.id === user?.uid) {
+      setError('You cannot delete your own account.')
+      return
+    }
+    const label = target.displayName || target.email || target.id
+    if (
+      !window.confirm(
+        `Permanently delete user "${label}"?\n\nTheir Firestore profile will be removed. Remove the login from Firebase Authentication → Users if needed.`,
+      )
+    ) {
+      return
+    }
+    setBusyId(target.id)
+    setError('')
+    try {
+      await deleteUserByAdmin(target.id, user?.uid)
+      toast.success('User deleted.')
+      await loadUsers()
+    } catch (err) {
+      setError(err.message)
+      toast.error(err.message)
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  const saveProfile = async (target) => {
+    const draft = drafts[target.id]
+    if (!draft || !draftChanged(target, draft)) return
+
+    if (target.id === user?.uid && draft.role !== ROLES.ADMIN) {
+      setError('You cannot change your own role.')
+      setDraft(target.id, draftFromUser(target))
+      return
+    }
+
+    setBusyId(target.id)
+    setError('')
+    try {
+      await updateUserByAdmin(
+        target.id,
+        {
+          displayName: draft.displayName,
+          role: draft.role,
+        },
+        user?.uid,
+      )
+      await loadUsers()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  if (loading) {
+    return <p className="page-loading">Loading…</p>
+  }
+
+  return (
+    <div className="page admin-page">
+      <header className="page-header">
+        <h2>Users</h2>
+        <p>
+          Edit names and roles, approve or deactivate accounts. Only approved users
+          are counted in vote stats.
+        </p>
+      </header>
+
+      {error && <p className="form-error">{error}</p>}
+
+      <div className="stat-cards">
+        {statCards.map((card) => {
+          const Icon = card.icon
+          const active = statusFilter === card.id
+          return (
+            <button
+              key={card.id}
+              type="button"
+              className={`stat-card-tile stat-card-btn${active ? ' is-active' : ''}`}
+              onClick={() => setStatusFilter(card.id)}
+            >
+              <span className={`stat-card-icon ${card.tone}`}>
+                <Icon size={22} />
+              </span>
+              <span>
+                <span className="stat-card-value">{card.value}</span>
+                <span className="stat-card-label">{card.label}</span>
+              </span>
+            </button>
+          )
+        })}
+      </div>
+
+      <div className="admin-users-table-wrap">
+        <table className="admin-users-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Role</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {visibleUsers.length === 0 && (
+              <tr>
+                <td colSpan={5} className="admin-users-empty">
+                  No users in this view.
+                </td>
+              </tr>
+            )}
+            {visibleUsers.map((u) => {
+              const draft = drafts[u.id] ?? draftFromUser(u)
+              const dirty = draftChanged(u, draft)
+              const isSelf = u.id === user?.uid
+              const busy = busyId === u.id
+
+              return (
+                <tr key={u.id}>
+                  <td>
+                    <div className="admin-user-name-cell">
+                      <span className="admin-user-avatar" aria-hidden="true">
+                        {getUserInitials(draft.displayName || u.email)}
+                      </span>
+                      <input
+                        type="text"
+                        className="admin-user-name-input"
+                        value={draft.displayName}
+                        disabled={busy}
+                        onChange={(e) =>
+                          setDraft(u.id, { displayName: e.target.value })
+                        }
+                        onBlur={() => dirty && saveProfile(u)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault()
+                            saveProfile(u)
+                          }
+                        }}
+                      />
+                    </div>
+                  </td>
+                  <td className="admin-user-email">{u.email}</td>
+                  <td>
+                    <select
+                      className="admin-user-role-select"
+                      value={draft.role}
+                      disabled={busy || isSelf}
+                      title={
+                        isSelf ? 'You cannot change your own role here' : ''
+                      }
+                      onChange={(e) => {
+                        setDraft(u.id, { role: e.target.value })
+                      }}
+                    >
+                      <option value={ROLES.RESIDENT}>
+                        {ROLE_LABEL[ROLES.RESIDENT]}
+                      </option>
+                      <option value={ROLES.MAHARAJ}>
+                        {ROLE_LABEL[ROLES.MAHARAJ]}
+                      </option>
+                      <option value={ROLES.ADMIN}>
+                        {ROLE_LABEL[ROLES.ADMIN]}
+                      </option>
+                    </select>
+                  </td>
+                  <td>
+                    <span className={`status-pill status-${u.status}`}>
+                      {STATUS_LABEL[u.status] ?? u.status}
+                    </span>
+                  </td>
+                  <td className="admin-users-actions">
+                    {dirty && (
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        disabled={busy}
+                        onClick={() => saveProfile(u)}
+                      >
+                        {busy ? '…' : 'Save'}
+                      </button>
+                    )}
+                    {!isSelf && u.role !== ROLES.ADMIN && (
+                      <>
+                        {u.status !== USER_STATUS.APPROVED && (
+                          <button
+                            type="button"
+                            className="btn btn-primary btn-sm"
+                            disabled={busy}
+                            onClick={() =>
+                              setStatus(u.id, USER_STATUS.APPROVED)
+                            }
+                          >
+                            Approve
+                          </button>
+                        )}
+                        {u.status !== USER_STATUS.DEACTIVATED && (
+                          <button
+                            type="button"
+                            className="btn btn-danger btn-sm"
+                            disabled={busy}
+                            onClick={() =>
+                              setStatus(u.id, USER_STATUS.DEACTIVATED)
+                            }
+                          >
+                            Deactivate
+                          </button>
+                        )}
+                        {u.status === USER_STATUS.DEACTIVATED && (
+                          <button
+                            type="button"
+                            className="btn btn-ghost btn-sm"
+                            disabled={busy}
+                            onClick={() =>
+                              setStatus(u.id, USER_STATUS.APPROVED)
+                            }
+                          >
+                            Reactivate
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          className="btn btn-danger btn-sm"
+                          disabled={busy}
+                          onClick={() => removeUser(u)}
+                        >
+                          Delete user
+                        </button>
+                      </>
+                    )}
+                    {!isSelf && u.role === ROLES.ADMIN && dirty && (
+                      <span className="muted admin-users-hint">
+                        Save admin role
+                      </span>
+                    )}
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
