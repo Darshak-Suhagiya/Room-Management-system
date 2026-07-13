@@ -10,24 +10,37 @@ import {
   seedDefaultCatalog,
   updateMenuItem,
 } from '../services/catalogService'
+import { PlanningViewGroupsEditor } from '../components/PlanningViewGroupsEditor'
 
-function VoteTypeSelect({ value, onChange }) {
+function VoteTypeSegmented({ value, onChange }) {
   return (
-    <select value={value} onChange={(e) => onChange(e.target.value)}>
-      <option value={VOTE_TYPES.YES_NO}>{VOTE_TYPE_LABELS[VOTE_TYPES.YES_NO]}</option>
-      <option value={VOTE_TYPES.INTEGER}>
+    <div className="segmented-control vote-type-seg" role="group" aria-label="Vote type">
+      <button
+        type="button"
+        className={`segmented-btn ${value === VOTE_TYPES.YES_NO ? 'is-active' : ''}`}
+        onClick={() => onChange(VOTE_TYPES.YES_NO)}
+      >
+        {VOTE_TYPE_LABELS[VOTE_TYPES.YES_NO]}
+      </button>
+      <button
+        type="button"
+        className={`segmented-btn ${value === VOTE_TYPES.INTEGER ? 'is-active' : ''}`}
+        onClick={() => onChange(VOTE_TYPES.INTEGER)}
+      >
         {VOTE_TYPE_LABELS[VOTE_TYPES.INTEGER]}
-      </option>
-    </select>
+      </button>
+    </div>
   )
 }
 
-function itemIsDirty(item, en, gu, voteType) {
+function itemIsDirty(item, en, gu, voteType, notes, recipe) {
   const baseVote = item.voteType ?? defaultVoteTypeForCategory(item.categoryId)
   return (
     en.trim() !== (item.en ?? '').trim() ||
     gu.trim() !== (item.gu ?? '').trim() ||
-    voteType !== baseVote
+    voteType !== baseVote ||
+    notes.trim() !== (item.notes ?? '').trim() ||
+    recipe.trim() !== (item.recipe ?? '').trim()
   )
 }
 
@@ -37,60 +50,106 @@ function ItemRow({ item, onSave, onDelete, onError }) {
   const [voteType, setVoteType] = useState(
     item.voteType ?? defaultVoteTypeForCategory(item.categoryId),
   )
+  const [notes, setNotes] = useState(item.notes ?? '')
+  const [recipe, setRecipe] = useState(item.recipe ?? '')
+  const [expanded, setExpanded] = useState(
+    Boolean((item.notes ?? '').trim() || (item.recipe ?? '').trim()),
+  )
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     setEn(item.en)
     setGu(item.gu)
     setVoteType(item.voteType ?? defaultVoteTypeForCategory(item.categoryId))
-  }, [item.id, item.en, item.gu, item.voteType, item.categoryId])
+    setNotes(item.notes ?? '')
+    setRecipe(item.recipe ?? '')
+  }, [item.id, item.en, item.gu, item.voteType, item.categoryId, item.notes, item.recipe])
 
-  const dirty = itemIsDirty(item, en, gu, voteType)
+  const dirty = itemIsDirty(item, en, gu, voteType, notes, recipe)
   const invalid = !gu.trim() || !en.trim()
 
   return (
-    <li className={`catalog-item ${invalid && dirty ? 'catalog-item-invalid' : ''}`}>
-      <input
-        value={gu}
-        onChange={(e) => setGu(e.target.value)}
-        placeholder="Gujarati name"
-        className={invalid && dirty ? 'field-invalid' : ''}
-      />
-      <input
-        value={en}
-        onChange={(e) => setEn(e.target.value)}
-        placeholder="English name"
-        className={invalid && dirty ? 'field-invalid' : ''}
-      />
-      <VoteTypeSelect value={voteType} onChange={setVoteType} />
-      <button
-        type="button"
-        className="btn btn-primary btn-sm"
-        disabled={saving || !dirty || invalid}
-        onClick={async () => {
-          if (!gu.trim() || !en.trim()) {
-            onError?.({ message: 'Gujarati and English names are required.' })
-            return
-          }
-          setSaving(true)
-          try {
-            await onSave(item.id, { en: en.trim(), gu: gu.trim(), voteType })
-          } catch (err) {
-            onError?.(err)
-          } finally {
-            setSaving(false)
-          }
-        }}
-      >
-        {saving ? '…' : 'Save'}
-      </button>
-      <button
-        type="button"
-        className="btn btn-danger btn-sm"
-        onClick={() => onDelete(item)}
-      >
-        Remove
-      </button>
+    <li className={`catalog-item catalog-item-block ${invalid && dirty ? 'catalog-item-invalid' : ''}`}>
+      <div className="catalog-item-main">
+        <input
+          value={gu}
+          onChange={(e) => setGu(e.target.value)}
+          placeholder="Gujarati name"
+          className={invalid && dirty ? 'field-invalid' : ''}
+        />
+        <input
+          value={en}
+          onChange={(e) => setEn(e.target.value)}
+          placeholder="English name"
+          className={invalid && dirty ? 'field-invalid' : ''}
+        />
+        <VoteTypeSegmented value={voteType} onChange={setVoteType} />
+        <button
+          type="button"
+          className="btn btn-ghost btn-sm"
+          onClick={() => setExpanded((v) => !v)}
+        >
+          {expanded ? 'Hide details' : 'Notes / recipe'}
+        </button>
+        <button
+          type="button"
+          className="btn btn-primary btn-sm"
+          disabled={saving || !dirty || invalid}
+          onClick={async () => {
+            if (!gu.trim() || !en.trim()) {
+              onError?.({ message: 'Gujarati and English names are required.' })
+              return
+            }
+            setSaving(true)
+            try {
+              await onSave(item.id, {
+                en: en.trim(),
+                gu: gu.trim(),
+                voteType,
+                notes: notes.trim(),
+                recipe: recipe.trim(),
+              })
+            } catch (err) {
+              onError?.(err)
+            } finally {
+              setSaving(false)
+            }
+          }}
+        >
+          {saving ? '…' : 'Save'}
+        </button>
+        <button
+          type="button"
+          className="btn btn-danger btn-sm"
+          onClick={() => onDelete(item)}
+        >
+          Remove
+        </button>
+      </div>
+      {expanded && (
+        <div className="catalog-item-details">
+          <label className="field-stack">
+            <span className="field-stack-label">Notes (Maharaj only)</span>
+            <textarea
+              className="app-textarea"
+              rows={2}
+              value={notes}
+              placeholder="Prep notes, tips…"
+              onChange={(e) => setNotes(e.target.value)}
+            />
+          </label>
+          <label className="field-stack">
+            <span className="field-stack-label">Recipe (Maharaj only)</span>
+            <textarea
+              className="app-textarea"
+              rows={3}
+              value={recipe}
+              placeholder="Recipe steps…"
+              onChange={(e) => setRecipe(e.target.value)}
+            />
+          </label>
+        </div>
+      )}
     </li>
   )
 }
@@ -99,10 +158,13 @@ function AddItemForm({ categoryId, onAdded, onError }) {
   const [en, setEn] = useState('')
   const [gu, setGu] = useState('')
   const [voteType, setVoteType] = useState(defaultVoteTypeForCategory(categoryId))
+  const [notes, setNotes] = useState('')
+  const [recipe, setRecipe] = useState('')
+  const [showExtra, setShowExtra] = useState(false)
 
   return (
     <form
-      className="inline-form"
+      className="inline-form catalog-add-form"
       onSubmit={async (e) => {
         e.preventDefault()
         if (!gu.trim() || !en.trim()) {
@@ -110,9 +172,19 @@ function AddItemForm({ categoryId, onAdded, onError }) {
           return
         }
         try {
-          await addMenuItem({ categoryId, en: en.trim(), gu: gu.trim(), voteType })
+          await addMenuItem({
+            categoryId,
+            en: en.trim(),
+            gu: gu.trim(),
+            voteType,
+            notes: notes.trim(),
+            recipe: recipe.trim(),
+          })
           setEn('')
           setGu('')
+          setNotes('')
+          setRecipe('')
+          setShowExtra(false)
           setVoteType(defaultVoteTypeForCategory(categoryId))
           onAdded()
         } catch (err) {
@@ -120,22 +192,53 @@ function AddItemForm({ categoryId, onAdded, onError }) {
         }
       }}
     >
-      <input
-        value={gu}
-        onChange={(e) => setGu(e.target.value)}
-        placeholder="Gujarati name"
-        required
-      />
-      <input
-        value={en}
-        onChange={(e) => setEn(e.target.value)}
-        placeholder="English name"
-        required
-      />
-      <VoteTypeSelect value={voteType} onChange={setVoteType} />
-      <button type="submit" className="btn btn-primary btn-sm">
-        Add item
-      </button>
+      <div className="catalog-add-main">
+        <input
+          value={gu}
+          onChange={(e) => setGu(e.target.value)}
+          placeholder="Gujarati name"
+          required
+        />
+        <input
+          value={en}
+          onChange={(e) => setEn(e.target.value)}
+          placeholder="English name"
+          required
+        />
+        <VoteTypeSegmented value={voteType} onChange={setVoteType} />
+        <button
+          type="button"
+          className="btn btn-ghost btn-sm"
+          onClick={() => setShowExtra((v) => !v)}
+        >
+          {showExtra ? 'Hide details' : 'Notes / recipe'}
+        </button>
+        <button type="submit" className="btn btn-primary btn-sm">
+          Add item
+        </button>
+      </div>
+      {showExtra && (
+        <div className="catalog-item-details">
+          <label className="field-stack">
+            <span className="field-stack-label">Notes (Maharaj only)</span>
+            <textarea
+              className="app-textarea"
+              rows={2}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+            />
+          </label>
+          <label className="field-stack">
+            <span className="field-stack-label">Recipe (Maharaj only)</span>
+            <textarea
+              className="app-textarea"
+              rows={3}
+              value={recipe}
+              onChange={(e) => setRecipe(e.target.value)}
+            />
+          </label>
+        </div>
+      )}
     </form>
   )
 }
@@ -163,7 +266,7 @@ export function AdminMenuCatalogPage() {
         <h2>Menu editing</h2>
         <p>
           Add dishes and set vote type: Yes/No for shaak, Number for roti, etc.
-          Save is enabled only after you change a row.
+          Optional notes and recipe are visible only to Maharaj on the vote dashboard.
         </p>
       </header>
 
@@ -179,7 +282,7 @@ export function AdminMenuCatalogPage() {
             onClick={async () => {
               try {
                 await seedDefaultCatalog()
-                notify('Default menu list imported to Firestore.')
+                notify('Default menu list imported.')
               } catch (err) {
                 handleError(err)
               }
@@ -288,6 +391,13 @@ export function AdminMenuCatalogPage() {
           <AddItemForm
             categoryId={cat.id}
             onAdded={() => notify('Item added.')}
+            onError={handleError}
+          />
+
+          <PlanningViewGroupsEditor
+            category={cat}
+            items={catalog.itemsByCategory[cat.id] ?? []}
+            onSaved={(msg) => notify(msg)}
             onError={handleError}
           />
         </section>

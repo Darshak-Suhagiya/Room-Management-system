@@ -18,13 +18,67 @@ service cloud.firestore {
       return isSignedIn() && userDoc().data.role == 'maharaj';
     }
 
-    function canManageVoteLocks() {
-      return isAdmin() || isMaharaj();
+    function isKitchenLeader() {
+      return isSignedIn() && userDoc().data.role == 'kitchen_leader';
     }
 
-    /** Vote dashboard needs member names; maharaj is read-only there. */
+    function isRoomLeader() {
+      return isSignedIn() && userDoc().data.role == 'room_leader';
+    }
+
+    function canManageVoteLocks() {
+      return isAdmin() || isMaharaj() || isKitchenLeader();
+    }
+
+    /** Vote dashboard + Users/Seva management need member names. */
     function canReadAllUsers() {
-      return isAdmin() || isMaharaj();
+      return isAdmin() || isMaharaj() || isKitchenLeader() || isRoomLeader();
+    }
+
+    function canWriteMenus() {
+      return isAdmin() || isKitchenLeader();
+    }
+
+    function canWriteMenuCatalog() {
+      return isAdmin() || isKitchenLeader();
+    }
+
+    function canDeleteParticipations() {
+      return isAdmin() || isKitchenLeader();
+    }
+
+    function canManageSeva() {
+      return isAdmin() || isRoomLeader();
+    }
+
+    function canManageLeaves() {
+      return isAdmin() || isKitchenLeader() || isRoomLeader();
+    }
+
+    function canManageNotices() {
+      return isAdmin() || isRoomLeader();
+    }
+
+    function canViewNoticeAnalytics() {
+      return isAdmin() || isRoomLeader() || isKitchenLeader();
+    }
+
+    /**
+     * Room leaders may update/delete non-admin users and may not assign admin.
+     * They also cannot change their own role/status via this path.
+     */
+    function roomLeaderCanManageUser(userId) {
+      return isRoomLeader()
+        && resource.data.role != 'admin'
+        && request.resource.data.role != 'admin'
+        && (
+          request.auth.uid != userId
+          || !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'status'])
+        );
+    }
+
+    function roomLeaderCanDeleteUser() {
+      return isRoomLeader() && resource.data.role != 'admin';
     }
 
     function isApproved() {
@@ -42,15 +96,19 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow read: if isSignedIn() && (
-        request.auth.uid == userId || canReadAllUsers()
+        request.auth.uid == userId
+        || canReadAllUsers()
+        || resource.data.role == 'maharaj'
       );
       allow create: if isSignedIn() && request.auth.uid == userId;
-      allow update: if isAdmin() || (
-        isSignedIn() &&
-        request.auth.uid == userId &&
-        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'status'])
-      );
-      allow delete: if isAdmin();
+      allow update: if isAdmin()
+        || roomLeaderCanManageUser(userId)
+        || (
+          isSignedIn() &&
+          request.auth.uid == userId &&
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'status'])
+        );
+      allow delete: if isAdmin() || roomLeaderCanDeleteUser();
     }
 
     match /voteLocks/{lockId} {
@@ -63,27 +121,51 @@ service cloud.firestore {
       allow create, update: if isApproved() &&
         request.resource.data.userId == request.auth.uid &&
         !slotLocked(request.resource.data.date, request.resource.data.slot);
-      allow delete: if isAdmin();
+      allow delete: if canDeleteParticipations();
     }
 
     match /menus/{menuId} {
       allow read: if isSignedIn();
-      allow write: if isAdmin();
+      allow write: if canWriteMenus();
     }
 
     match /menuCategories/{id} {
       allow read: if isSignedIn();
-      allow write: if isAdmin();
+      allow write: if canWriteMenuCatalog();
     }
 
     match /menuItems/{id} {
       allow read: if isSignedIn();
-      allow write: if isAdmin();
+      allow write: if canWriteMenuCatalog();
     }
 
     match /sevaRoom/{docId} {
       allow read: if isSignedIn();
-      allow write: if isAdmin();
+      allow write: if canManageSeva();
+    }
+
+    match /leaveEntries/{docId} {
+      allow read: if isSignedIn();
+      allow create: if isApproved()
+        && request.resource.data.reason is string
+        && request.resource.data.reason.size() > 0
+        && request.resource.data.period in ['morning', 'evening', 'full']
+        && request.resource.data.recordedBy == request.auth.uid;
+      allow update, delete: if canManageLeaves();
+    }
+
+    match /notices/{noticeId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if canManageNotices();
+
+      match /receipts/{userId} {
+        allow read: if canViewNoticeAnalytics()
+          || (isSignedIn() && request.auth.uid == userId);
+        allow create, update: if isApproved()
+          && request.auth.uid == userId
+          && request.resource.data.userId == request.auth.uid;
+        allow delete: if canManageNotices();
+      }
     }
   }
 }

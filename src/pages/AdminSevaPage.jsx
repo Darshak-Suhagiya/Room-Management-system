@@ -32,7 +32,7 @@ import {
 } from '../utils/sevaMutations'
 
 export function AdminSevaPage() {
-  const { isAdmin } = useAuth()
+  const { canManageSeva } = useAuth()
   const { config, loading, saving, dirty, error, patchDraft, save, discardChanges } =
     useSevaRoom()
   const [users, setUsers] = useState([])
@@ -58,8 +58,8 @@ export function AdminSevaPage() {
     return <p className="page-loading">Loading…</p>
   }
 
-  if (!isAdmin) {
-    return <p className="form-error">Admin access required.</p>
+  if (!canManageSeva) {
+    return <p className="form-error">Admin or Room leader access required.</p>
   }
 
   return (

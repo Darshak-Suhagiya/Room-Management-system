@@ -4,7 +4,8 @@ export function formatAuthError(err) {
   const map = {
     'auth/email-already-in-use': 'This email is already registered.',
     'auth/invalid-email': 'Invalid email address.',
-    'auth/operation-not-allowed': 'This sign-in method is not enabled in Firebase.',
+    'auth/operation-not-allowed':
+      'This sign-in method is not enabled. Contact an administrator.',
     'auth/weak-password': 'Password must be at least 6 characters.',
     'auth/user-disabled': 'This account has been disabled.',
     'auth/user-not-found': 'No account found with this email.',

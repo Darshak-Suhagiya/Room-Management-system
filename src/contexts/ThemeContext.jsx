@@ -6,12 +6,21 @@ import {
   useMemo,
   useState,
 } from 'react'
-import { APPEARANCE_LIST, APPEARANCES, APP_THEME } from '../config/themes'
+import {
+  APPEARANCE_LIST,
+  APPEARANCES,
+  DEFAULT_THEME_ID,
+  THEMES,
+  THEME_LIST,
+} from '../config/themes'
 import {
   applyAppearanceToDocument,
   applyThemeSettings,
+  applyThemeToDocument,
   getStoredAppearance,
+  getStoredThemeId,
   persistAppearance,
+  persistThemeId,
 } from '../lib/applyTheme'
 
 function applyUiScaleToDocument(scaleId) {
@@ -50,8 +59,16 @@ function persistUiScale(scaleId) {
 const ThemeContext = createContext(null)
 
 export function ThemeProvider({ children }) {
+  const [themeId, setThemeIdState] = useState(() => getStoredThemeId())
   const [appearance, setAppearanceState] = useState(() => getStoredAppearance())
   const [uiScale, setUiScaleState] = useState(() => getStoredUiScale())
+
+  const setTheme = useCallback((id) => {
+    if (!THEMES[id]) return
+    setThemeIdState(id)
+    applyThemeToDocument(id)
+    persistThemeId(id)
+  }, [])
 
   const setAppearance = useCallback((id) => {
     if (!APPEARANCES[id]) return
@@ -68,13 +85,17 @@ export function ThemeProvider({ children }) {
   }, [])
 
   useEffect(() => {
-    applyThemeSettings(APP_THEME.id, appearance)
+    applyThemeSettings(themeId || DEFAULT_THEME_ID, appearance)
     applyUiScaleToDocument(uiScale)
-  }, [appearance, uiScale])
+  }, [themeId, appearance, uiScale])
+
+  const theme = THEMES[themeId] ?? THEMES[DEFAULT_THEME_ID]
 
   const value = useMemo(
     () => ({
-      theme: APP_THEME,
+      theme,
+      themes: THEME_LIST,
+      setTheme,
       appearance,
       appearances: APPEARANCE_LIST,
       setAppearance,
@@ -82,7 +103,7 @@ export function ThemeProvider({ children }) {
       uiScales: Object.values(UI_SCALES),
       setUiScale,
     }),
-    [appearance, uiScale, setAppearance, setUiScale],
+    [theme, appearance, uiScale, setTheme, setAppearance, setUiScale],
   )
 
   return (

@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useToast } from '../contexts/ToastContext'
-import { MenuPlanningForm } from '../components/MenuPlanningForm'
-import { MenuCard } from '../components/MenuCard'
+import {
+  MenuPlanningForm,
+  PlanningSelectionPreview,
+} from '../components/MenuPlanningForm'
 import { MealCalendar } from '../components/MealCalendar'
 import { useMenuCatalog } from '../hooks/useMenuCatalog'
 import {
@@ -11,7 +13,15 @@ import {
   getMenuByDate,
   saveMenu,
 } from '../services/menuService'
+import { getAllParticipations } from '../services/participationService'
 import { getPlannedDateIds } from '../utils/mealDateUtils'
+import {
+  buildCookCounts,
+  buildReviewSentimentByItem,
+  dateIdMonthsAgo,
+  flattenSelectedItemIds,
+  getItemCookHistory,
+} from '../utils/menuReviewUtils'
 
 export function AdminMenuPlanningPage() {
   const { user } = useAuth()
@@ -28,18 +38,28 @@ export function AdminMenuPlanningPage() {
   const [menuLoading, setMenuLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [plannedDates, setPlannedDates] = useState(new Set())
+  const [allMenus, setAllMenus] = useState([])
+  const [participations, setParticipations] = useState([])
+  const [draft, setDraft] = useState(null)
 
   const categoryKey = categoryIds.join(',')
+  const today = formatDateId(new Date())
+  const fromDate = dateIdMonthsAgo(2, today)
 
-  const loadPlannedDates = useCallback(async () => {
-    const data = await getAllPlannedMenus(categoryIds)
-    setPlannedDates(new Set(getPlannedDateIds(data)))
+  const loadHistory = useCallback(async () => {
+    const [menusData, parts] = await Promise.all([
+      getAllPlannedMenus(categoryIds),
+      getAllParticipations(),
+    ])
+    setAllMenus(menusData)
+    setParticipations(parts)
+    setPlannedDates(new Set(getPlannedDateIds(menusData)))
   }, [categoryKey])
 
   useEffect(() => {
     if (catalogLoading) return
-    loadPlannedDates().catch(() => {})
-  }, [catalogLoading, loadPlannedDates])
+    loadHistory().catch(() => {})
+  }, [catalogLoading, loadHistory])
 
   useEffect(() => {
     if (catalogLoading) return
@@ -63,6 +83,35 @@ export function AdminMenuPlanningPage() {
     }
   }, [selectedDate, catalogLoading, categoryIds.join(','), toast])
 
+  const cookCounts = useMemo(
+    () => buildCookCounts(allMenus, fromDate, today),
+    [allMenus, fromDate, today],
+  )
+
+  const sentimentByItem = useMemo(
+    () => buildReviewSentimentByItem(participations, fromDate, today),
+    [participations, fromDate, today],
+  )
+
+  const selectedItemIds = useMemo(() => {
+    const maps = []
+    if (draft?.hasMorning && draft.morning) maps.push(draft.morning)
+    if (draft?.hasEvening && draft.evening) maps.push(draft.evening)
+    return flattenSelectedItemIds(maps)
+  }, [draft])
+
+  const itemHistoryById = useMemo(() => {
+    const map = {}
+    for (const id of selectedItemIds) {
+      map[id] = getItemCookHistory(id, allMenus, participations, 5)
+    }
+    return map
+  }, [selectedItemIds, allMenus, participations])
+
+  const handleDraftChange = useCallback((next) => {
+    setDraft(next)
+  }, [])
+
   const handleSave = async (data) => {
     setSaving(true)
     try {
@@ -83,7 +132,7 @@ export function AdminMenuPlanningPage() {
       } else {
         toast.success('Menu plan saved.')
       }
-      loadPlannedDates().catch(() => {})
+      loadHistory().catch(() => {})
     } catch (err) {
       toast.error(err.message)
     } finally {
@@ -101,7 +150,9 @@ export function AdminMenuPlanningPage() {
         <h2>Menu planning</h2>
         <p>
           Pick a date and plan morning and/or evening — you do not need both.
-          Add a note per slot to inform everyone (shown on menu cards).
+          Notes for everyone and for Maharaj can be set per slot. Selected dishes
+          show Good/Okay/Bad counts; use the info button for date- and person-wise
+          reviews from the last 5 cooks.
         </p>
       </header>
 
@@ -115,10 +166,11 @@ export function AdminMenuPlanningPage() {
           ) : (
             <div className="admin-grid">
               <section className="admin-preview">
-                <h3>Preview</h3>
-                <MenuCard
-                  menu={menu ? { ...menu, date: selectedDate } : null}
+                <h3>Preview &amp; feedback</h3>
+                <PlanningSelectionPreview
+                  draft={draft}
                   catalog={catalog}
+                  itemHistoryById={itemHistoryById}
                 />
               </section>
               <section className="admin-editor">
@@ -130,6 +182,9 @@ export function AdminMenuPlanningPage() {
                   categoryIds={categoryIds}
                   onSave={handleSave}
                   saving={saving}
+                  cookCounts={cookCounts}
+                  sentimentByItem={sentimentByItem}
+                  onDraftChange={handleDraftChange}
                 />
               </section>
             </div>

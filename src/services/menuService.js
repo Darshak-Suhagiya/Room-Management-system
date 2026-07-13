@@ -67,6 +67,8 @@ function parseMenuDoc(snap, categoryIds) {
       : null,
     morningNote: data.morningNote ?? '',
     eveningNote: data.eveningNote ?? '',
+    morningMaharajNote: data.morningMaharajNote ?? '',
+    eveningMaharajNote: data.eveningMaharajNote ?? '',
     totalOverrides: normalizeTotalOverrides(data.totalOverrides),
     updatedAt: data.updatedAt,
     updatedBy: data.updatedBy,
@@ -105,7 +107,16 @@ export async function getAllPlannedMenus(categoryIds = []) {
 
 export async function saveMenu(
   dateId,
-  { hasMorning, hasEvening, morning, evening, morningNote, eveningNote },
+  {
+    hasMorning,
+    hasEvening,
+    morning,
+    evening,
+    morningNote,
+    eveningNote,
+    morningMaharajNote,
+    eveningMaharajNote,
+  },
   userId,
   categoryIds,
 ) {
@@ -130,6 +141,8 @@ export async function saveMenu(
     evening,
     morningNote,
     eveningNote,
+    morningMaharajNote,
+    eveningMaharajNote,
   }
 
   const clearedSlots = []
@@ -163,18 +176,24 @@ export async function saveMenu(
     payload.morning = normalizeSlot(morning, categoryIds)
     const note = (morningNote ?? '').trim()
     payload.morningNote = note || deleteField()
+    const cookNote = (morningMaharajNote ?? '').trim()
+    payload.morningMaharajNote = cookNote || deleteField()
   } else {
     payload.morning = deleteField()
     payload.morningNote = deleteField()
+    payload.morningMaharajNote = deleteField()
   }
 
   if (hasEvening) {
     payload.evening = normalizeSlot(evening, categoryIds)
     const note = (eveningNote ?? '').trim()
     payload.eveningNote = note || deleteField()
+    const cookNote = (eveningMaharajNote ?? '').trim()
+    payload.eveningMaharajNote = cookNote || deleteField()
   } else {
     payload.evening = deleteField()
     payload.eveningNote = deleteField()
+    payload.eveningMaharajNote = deleteField()
   }
 
   await setDoc(ref, payload, { merge: true })

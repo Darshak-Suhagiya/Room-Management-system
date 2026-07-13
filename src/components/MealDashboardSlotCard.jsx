@@ -5,6 +5,7 @@ import { groupPlannedByCategory } from '../utils/groupMenuByCategory'
 import { formatItemVoteSummary } from '../utils/voteDisplayUtils'
 import { MenuSlotNote } from './MenuSlotNote'
 import { SlotCardToolbar } from './SlotCardToolbar'
+import { CookItemInfoButton } from './MenuItemDetailModal'
 
 export function MealDashboardSlotCard({
   entry,
@@ -18,12 +19,20 @@ export function MealDashboardSlotCard({
   refreshing = false,
   onToggleLock,
   onRefresh,
+  showEveryoneNote = true,
+  showMaharajNote = false,
+  showCookItemDetails = false,
+  onOpenItemDetail,
 }) {
   const slotInfo = MEAL_SLOTS[entry.slot]
-  const slotNote =
+  const everyoneNote =
     entry.slot === 'morning'
       ? entry.menu?.morningNote
       : entry.menu?.eveningNote
+  const maharajNote =
+    entry.slot === 'morning'
+      ? entry.menu?.morningMaharajNote
+      : entry.menu?.eveningMaharajNote
   const [locked, setLocked] = useState(false)
 
   useEffect(() => {
@@ -55,7 +64,16 @@ export function MealDashboardSlotCard({
             />
           )}
         </div>
-        <MenuSlotNote note={slotNote} slot={entry.slot} />
+        {showEveryoneNote && (
+          <MenuSlotNote note={everyoneNote} slot={entry.slot} />
+        )}
+        {showMaharajNote && (
+          <MenuSlotNote
+            note={maharajNote}
+            slot={entry.slot}
+            label="Cook note"
+          />
+        )}
         <p className="muted">Loading…</p>
       </article>
     )
@@ -89,7 +107,12 @@ export function MealDashboardSlotCard({
           Details →
         </button>
       </div>
-      <MenuSlotNote note={slotNote} slot={entry.slot} />
+      {showEveryoneNote && (
+        <MenuSlotNote note={everyoneNote} slot={entry.slot} />
+      )}
+      {showMaharajNote && (
+        <MenuSlotNote note={maharajNote} slot={entry.slot} label="Cook note" />
+      )}
 
       <button
         type="button"
@@ -114,7 +137,15 @@ export function MealDashboardSlotCard({
                     }
                   >
                     <div className="menu-item-with-vote">
-                      <span className="menu-item-name">{item.gu}</span>
+                      <span className="menu-item-name menu-item-name-with-info">
+                        {item.gu}
+                        {showCookItemDetails && (
+                          <CookItemInfoButton
+                            item={item}
+                            onOpen={onOpenItemDetail}
+                          />
+                        )}
+                      </span>
                       <span className="vote-badge vote-badge-summary">
                         {formatItemVoteSummary(stat, showVoteBreakdown)}
                       </span>

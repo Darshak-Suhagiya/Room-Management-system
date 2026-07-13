@@ -16,8 +16,12 @@ import { VerifyEmailPage } from './pages/VerifyEmailPage'
 import { AuthActionPage } from './pages/AuthActionPage'
 import { AuthQueryRedirect } from './components/AuthQueryRedirect'
 import { AdminSevaPage } from './pages/AdminSevaPage'
-import { SevaViewPage } from './pages/SevaViewPage'
+import { SevaOverviewPage } from './pages/SevaOverviewPage'
+import { SevaPrintablePage } from './pages/SevaPrintablePage'
 import { AllMenusPage } from './pages/AllMenusPage'
+import { MenuAnalyticsPage } from './pages/MenuAnalyticsPage'
+import { LeaveCalendarPage } from './pages/LeaveCalendarPage'
+import { AdminNoticesPage } from './pages/AdminNoticesPage'
 import './App.css'
 
 function App() {
@@ -47,11 +51,28 @@ function App() {
           >
             <Route index element={<HomePage />} />
             <Route path="menus" element={<AllMenusPage />} />
-            <Route path="seva" element={<SevaViewPage />} />
+            <Route path="leaves" element={<LeaveCalendarPage />} />
+            <Route
+              path="admin/notices"
+              element={
+                <ProtectedRoute noticesAccess>
+                  <AdminNoticesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="analytics"
+              element={
+                <ProtectedRoute menuAnalyticsAccess>
+                  <MenuAnalyticsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route path="seva" element={<SevaOverviewPage />} />
             <Route
               path="admin/planning"
               element={
-                <ProtectedRoute adminOnly>
+                <ProtectedRoute menuPlanningAccess>
                   <AdminMenuPlanningPage />
                 </ProtectedRoute>
               }
@@ -59,7 +80,7 @@ function App() {
             <Route
               path="admin/catalog"
               element={
-                <ProtectedRoute adminOnly>
+                <ProtectedRoute menuCatalogAccess>
                   <AdminMenuCatalogPage />
                 </ProtectedRoute>
               }
@@ -75,15 +96,23 @@ function App() {
             <Route
               path="admin/seva"
               element={
-                <ProtectedRoute adminOnly>
+                <ProtectedRoute sevaManageAccess>
                   <AdminSevaPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="admin/seva-printable"
+              element={
+                <ProtectedRoute sevaManageAccess>
+                  <SevaPrintablePage />
                 </ProtectedRoute>
               }
             />
             <Route
               path="admin/users"
               element={
-                <ProtectedRoute adminOnly>
+                <ProtectedRoute usersAccess>
                   <AdminUsersPage />
                 </ProtectedRoute>
               }

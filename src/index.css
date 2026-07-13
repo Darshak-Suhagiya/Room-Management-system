@@ -1,4 +1,10 @@
 @import './styles/tokens.css';
+@import './styles/themes/teal-slate.css';
+@import './styles/themes/ocean-azure.css';
+@import './styles/themes/evergreen.css';
+@import './styles/themes/amber-dusk.css';
+@import './styles/themes/indigo-mist.css';
+@import './styles/themes/clay-rose.css';
 @import './styles/teal-slate-ui.css';
 
 :root {

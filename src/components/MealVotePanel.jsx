@@ -11,11 +11,17 @@ import {
 } from '../utils/menuVoteUtils'
 import { groupPlannedByCategory } from '../utils/groupMenuByCategory'
 import { isPastDate } from '../utils/mealDateUtils'
+import { getItemReview, collectSlotItemReviews } from '../utils/menuReviewUtils'
 import { parseQuantityInput } from '../utils/voteQuantityUtils'
 import { MenuSlotNote } from './MenuSlotNote'
 import {
+  MealItemReviewEditor,
+  OthersItemReviews,
+} from './MealItemReview'
+import {
   saveMealParticipation,
   subscribeMealParticipation,
+  subscribeParticipationsForSlot,
 } from '../services/participationService'
 import { useToast } from '../contexts/ToastContext'
 import {
@@ -106,6 +112,9 @@ export function MealVotePanel({
   locked = false,
   refreshing = false,
   onRefresh,
+  displayName = '',
+  canReview = true,
+  showOthersFeedback = false,
 }) {
   const slotInfo = MEAL_SLOTS[slot]
   const SlotIcon = slot === 'morning' ? IconSun : IconMoon
@@ -126,6 +135,7 @@ export function MealVotePanel({
       : null
 
   const [participation, setParticipation] = useState(null)
+  const [slotParticipations, setSlotParticipations] = useState([])
   const [notEating, setNotEating] = useState(false)
   const [votes, setVotes] = useState({})
   const [editing, setEditing] = useState(false)
@@ -147,9 +157,26 @@ export function MealVotePanel({
     })
   }, [userId, dateId, slot])
 
+  useEffect(() => {
+    // Load everyone else's reviews whenever reviews are allowed — no vote required to read.
+    if (!canReview) {
+      setSlotParticipations([])
+      return undefined
+    }
+    return subscribeParticipationsForSlot(dateId, slot, setSlotParticipations)
+  }, [dateId, slot, canReview])
+
+  const othersParticipations = canReview ? slotParticipations : []
+
   const isComplete =
     hydrated && hasMealVoteComplete(participation, plannedItems)
   const showForm = !readOnly && (!isComplete || editing)
+  // Leave your own review only after a complete "eating" vote (while not editing votes)
+  const canLeaveOwnReview =
+    canReview && isComplete && !notEating && !showForm
+  // Anyone with review access can browse feedback (toggle optional for clutter)
+  const showFeedbackSection = canReview && hydrated
+  const showOthersInSection = showFeedbackSection && showOthersFeedback
 
   useEffect(() => {
     setEditing(false)
@@ -228,6 +255,54 @@ export function MealVotePanel({
     : isComplete
       ? 'vote-status-done'
       : 'vote-status-pending'
+
+  const renderFeedbackSection = () => {
+    if (!showFeedbackSection || plannedItems.length === 0) return null
+
+    return (
+      <section className="meal-feedback-section" aria-label="Reviews and feedback">
+        <div className="meal-feedback-separator" aria-hidden />
+        <header className="meal-feedback-head">
+          <h4 className="meal-feedback-title">Reviews &amp; feedback</h4>
+          <p className="muted meal-feedback-sub">
+            {canLeaveOwnReview
+              ? 'Rate dishes you ate, and read what others shared.'
+              : showOthersInSection
+                ? 'Everyone’s feedback for this meal — vote first if you want to leave your own.'
+                : 'Turn on “Show everyone’s feedback” in Quick links to read reviews.'}
+          </p>
+        </header>
+        <ul className="meal-feedback-list">
+          {plannedItems.map((item) => {
+            const ownReview = getItemReview(participation?.reviews, item.id)
+            const others = collectSlotItemReviews(othersParticipations, item.id)
+            return (
+              <li key={item.id} className="meal-feedback-item">
+                <div className="meal-feedback-item-name">{item.gu}</div>
+                {canLeaveOwnReview ? (
+                  <MealItemReviewEditor
+                    key={`${item.id}-${ownReview?.updatedAt ?? 'new'}`}
+                    userId={userId}
+                    dateId={dateId}
+                    slot={slot}
+                    itemId={item.id}
+                    displayName={displayName}
+                    review={ownReview}
+                  />
+                ) : null}
+                {showOthersInSection ? (
+                  <div className="review-others-wrap">
+                    <span className="review-others-label">Everyone’s feedback</span>
+                    <OthersItemReviews reviews={others} currentUserId={userId} />
+                  </div>
+                ) : null}
+              </li>
+            )
+          })}
+        </ul>
+      </section>
+    )
+  }
 
   return (
     <article
@@ -396,6 +471,8 @@ export function MealVotePanel({
           )}
         </>
       )}
+
+      {renderFeedbackSection()}
     </article>
   )
 }

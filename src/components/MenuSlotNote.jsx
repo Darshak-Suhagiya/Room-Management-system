@@ -1,5 +1,10 @@
 /** Notice shown under a meal slot header (morning/evening). */
-export function MenuSlotNote({ note, slot, className = '' }) {
+export function MenuSlotNote({
+  note,
+  slot,
+  className = '',
+  label = 'Notice',
+}) {
   const text = (note ?? '').trim()
   if (!text) return null
 
@@ -10,9 +15,9 @@ export function MenuSlotNote({ note, slot, className = '' }) {
     <div
       className={`menu-slot-note ${slotClass} ${className}`.trim()}
       role="note"
-      aria-label="Menu notice"
+      aria-label={label}
     >
-      <span className="menu-slot-note-label">Notice</span>
+      <span className="menu-slot-note-label">{label}</span>
       <p className="menu-slot-note-text">{text}</p>
     </div>
   )

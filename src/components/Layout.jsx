@@ -3,10 +3,13 @@ import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import {
   BarChart3,
   CalendarDays,
+  CalendarOff,
   LayoutGrid,
   ListChecks,
   LogOut,
+  Megaphone,
   Menu as MenuIcon,
+  Printer,
   Sparkles,
   Users,
   UtensilsCrossed,
@@ -15,10 +18,21 @@ import {
 import { useAuth } from '../contexts/AuthContext'
 import { ThemeSwitcher } from './ThemeSwitcher'
 import { getRoleLabel, getUserInitials } from '../utils/userDisplay'
+import { listActiveNotices } from '../services/noticeService'
 
 export function Layout() {
-  const { profile, isAdmin, isMaharaj, canAccessVoteDashboard, logout } =
-    useAuth()
+  const {
+    profile,
+    isMaharaj,
+    canAccessVoteDashboard,
+    canPlanMenus,
+    canEditMenuCatalog,
+    canManageUsers,
+    canManageSeva,
+    canManageNotices,
+    canViewNoticeAnalytics,
+    logout,
+  } = useAuth()
   const location = useLocation()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const scrimRef = useRef(null)
@@ -26,6 +40,18 @@ export function Layout() {
   useEffect(() => {
     setSidebarOpen(false)
   }, [location.pathname])
+
+  // Warm active-notices cache so banners paint faster on My Meals / Seva
+  useEffect(() => {
+    if (!profile?.id) return undefined
+    let cancelled = false
+    listActiveNotices().catch((err) => {
+      if (!cancelled) console.error('prefetch notices', err)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [profile?.id])
 
   useEffect(() => {
     if (!sidebarOpen) return undefined
@@ -36,12 +62,13 @@ export function Layout() {
     return () => document.removeEventListener('keydown', onKeyDown)
   }, [sidebarOpen])
 
-  const roleLabel = getRoleLabel(profile, { isAdmin, isMaharaj })
+  const roleLabel = getRoleLabel(profile)
   const initials = getUserInitials(profile?.displayName, profile?.email)
 
   const mainLinks = [
     !isMaharaj && { to: '/', end: true, label: 'My Meals', icon: UtensilsCrossed },
     !isMaharaj && { to: '/seva', label: 'Room Seva', icon: Sparkles },
+    { to: '/leaves', label: 'Leave calendar', icon: CalendarOff },
     canAccessVoteDashboard && {
       to: '/admin/votes',
       label: 'Vote Dashboard',
@@ -49,14 +76,30 @@ export function Layout() {
     },
   ].filter(Boolean)
 
-  const manageLinks = isAdmin
-    ? [
-        { to: '/admin/planning', label: 'Menu Planning', icon: CalendarDays },
-        { to: '/admin/catalog', label: 'Menu Editing', icon: ListChecks },
-        { to: '/admin/users', label: 'Users', icon: Users },
-        { to: '/admin/seva', label: 'Seva Admin', icon: LayoutGrid },
-      ]
-    : []
+  const manageLinks = [
+    canPlanMenus && {
+      to: '/admin/planning',
+      label: 'Menu Planning',
+      icon: CalendarDays,
+    },
+    canEditMenuCatalog && {
+      to: '/admin/catalog',
+      label: 'Menu Editing',
+      icon: ListChecks,
+    },
+    canManageUsers && { to: '/admin/users', label: 'Users', icon: Users },
+    (canManageNotices || canViewNoticeAnalytics) && {
+      to: '/admin/notices',
+      label: 'Notices',
+      icon: Megaphone,
+    },
+    canManageSeva && { to: '/admin/seva', label: 'Seva Admin', icon: LayoutGrid },
+    canManageSeva && {
+      to: '/admin/seva-printable',
+      label: 'Room Seva Printable',
+      icon: Printer,
+    },
+  ].filter(Boolean)
 
   const renderLink = ({ to, end, label, icon: Icon }) => (
     <NavLink

@@ -1,5 +1,13 @@
 import { Navigate } from 'react-router-dom'
-import { canAccessVoteDashboard } from '../config/rolePermissions'
+import {
+  canAccessVoteDashboard,
+  canEditMenuCatalog,
+  canManageSeva,
+  canManageUsers,
+  canPlanMenus,
+  canSeeMenuAnalytics,
+  canViewNoticeAnalytics,
+} from '../config/rolePermissions'
 import { useAuth } from '../contexts/AuthContext'
 import { isUserApproved } from '../services/userService'
 
@@ -7,6 +15,12 @@ export function ProtectedRoute({
   children,
   adminOnly = false,
   voteDashboardAccess = false,
+  menuPlanningAccess = false,
+  menuCatalogAccess = false,
+  usersAccess = false,
+  sevaManageAccess = false,
+  menuAnalyticsAccess = false,
+  noticesAccess = false,
 }) {
   const { user, profile, loading, isConfigured, needsEmailVerification } =
     useAuth()
@@ -44,6 +58,30 @@ export function ProtectedRoute({
   }
 
   if (voteDashboardAccess && !canAccessVoteDashboard(profile)) {
+    return <Navigate to="/" replace />
+  }
+
+  if (menuPlanningAccess && !canPlanMenus(profile)) {
+    return <Navigate to="/" replace />
+  }
+
+  if (menuCatalogAccess && !canEditMenuCatalog(profile)) {
+    return <Navigate to="/" replace />
+  }
+
+  if (usersAccess && !canManageUsers(profile)) {
+    return <Navigate to="/" replace />
+  }
+
+  if (sevaManageAccess && !canManageSeva(profile)) {
+    return <Navigate to="/" replace />
+  }
+
+  if (menuAnalyticsAccess && !canSeeMenuAnalytics(profile)) {
+    return <Navigate to="/" replace />
+  }
+
+  if (noticesAccess && !canViewNoticeAnalytics(profile)) {
     return <Navigate to="/" replace />
   }
 

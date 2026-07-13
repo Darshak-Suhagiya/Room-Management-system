@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { MealVotePanel } from '../components/MealVotePanel'
 import { MealCalendar } from '../components/MealCalendar'
+import { NoticeBannerSlot } from '../components/NoticeBannerSlot'
+import { NOTICE_PAGES } from '../config/constants'
 import { useMenuCatalog } from '../hooks/useMenuCatalog'
 import { getAllPlannedMenus } from '../services/menuService'
 import { subscribeVoteLock } from '../services/voteLockService'
@@ -12,6 +14,7 @@ import {
   BarChart3 as IconChart,
   CalendarDays as IconPlanning,
   Calendar as IconCalendar,
+  ChartPie as IconAnalytics,
   ListChecks as IconCatalog,
   Sparkles as IconSeva,
   Table as IconTable,
@@ -24,7 +27,17 @@ import {
   sortMenusByDateDesc,
 } from '../utils/mealDateUtils'
 
-function SlotWithLock({ userId, dateId, slot, menu, catalog, onReloadMenus }) {
+function SlotWithLock({
+  userId,
+  dateId,
+  slot,
+  menu,
+  catalog,
+  onReloadMenus,
+  displayName,
+  canReview,
+  showOthersFeedback,
+}) {
   const [locked, setLocked] = useState(false)
   const [refreshTick, setRefreshTick] = useState(0)
   const [refreshing, setRefreshing] = useState(false)
@@ -56,53 +69,93 @@ function SlotWithLock({ userId, dateId, slot, menu, catalog, onReloadMenus }) {
       locked={locked}
       refreshing={refreshing}
       onRefresh={handleRefresh}
+      displayName={displayName}
+      canReview={canReview}
+      showOthersFeedback={showOthersFeedback}
     />
   )
 }
 
-function QuickLinks({ isMaharaj, isAdmin, canAccessVoteDashboard }) {
+function QuickLinks({
+  isMaharaj,
+  canAccessVoteDashboard,
+  canPlanMenus,
+  canEditMenuCatalog,
+  canSeeMealReviews,
+  canSeeMenuAnalytics,
+  showOthersFeedback,
+  onToggleOthersFeedback,
+}) {
   const links = [
+    !isMaharaj && { to: '/menus', label: 'All menus', icon: IconTable },
     !isMaharaj && { to: '/seva', label: 'Room Seva', icon: IconSeva },
+    canSeeMenuAnalytics && {
+      to: '/analytics',
+      label: 'Menu Analytics',
+      icon: IconAnalytics,
+    },
     canAccessVoteDashboard && {
       to: '/admin/votes',
       label: 'Vote Dashboard',
       icon: IconChart,
     },
-    isAdmin && {
+    canPlanMenus && {
       to: '/admin/planning',
       label: 'Menu Planning',
       icon: IconPlanning,
     },
-    isAdmin && {
+    canEditMenuCatalog && {
       to: '/admin/catalog',
       label: 'Menu Editing',
       icon: IconCatalog,
     },
   ].filter(Boolean)
 
-  if (links.length === 0) return null
+  if (links.length === 0 && !canSeeMealReviews) return null
 
   return (
     <div className="rail-card quick-links-card">
       <h3 className="rail-card-title">Quick links</h3>
-      <ul className="rail-link-list">
-        {links.map(({ to, label, icon: Icon }) => (
-          <li key={to}>
-            <Link to={to} className="rail-link">
-              <span className="rail-link-icon" aria-hidden>
-                <Icon size={18} />
-              </span>
-              <span>{label}</span>
-            </Link>
-          </li>
-        ))}
-      </ul>
+      {links.length > 0 && (
+        <ul className="rail-link-list">
+          {links.map(({ to, label, icon: Icon }) => (
+            <li key={to}>
+              <Link to={to} className="rail-link">
+                <span className="rail-link-icon" aria-hidden>
+                  <Icon size={18} />
+                </span>
+                <span>{label}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+      {canSeeMealReviews && (
+        <label className="feedback-switch">
+          <span className="feedback-switch-label">Show everyone’s feedback</span>
+          <span className="feedback-switch-control">
+            <input
+              type="checkbox"
+              role="switch"
+              checked={showOthersFeedback}
+              onChange={onToggleOthersFeedback}
+              aria-label="Show everyone’s feedback"
+            />
+            <span className="feedback-switch-track" aria-hidden>
+              <span className="feedback-switch-thumb" />
+            </span>
+          </span>
+        </label>
+      )}
     </div>
   )
 }
 
+const SHOW_FEEDBACK_KEY = 'rm-show-everyone-feedback'
+
 export function UserDashboardPage() {
-  const { user, isMaharaj, isAdmin, canAccessVoteDashboard } = useAuth()
+  const { user, profile, isMaharaj, canAccessVoteDashboard, canPlanMenus, canEditMenuCatalog, canSeeMealReviews, canSeeMenuAnalytics } =
+    useAuth()
   const {
     catalog,
     loading: catalogLoading,
@@ -115,9 +168,32 @@ export function UserDashboardPage() {
   const [error, setError] = useState('')
   const [selectedDate, setSelectedDate] = useState(null)
   const [participations, setParticipations] = useState([])
+  const [showOthersFeedback, setShowOthersFeedback] = useState(() => {
+    try {
+      const stored = localStorage.getItem(SHOW_FEEDBACK_KEY)
+      if (stored === null) return true
+      return stored === '1'
+    } catch {
+      return true
+    }
+  })
 
   const categoryKey = categoryIds.join(',')
   const today = formatDateId(new Date())
+  const displayName =
+    profile?.displayName || user?.displayName || user?.email?.split('@')[0] || 'Member'
+
+  const toggleOthersFeedback = () => {
+    setShowOthersFeedback((prev) => {
+      const next = !prev
+      try {
+        localStorage.setItem(SHOW_FEEDBACK_KEY, next ? '1' : '0')
+      } catch {
+        /* ignore */
+      }
+      return next
+    })
+  }
 
   const loadMenus = useCallback(async () => {
     const data = await getAllPlannedMenus(categoryIds)
@@ -213,6 +289,7 @@ export function UserDashboardPage() {
 
   return (
     <div className="page meals-page">
+      <NoticeBannerSlot page={NOTICE_PAGES.MEALS} />
       <header className="page-header page-header-icon">
         <span className="page-header-icon-wrap" aria-hidden>
           <IconUtensils size={22} />
@@ -221,10 +298,6 @@ export function UserDashboardPage() {
           <h2>My meals</h2>
           <p>Pick a day on the calendar. Your vote appears next to each item.</p>
         </div>
-        <Link to="/menus" className="btn btn-secondary btn-sm header-action-btn">
-          <IconTable size={16} />
-          All menus
-        </Link>
       </header>
 
       {seeding && <p className="muted">Loading menus…</p>}
@@ -261,6 +334,9 @@ export function UserDashboardPage() {
                     menu={selectedMenu}
                     catalog={catalog}
                     onReloadMenus={loadMenus}
+                    displayName={displayName}
+                    canReview={canSeeMealReviews}
+                    showOthersFeedback={showOthersFeedback}
                   />
                 )}
                 {selectedMenu.hasEvening && (
@@ -271,6 +347,9 @@ export function UserDashboardPage() {
                     menu={selectedMenu}
                     catalog={catalog}
                     onReloadMenus={loadMenus}
+                    displayName={displayName}
+                    canReview={canSeeMealReviews}
+                    showOthersFeedback={showOthersFeedback}
                   />
                 )}
               </div>
@@ -288,8 +367,13 @@ export function UserDashboardPage() {
           />
           <QuickLinks
             isMaharaj={isMaharaj}
-            isAdmin={isAdmin}
             canAccessVoteDashboard={canAccessVoteDashboard}
+            canPlanMenus={canPlanMenus}
+            canEditMenuCatalog={canEditMenuCatalog}
+            canSeeMealReviews={canSeeMealReviews}
+            canSeeMenuAnalytics={canSeeMenuAnalytics}
+            showOthersFeedback={showOthersFeedback}
+            onToggleOthersFeedback={toggleOthersFeedback}
           />
         </aside>
       </div>

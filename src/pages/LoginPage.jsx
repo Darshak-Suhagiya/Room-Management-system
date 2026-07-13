@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { CalendarCheck, ShieldCheck, UtensilsCrossed, Vote } from 'lucide-react'
 import { hasAuthActionParams } from '../lib/parseAuthActionParams'
 import { useAuth } from '../contexts/AuthContext'
@@ -229,14 +229,6 @@ export function LoginPage() {
             signup verification email.
           </p>
         )}
-        <p className="auth-hint">
-          First admin: set <code>role</code> to <code>admin</code> and{' '}
-          <code>status</code> to <code>approved</code> in Firestore{' '}
-          <code>users/{'{uid}'}</code>.
-        </p>
-        <Link to="/setup" className="text-link">
-          Firebase setup help
-        </Link>
         <div className="auth-theme-row">
           <ThemeSwitcher />
         </div>

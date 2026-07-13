@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { MealDashboardSlotCard } from '../components/MealDashboardSlotCard'
 import { MealSlotDetailModal } from '../components/MealSlotDetailModal'
+import { MenuItemDetailModal } from '../components/MenuItemDetailModal'
 import { MEAL_SLOTS } from '../config/menuItems'
 import { useAuth } from '../contexts/AuthContext'
 import { useMenuCatalog } from '../hooks/useMenuCatalog'
@@ -44,11 +45,11 @@ function groupSlotsByDate(slots) {
 export function AdminVotesDashboardPage() {
   const {
     user,
-    isAdmin,
     isMaharaj,
     canLockVotes,
     canAdjustVoteTotals,
     showVoteCountBreakdown,
+    canSeeMaharajMenuDetails,
   } = useAuth()
   const toast = useToast()
   const { catalog, loading: catalogLoading, categoryIds } = useMenuCatalog({
@@ -66,6 +67,7 @@ export function AdminVotesDashboardPage() {
   const [slotFilter, setSlotFilter] = useState('all')
   const [page, setPage] = useState(0)
   const [modalSlot, setModalSlot] = useState(null)
+  const [itemDetail, setItemDetail] = useState(null)
   const [busyKey, setBusyKey] = useState(null)
   const [overrideSavingId, setOverrideSavingId] = useState(null)
   const todayRef = useRef(null)
@@ -249,12 +251,17 @@ export function AdminVotesDashboardPage() {
       setStatsByKey((prev) => ({ ...prev, [entry.key]: stats }))
       setModalSlot((prev) => {
         if (!prev || prev.entry?.key !== entry.key) return prev
-        const slotNote =
+        const everyoneNote =
           entry.slot === 'morning' ? menu.morningNote : menu.eveningNote
+        const cookNote =
+          entry.slot === 'morning'
+            ? menu.morningMaharajNote
+            : menu.eveningMaharajNote
         return {
           ...prev,
           stats,
-          slotNote,
+          everyoneNote: !isMaharaj ? everyoneNote : '',
+          cookNote: canSeeMaharajMenuDetails ? cookNote : '',
           entry: { ...entry, menu },
         }
       })
@@ -313,16 +320,21 @@ export function AdminVotesDashboardPage() {
   }
 
   const openCardModal = (stats, entry) => {
-    const slotNote =
+    const everyoneNote =
       entry.slot === 'morning'
         ? entry.menu?.morningNote
         : entry.menu?.eveningNote
+    const cookNote =
+      entry.slot === 'morning'
+        ? entry.menu?.morningMaharajNote
+        : entry.menu?.eveningMaharajNote
     setModalSlot({
       stats,
       entry,
       dateLabel: formatDisplayDateGu(entry.date),
       mealLabel: MEAL_SLOTS[entry.slot].labelEn,
-      slotNote,
+      everyoneNote: !isMaharaj ? everyoneNote : '',
+      cookNote: canSeeMaharajMenuDetails ? cookNote : '',
       slot: entry.slot,
     })
   }
@@ -337,10 +349,10 @@ export function AdminVotesDashboardPage() {
         <h2>Vote dashboard</h2>
         <p>
           {isMaharaj
-            ? 'View adjusted meal totals. Lock or unlock voting per slot.'
-            : isAdmin
+            ? 'View adjusted meal totals, cook notes, and dish notes/recipes. Lock or unlock voting per slot.'
+            : canAdjustVoteTotals
               ? `Default: today and tomorrow — ${users.length} members in counts. Lock, refresh, and adjust totals on each card.`
-              : `View-only — ${users.length} members in counts. Open a card for details.`}
+              : `View votes — ${users.length} members in counts. Open a card for details.`}
         </p>
       </header>
 
@@ -436,6 +448,10 @@ export function AdminVotesDashboardPage() {
                       showVoteBreakdown={showVoteCountBreakdown}
                       lockBusy={busyKey === `lock-${entry.key}`}
                       refreshing={busyKey === `refresh-${entry.key}`}
+                      showEveryoneNote={!isMaharaj}
+                      showMaharajNote={canSeeMaharajMenuDetails}
+                      showCookItemDetails={canSeeMaharajMenuDetails}
+                      onOpenItemDetail={setItemDetail}
                       onToggleLock={
                         canLockVotes
                           ? (locked) => handleToggleLock(entry, locked)
@@ -471,7 +487,8 @@ export function AdminVotesDashboardPage() {
           stats={modalSlot.stats}
           dateLabel={modalSlot.dateLabel}
           mealLabel={modalSlot.mealLabel}
-          slotNote={modalSlot.slotNote}
+          everyoneNote={modalSlot.everyoneNote}
+          cookNote={modalSlot.cookNote}
           slot={modalSlot.slot}
           canAdjustTotals={canAdjustVoteTotals}
           showVoteBreakdown={showVoteCountBreakdown}
@@ -483,6 +500,12 @@ export function AdminVotesDashboardPage() {
               : undefined
           }
           onClose={() => setModalSlot(null)}
+        />
+      )}
+      {itemDetail && (
+        <MenuItemDetailModal
+          item={itemDetail}
+          onClose={() => setItemDetail(null)}
         />
       )}
     </div>

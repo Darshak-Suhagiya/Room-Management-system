@@ -351,6 +351,14 @@ export function SevaPrefillPanel({ config, onRulesChange, onPrefillResult }) {
             return (
               <article key={rule.id} className="seva-prefill-rule-card">
                 <div className="seva-prefill-rule-head">
+                  <div className="seva-prefill-rule-title-block">
+                    <h4 className="seva-prefill-rule-title">
+                      {def?.labelGu ?? rule.type}
+                    </h4>
+                    <span className="seva-prefill-rule-summary">
+                      {ruleSummary(rule, config)}
+                    </span>
+                  </div>
                   <label className="seva-prefill-enable">
                     <input
                       type="checkbox"
@@ -374,9 +382,6 @@ export function SevaPrefillPanel({ config, onRulesChange, onPrefillResult }) {
                       }
                     />
                   </label>
-                  <span className="seva-prefill-rule-summary">
-                    {ruleSummary(rule, config)}
-                  </span>
                   <div className="seva-prefill-rule-actions">
                     <button
                       type="button"
