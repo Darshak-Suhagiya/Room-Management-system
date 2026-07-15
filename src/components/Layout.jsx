@@ -9,6 +9,7 @@ import {
   LogOut,
   Megaphone,
   Menu as MenuIcon,
+  Bell,
   Printer,
   Sparkles,
   Users,
@@ -31,6 +32,7 @@ export function Layout() {
     canManageSeva,
     canManageNotices,
     canViewNoticeAnalytics,
+    canManagePush,
     logout,
   } = useAuth()
   const location = useLocation()
@@ -92,6 +94,11 @@ export function Layout() {
       to: '/admin/notices',
       label: 'Notices',
       icon: Megaphone,
+    },
+    canManagePush && {
+      to: '/admin/push',
+      label: 'Push notifications',
+      icon: Bell,
     },
     canManageSeva && { to: '/admin/seva', label: 'Seva Admin', icon: LayoutGrid },
     canManageSeva && {

@@ -22,6 +22,31 @@ export const COLLECTIONS = {
   VOTE_LOCKS: 'voteLocks',
   LEAVE_ENTRIES: 'leaveEntries',
   NOTICES: 'notices',
+  PUSH_SETTINGS: 'pushSettings',
+  PUSH_JOBS: 'pushJobs',
+  PUSH_LOGS: 'pushLogs',
+  PUSH_DIGEST_CURSOR: 'pushDigestCursor',
+}
+
+export const PUSH_AUDIENCE_TYPES = {
+  ALL: 'all',
+  NOT_VOTED: 'not_voted',
+  ROLES: 'roles',
+  USERS: 'users',
+}
+
+export const PUSH_JOB_KINDS = {
+  CUSTOM: 'custom',
+  MENU_DIGEST: 'menu_digest',
+  DAILY_DIGEST: 'daily_digest',
+}
+
+export const PUSH_JOB_STATUS = {
+  SCHEDULED: 'scheduled',
+  SENDING: 'sending',
+  SENT: 'sent',
+  FAILED: 'failed',
+  CANCELLED: 'cancelled',
 }
 
 export const NOTICE_TONES = {

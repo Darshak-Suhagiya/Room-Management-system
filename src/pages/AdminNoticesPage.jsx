@@ -29,6 +29,7 @@ import {
   summarizeReceipts,
   updateNotice,
 } from '../services/noticeService'
+import { sendNoticePush } from '../services/pushAdminService'
 
 const EMPTY_FORM = {
   title: '',
@@ -227,7 +228,24 @@ export function AdminNoticesPage() {
       if (editingId) {
         await updateNotice(editingId, payload, user.uid)
       } else {
-        await createNotice(payload, user.uid)
+        const created = await createNotice(payload, user.uid)
+        try {
+          const pushRes = await sendNoticePush(created)
+          // Soft success: notice is saved even if nobody has tokens yet
+          if (pushRes?.tokenCount === 0) {
+            console.warn('Notice saved; no devices registered for push audience')
+          }
+        } catch (pushErr) {
+          console.error(pushErr)
+          setError(
+            `Notice saved, but push failed: ${pushErr.message || 'unknown error'}`,
+          )
+          setFormOpen(false)
+          setEditingId(null)
+          setForm(EMPTY_FORM)
+          await reload()
+          return
+        }
       }
       setFormOpen(false)
       setEditingId(null)

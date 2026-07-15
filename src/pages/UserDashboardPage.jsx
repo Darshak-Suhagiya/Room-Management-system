@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { MealVotePanel } from '../components/MealVotePanel'
 import { MealCalendar } from '../components/MealCalendar'
 import { NoticeBannerSlot } from '../components/NoticeBannerSlot'
+import { PushPermissionCard } from '../components/PushPermissionCard'
 import { NOTICE_PAGES } from '../config/constants'
 import { useMenuCatalog } from '../hooks/useMenuCatalog'
 import { getAllPlannedMenus } from '../services/menuService'
@@ -290,6 +291,7 @@ export function UserDashboardPage() {
   return (
     <div className="page meals-page">
       <NoticeBannerSlot page={NOTICE_PAGES.MEALS} />
+      <PushPermissionCard />
       <header className="page-header page-header-icon">
         <span className="page-header-icon-wrap" aria-hidden>
           <IconUtensils size={22} />

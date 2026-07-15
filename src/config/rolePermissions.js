@@ -123,6 +123,15 @@ export function canManageNotices(profile) {
   return isAdminRole(profile) || isRoomLeaderRole(profile)
 }
 
+/** Push notifications admin: admin, kitchen leader, or room leader. */
+export function canManagePush(profile) {
+  return (
+    isAdminRole(profile) ||
+    isKitchenLeaderRole(profile) ||
+    isRoomLeaderRole(profile)
+  )
+}
+
 /** View notice list + seen/read analytics: admin, room leader, or kitchen leader. */
 export function canViewNoticeAnalytics(profile) {
   return (

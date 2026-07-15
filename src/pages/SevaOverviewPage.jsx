@@ -7,6 +7,7 @@ import { SevaDutyCard } from '../components/seva/SevaDutyCard'
 import { SevaGroupLegend } from '../components/seva/SevaGroupLegend'
 import { SevaLoadOverview } from '../components/seva/SevaLoadOverview'
 import { NoticeBannerSlot } from '../components/NoticeBannerSlot'
+import { PushPermissionCard } from '../components/PushPermissionCard'
 import { NOTICE_PAGES } from '../config/constants'
 import { getPersonById } from '../utils/sevaLoadUtils'
 import {
@@ -37,6 +38,7 @@ export function SevaOverviewPage() {
   return (
     <div className="page seva-overview-page">
       <NoticeBannerSlot page={NOTICE_PAGES.SEVA} />
+      <PushPermissionCard />
       <header className="page-header page-header-icon">
         <span className="page-header-icon-wrap" aria-hidden>
           <Sparkles size={22} />

@@ -7,6 +7,7 @@ import {
   canPlanMenus,
   canSeeMenuAnalytics,
   canViewNoticeAnalytics,
+  canManagePush,
 } from '../config/rolePermissions'
 import { useAuth } from '../contexts/AuthContext'
 import { isUserApproved } from '../services/userService'
@@ -21,6 +22,7 @@ export function ProtectedRoute({
   sevaManageAccess = false,
   menuAnalyticsAccess = false,
   noticesAccess = false,
+  pushAccess = false,
 }) {
   const { user, profile, loading, isConfigured, needsEmailVerification } =
     useAuth()
@@ -82,6 +84,10 @@ export function ProtectedRoute({
   }
 
   if (noticesAccess && !canViewNoticeAnalytics(profile)) {
+    return <Navigate to="/" replace />
+  }
+
+  if (pushAccess && !canManagePush(profile)) {
     return <Navigate to="/" replace />
   }
 

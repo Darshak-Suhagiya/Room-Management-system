@@ -1,16 +1,37 @@
-# React + Vite
+# Room Management system
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React + Vite app with Firebase Auth/Firestore and **Vercel** for FCM push send.
 
-Currently, two official plugins are available:
+## Push notifications (send now only)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+1. Users enable notifications (My Meals / Room Seva) → FCM tokens saved in Firestore.
+2. Admins open **Push notifications** → **Send now** (quick digest or custom).
+3. Browser calls Vercel `/api/send-push`, which uses Firebase Admin + FCM.
 
-## React Compiler
+No Cloud Functions / Blaze required for push. No auto-scheduler.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### Setup
 
-## Expanding the ESLint configuration
+1. **VAPID key** — Firebase Console → Cloud Messaging → Web Push certificates → set `VITE_FIREBASE_VAPID_KEY` in `.env`.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+2. **Service account** — Firebase Console → Project settings → Service accounts → Generate new private key.  
+   On Vercel: Project → Settings → Environment Variables →  
+   `FIREBASE_SERVICE_ACCOUNT` = entire JSON as one string (production + preview).
+
+3. Deploy to Vercel (`vercel` / Git integration). Local API testing:
+   ```bash
+   npx vercel dev
+   ```
+   (Vite alone does not run `/api`.)
+
+### Permissions
+
+Send push: `admin` | `kitchen_leader` | `room_leader`
+
+## Scripts
+
+```bash
+npm run dev          # Vite UI only
+npx vercel dev       # UI + /api/send-push
+npm run build
+```

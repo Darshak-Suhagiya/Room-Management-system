@@ -22,6 +22,7 @@ import { AllMenusPage } from './pages/AllMenusPage'
 import { MenuAnalyticsPage } from './pages/MenuAnalyticsPage'
 import { LeaveCalendarPage } from './pages/LeaveCalendarPage'
 import { AdminNoticesPage } from './pages/AdminNoticesPage'
+import { AdminPushPage } from './pages/AdminPushPage'
 import './App.css'
 
 function App() {
@@ -57,6 +58,14 @@ function App() {
               element={
                 <ProtectedRoute noticesAccess>
                   <AdminNoticesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="admin/push"
+              element={
+                <ProtectedRoute pushAccess>
+                  <AdminPushPage />
                 </ProtectedRoute>
               }
             />
