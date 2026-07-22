@@ -192,3 +192,19 @@ export function formatVoteDisplay(item, val) {
   if (val === false) return 'No'
   return '—'
 }
+
+/** True if the user ate this item (yes vote or quantity > 0). */
+export function isReviewableItem(item, votes) {
+  const val = getVoteValue(votes, item.id)
+  if (item.voteType === VOTE_TYPES.INTEGER) {
+    const num = Number(val)
+    return isValidQuantity(num) && num > 0
+  }
+  return val === true
+}
+
+/** Planned items the user actually ate — eligible for dish reviews. */
+export function getReviewableItems(plannedItems, votes) {
+  if (!plannedItems?.length) return []
+  return plannedItems.filter((item) => isReviewableItem(item, votes))
+}

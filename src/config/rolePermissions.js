@@ -141,6 +141,32 @@ export function canViewNoticeAnalytics(profile) {
   )
 }
 
+/** Stocks + shopping pages: any profile with a role (approved users via route). */
+export function canViewStocks(profile) {
+  return Boolean(profile?.role)
+}
+
+/** Create groups, manage editors, create/assign shopping tickets. */
+export function canManageStocks(profile) {
+  return isAdminRole(profile) || isKitchenLeaderRole(profile)
+}
+
+/** Edit items / adjust qty in a group (managers or per-group editors). */
+export function canEditStockGroup(profile, group) {
+  if (canManageStocks(profile)) return true
+  const uid = profile?.id
+  if (!uid || !group) return false
+  return (group.editorUserIds ?? []).includes(uid)
+}
+
+/** Edit or check lines on a shopping ticket. */
+export function canEditShoppingTicket(profile, ticket) {
+  if (canManageStocks(profile)) return true
+  const uid = profile?.id
+  if (!uid || !ticket) return false
+  return (ticket.assigneeIds ?? []).includes(uid)
+}
+
 /**
  * Roles the actor may assign on the Users page.
  * Room leaders can assign any role except Admin.

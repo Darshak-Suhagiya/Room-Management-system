@@ -15,6 +15,7 @@ import {
 } from '../config/themes'
 import {
   applyAppearanceToDocument,
+  applyBrowserThemeColor,
   applyThemeSettings,
   applyThemeToDocument,
   getStoredAppearance,
@@ -67,6 +68,7 @@ export function ThemeProvider({ children }) {
     if (!THEMES[id]) return
     setThemeIdState(id)
     applyThemeToDocument(id)
+    applyBrowserThemeColor()
     persistThemeId(id)
   }, [])
 
@@ -74,6 +76,7 @@ export function ThemeProvider({ children }) {
     if (!APPEARANCES[id]) return
     setAppearanceState(id)
     applyAppearanceToDocument(id)
+    applyBrowserThemeColor()
     persistAppearance(id)
   }, [])
 

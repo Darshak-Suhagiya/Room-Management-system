@@ -12,6 +12,10 @@ import { emptyMealSlot } from '../config/menuItems'
 import { COLLECTIONS } from '../config/constants'
 import { deleteParticipationsForSlot } from './participationService'
 import { didSlotMenuChange } from '../utils/menuSlotCompare'
+import {
+  applyPlanStockUsage,
+  normalizeStockUsage,
+} from './stockService'
 
 function normalizeSlot(slot, categoryIds) {
   const base = emptyMealSlot(categoryIds)
@@ -70,6 +74,7 @@ function parseMenuDoc(snap, categoryIds) {
     morningMaharajNote: data.morningMaharajNote ?? '',
     eveningMaharajNote: data.eveningMaharajNote ?? '',
     totalOverrides: normalizeTotalOverrides(data.totalOverrides),
+    stockUsage: normalizeStockUsage(data.stockUsage),
     updatedAt: data.updatedAt,
     updatedBy: data.updatedBy,
   }
@@ -116,6 +121,7 @@ export async function saveMenu(
     eveningNote,
     morningMaharajNote,
     eveningMaharajNote,
+    stockUsage: stockUsageInput,
   },
   userId,
   categoryIds,
@@ -133,6 +139,12 @@ export async function saveMenu(
   const existingMenu = existingSnap.exists()
     ? parseMenuDoc(existingSnap, categoryIds)
     : null
+
+  const previousUsage = existingMenu?.stockUsage || { morning: {}, evening: {} }
+  const nextUsage = normalizeStockUsage({
+    morning: hasMorning ? stockUsageInput?.morning || {} : {},
+    evening: hasEvening ? stockUsageInput?.evening || {} : {},
+  })
 
   const newData = {
     hasMorning,
@@ -168,6 +180,7 @@ export async function saveMenu(
     hasMorning: !!hasMorning,
     hasEvening: !!hasEvening,
     totalOverrides,
+    stockUsage: nextUsage,
     updatedAt: new Date().toISOString(),
     updatedBy: userId,
   }
@@ -195,6 +208,13 @@ export async function saveMenu(
     payload.eveningNote = deleteField()
     payload.eveningMaharajNote = deleteField()
   }
+
+  await applyPlanStockUsage({
+    dateId,
+    previousUsage,
+    nextUsage,
+    userId,
+  })
 
   await setDoc(ref, payload, { merge: true })
 

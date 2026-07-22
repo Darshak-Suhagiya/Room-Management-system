@@ -128,7 +128,7 @@ export function LoginPage() {
         </div>
         <p className="auth-brand-foot">Meal Planner &amp; Participation Tracker</p>
       </aside>
-      <div className="auth-panel">
+      <div className="auth-panel pt-safe pb-safe">
       <div className="auth-card">
         <h1>Room Management</h1>
         <p className="subtitle">Meal Planner & Participation Tracker</p>

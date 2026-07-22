@@ -11,6 +11,12 @@
   --radius-lg: 16px;
   --font-sans: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
 
+  /* Unified responsive breakpoints */
+  --bp-sm: 640px;
+  --bp-md: 900px;
+  --bp-lg: 1100px;
+  --touch-min: 2.75rem;
+
   /* Category label tones (Gujarati menu groups) — overridden in dark packs */
   --cat-0: #059669;
   --cat-1: #2563eb;

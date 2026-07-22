@@ -28,6 +28,7 @@ export function NoticeBanner({
   onNoticeRead,
   preview = false,
   sticky = true,
+  mobileStickyOffset = false,
 }) {
   const { user, profile } = useAuth()
   const [index, setIndex] = useState(0)
@@ -144,7 +145,7 @@ export function NoticeBanner({
 
   return (
     <div
-      className={`notice-banner notice-tone-${current.tone || 'info'}${sticky ? ' is-sticky' : ''}${list.length > 1 ? ' is-swipeable' : ''}`}
+      className={`notice-banner notice-tone-${current.tone || 'info'}${sticky ? ' is-sticky' : ''}${mobileStickyOffset ? ' notice-banner-mobile-offset' : ''}${list.length > 1 ? ' is-swipeable' : ''}`}
       role={list.length > 1 ? 'region' : undefined}
       aria-roledescription={list.length > 1 ? 'carousel' : undefined}
       tabIndex={list.length > 1 ? 0 : undefined}
@@ -155,6 +156,10 @@ export function NoticeBanner({
       onMouseLeave={() => {
         hoverRef.current = false
         setPaused(false)
+      }}
+      onTouchStart={() => setPaused(true)}
+      onTouchEnd={() => {
+        if (!hoverRef.current) setPaused(false)
       }}
       onFocusCapture={() => setPaused(true)}
       onBlurCapture={(e) => {
@@ -177,7 +182,7 @@ export function NoticeBanner({
               <Megaphone size={14} aria-hidden />
               <span>Notice</span>
             </div>
-            <h3 className="notice-banner-title">{current.title}</h3>
+            <h2 className="notice-banner-title">{current.title}</h2>
             <p className="notice-banner-message">{current.message}</p>
           </div>
           <div className="notice-banner-actions">

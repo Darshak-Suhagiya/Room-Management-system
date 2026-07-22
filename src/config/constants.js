@@ -26,7 +26,47 @@ export const COLLECTIONS = {
   PUSH_JOBS: 'pushJobs',
   PUSH_LOGS: 'pushLogs',
   PUSH_DIGEST_CURSOR: 'pushDigestCursor',
+  STOCK_GROUPS: 'stockGroups',
+  STOCK_ITEMS: 'stockItems',
+  STOCK_MOVEMENTS: 'stockMovements',
+  SHOPPING_TICKETS: 'shoppingTickets',
 }
+
+export const STOCK_UNITS = {
+  G: 'g',
+  KG: 'kg',
+  COUNT: 'count',
+}
+
+export const STOCK_UNIT_LABELS = {
+  [STOCK_UNITS.G]: 'g',
+  [STOCK_UNITS.KG]: 'kg',
+  [STOCK_UNITS.COUNT]: 'pcs',
+}
+
+export const STOCK_ITERATION_PERIODS = {
+  WEEK: 'week',
+  MONTH: 'month',
+}
+
+export const STOCK_MOVEMENT_REASONS = {
+  FILL: 'fill',
+  USE: 'use',
+  PLAN_CONSUME: 'plan_consume',
+  PLAN_REVERSE: 'plan_reverse',
+  SHOPPING: 'shopping',
+}
+
+export const SHOPPING_TICKET_STATUS = {
+  OPEN: 'open',
+  DONE: 'done',
+  CANCELLED: 'cancelled',
+}
+
+export const DEFAULT_STOCK_GROUPS = [
+  { id: 'groceries', name: 'Groceries', linkToMenu: true, order: 0 },
+  { id: 'vegetables', name: 'Vegetables', linkToMenu: true, order: 1 },
+]
 
 export const PUSH_AUDIENCE_TYPES = {
   ALL: 'all',

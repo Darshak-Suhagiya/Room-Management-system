@@ -10,14 +10,18 @@ import {
   Megaphone,
   Menu as MenuIcon,
   Bell,
+  Package,
   Printer,
+  Settings,
+  ShoppingCart,
   Sparkles,
   Users,
   UtensilsCrossed,
   X,
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
-import { ThemeSwitcher } from './ThemeSwitcher'
+import { PushNotificationProvider } from '../contexts/PushNotificationContext'
+import { BottomNav } from './BottomNav'
 import { getRoleLabel, getUserInitials } from '../utils/userDisplay'
 import { listActiveNotices } from '../services/noticeService'
 
@@ -33,6 +37,7 @@ export function Layout() {
     canManageNotices,
     canViewNoticeAnalytics,
     canManagePush,
+    canViewStocks,
     logout,
   } = useAuth()
   const location = useLocation()
@@ -43,7 +48,6 @@ export function Layout() {
     setSidebarOpen(false)
   }, [location.pathname])
 
-  // Warm active-notices cache so banners paint faster on My Meals / Seva
   useEffect(() => {
     if (!profile?.id) return undefined
     let cancelled = false
@@ -64,6 +68,16 @@ export function Layout() {
     return () => document.removeEventListener('keydown', onKeyDown)
   }, [sidebarOpen])
 
+  useEffect(() => {
+    document.documentElement.classList.add('app-shell-active')
+    return () => document.documentElement.classList.remove('app-shell-active')
+  }, [])
+
+  useEffect(() => {
+    document.body.classList.toggle('sidebar-open', sidebarOpen)
+    return () => document.body.classList.remove('sidebar-open')
+  }, [sidebarOpen])
+
   const roleLabel = getRoleLabel(profile)
   const initials = getUserInitials(profile?.displayName, profile?.email)
 
@@ -71,11 +85,14 @@ export function Layout() {
     !isMaharaj && { to: '/', end: true, label: 'My Meals', icon: UtensilsCrossed },
     !isMaharaj && { to: '/seva', label: 'Room Seva', icon: Sparkles },
     { to: '/leaves', label: 'Leave calendar', icon: CalendarOff },
+    canViewStocks && { to: '/stocks', label: 'Stocks', icon: Package },
+    canViewStocks && { to: '/shopping', label: 'Shopping', icon: ShoppingCart },
     canAccessVoteDashboard && {
       to: '/admin/votes',
       label: 'Vote Dashboard',
       icon: BarChart3,
     },
+    { to: '/settings', label: 'Settings', icon: Settings },
   ].filter(Boolean)
 
   const manageLinks = [
@@ -121,90 +138,103 @@ export function Layout() {
   )
 
   return (
-    <div className="app-layout">
-      <aside className={`sidebar ${sidebarOpen ? 'is-open' : ''}`}>
-        <div className="sidebar-brand">
-          <span className="brand-mark">RM</span>
-          <div className="brand-text">
-            <h1>Room Management</h1>
-            <p className="brand-subtitle">Meal Planner &amp; Tracker</p>
-          </div>
-          <button
-            type="button"
-            className="sidebar-close"
-            onClick={() => setSidebarOpen(false)}
-            aria-label="Close menu"
-          >
-            <X size={20} />
-          </button>
-        </div>
-
-        <nav className="sidebar-nav" aria-label="Main">
-          <p className="sidebar-section-label">Main</p>
-          {mainLinks.map(renderLink)}
-
-          {manageLinks.length > 0 && (
-            <>
-              <p className="sidebar-section-label">Manage</p>
-              {manageLinks.map(renderLink)}
-            </>
-          )}
-        </nav>
-
-        <div className="sidebar-footer">
-          <div className="sidebar-user">
-            <span className="user-avatar" aria-hidden>
-              {initials}
-            </span>
-            <div className="user-meta">
-              <span className="user-name">{profile?.displayName ?? 'User'}</span>
-              {roleLabel && <span className="user-role">{roleLabel}</span>}
+    <PushNotificationProvider>
+      <div className="app-layout">
+        <aside className={`sidebar ${sidebarOpen ? 'is-open' : ''}`}>
+          <div className="sidebar-brand">
+            <span className="brand-mark">RM</span>
+            <div className="brand-text">
+              <h1>Room Management</h1>
+              <p className="brand-subtitle">Meal Planner &amp; Tracker</p>
             </div>
+            <button
+              type="button"
+              className="sidebar-close touch-target inline-flex items-center justify-center md:hidden"
+              onClick={() => setSidebarOpen(false)}
+              aria-label="Close menu"
+            >
+              <X size={20} />
+            </button>
           </div>
-          <button
-            type="button"
-            className="btn btn-ghost btn-icon-only sidebar-signout"
-            onClick={() => logout()}
-            title="Sign out"
-            aria-label="Sign out"
-          >
-            <LogOut size={18} />
-          </button>
+
+          <nav className="sidebar-nav" aria-label="Main">
+            <p className="sidebar-section-label">Main</p>
+            {mainLinks.map(renderLink)}
+
+            {manageLinks.length > 0 && (
+              <>
+                <p className="sidebar-section-label">Manage</p>
+                {manageLinks.map(renderLink)}
+              </>
+            )}
+          </nav>
+
+          <div className="sidebar-footer pb-safe">
+            <div className="sidebar-user">
+              <span className="user-avatar" aria-hidden>
+                {initials}
+              </span>
+              <div className="user-meta">
+                <span className="user-name">{profile?.displayName ?? 'User'}</span>
+                {roleLabel && <span className="user-role">{roleLabel}</span>}
+              </div>
+            </div>
+            <button
+              type="button"
+              className="btn btn-ghost btn-icon-only sidebar-signout touch-target"
+              onClick={() => logout()}
+              title="Sign out"
+              aria-label="Sign out"
+            >
+              <LogOut size={18} />
+            </button>
+          </div>
+        </aside>
+
+        {sidebarOpen && (
+          <div
+            ref={scrimRef}
+            className="sidebar-scrim"
+            onClick={() => setSidebarOpen(false)}
+            aria-hidden
+          />
+        )}
+
+        <div className="app-content">
+          <header className="topbar">
+            <button
+              type="button"
+              className="topbar-menu-btn touch-target inline-flex items-center justify-center"
+              onClick={() => setSidebarOpen(true)}
+              aria-label="Open menu"
+            >
+              <MenuIcon size={22} />
+            </button>
+            <Link to="/" className="topbar-brand">
+              <span className="brand-mark brand-mark-sm">RM</span>
+              <span>Room Management</span>
+            </Link>
+            <div className="topbar-actions">
+              <Link
+                to="/settings"
+                className="topbar-settings-btn touch-target inline-flex items-center justify-center"
+                aria-label="Settings"
+                title="Settings"
+              >
+                <Settings size={22} />
+              </Link>
+            </div>
+          </header>
+
+          <main className="app-main">
+            <Outlet />
+          </main>
+
+          <div id="mobile-action-portal" className="mobile-action-portal" />
+
+          <BottomNav />
         </div>
-      </aside>
-
-      {sidebarOpen && (
-        <div
-          ref={scrimRef}
-          className="sidebar-scrim"
-          onClick={() => setSidebarOpen(false)}
-          aria-hidden
-        />
-      )}
-
-      <div className="app-content">
-        <header className="topbar">
-          <button
-            type="button"
-            className="topbar-menu-btn"
-            onClick={() => setSidebarOpen(true)}
-            aria-label="Open menu"
-          >
-            <MenuIcon size={22} />
-          </button>
-          <Link to="/" className="topbar-brand">
-            <span className="brand-mark brand-mark-sm">RM</span>
-            <span>Room Management</span>
-          </Link>
-          <div className="topbar-actions">
-            <ThemeSwitcher compact />
-          </div>
-        </header>
-
-        <main className="app-main">
-          <Outlet />
-        </main>
       </div>
-    </div>
+    </PushNotificationProvider>
   )
 }

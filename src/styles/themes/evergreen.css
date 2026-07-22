@@ -47,6 +47,7 @@
   --success-soft: #dcfce7;
   --success-border: #86efac;
 
+  --warning: #d97706;
   --warning-soft: #fffbeb;
   --warning-border: #fcd34d;
   --warning-text: #92400e;
@@ -178,6 +179,13 @@
   --theme-info-bg: #ffffff;
   --theme-info-border: #d0ddd0;
   --theme-dot: #15803d;
+
+  /* Category title accents — WCAG AA on white */
+  --cat-0: #047857;
+  --cat-1: #1d4ed8;
+  --cat-2: #6d28d9;
+  --cat-3: #b45309;
+  --cat-4: #be185d;
 }
 
 [data-theme='evergreen'][data-appearance='dark'] {
@@ -225,6 +233,7 @@
   --success-soft: #14301f;
   --success-border: #166534;
 
+  --warning: #e0c878;
   --warning-soft: #2a2114;
   --warning-border: #8a6a2e;
   --warning-text: #e0c878;

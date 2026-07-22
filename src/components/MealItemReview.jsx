@@ -34,6 +34,7 @@ export function MealItemReviewEditor({
   displayName,
   review,
   disabled = false,
+  mobile = false,
 }) {
   const toast = useToast()
   const windowOpen = isReviewWindowOpen(dateId)
@@ -85,30 +86,61 @@ export function MealItemReviewEditor({
     )
   }
 
+  const ratingControl = mobile ? (
+    <div
+      className="mobile-segmented meal-vote-mobile-rating-seg"
+      role="group"
+      aria-label="Item rating"
+    >
+      {RATING_OPTIONS.map((opt) => {
+        const active =
+          opt.value === null ? rating == null : rating === opt.value
+        return (
+          <button
+            key={opt.label}
+            type="button"
+            className={`mobile-segmented-btn${active ? ' is-active' : ''}${
+              opt.value ? ` rating-${opt.value}` : ''
+            }`}
+            disabled={saving || disabled}
+            onClick={() => {
+              setRating(opt.value)
+              persist(opt.value, text)
+            }}
+          >
+            {opt.label}
+          </button>
+        )
+      })}
+    </div>
+  ) : (
+    <div className="segmented-control review-rating-seg" role="group" aria-label="Item rating">
+      {RATING_OPTIONS.map((opt) => {
+        const active =
+          opt.value === null ? rating == null : rating === opt.value
+        return (
+          <button
+            key={opt.label}
+            type="button"
+            className={`segmented-btn ${active ? 'is-active' : ''} ${
+              opt.value ? `rating-${opt.value}` : ''
+            }`}
+            disabled={saving || disabled}
+            onClick={() => {
+              setRating(opt.value)
+              persist(opt.value, text)
+            }}
+          >
+            {opt.label}
+          </button>
+        )
+      })}
+    </div>
+  )
+
   return (
     <div className="item-review-editor">
-      <div className="segmented-control review-rating-seg" role="group" aria-label="Item rating">
-        {RATING_OPTIONS.map((opt) => {
-          const active =
-            opt.value === null ? rating == null : rating === opt.value
-          return (
-            <button
-              key={opt.label}
-              type="button"
-              className={`segmented-btn ${active ? 'is-active' : ''} ${
-                opt.value ? `rating-${opt.value}` : ''
-              }`}
-              disabled={saving || disabled}
-              onClick={() => {
-                setRating(opt.value)
-                persist(opt.value, text)
-              }}
-            >
-              {opt.label}
-            </button>
-          )
-        })}
-      </div>
+      {ratingControl}
       <label className="field-stack review-text-field">
         <span className="field-stack-label">Written review (optional)</span>
         <textarea

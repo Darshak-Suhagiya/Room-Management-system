@@ -6,7 +6,7 @@ import { NOTICE_PAGES } from '../config/constants'
 export function NoticeBannerSlot({ page }) {
   const { notices, removeNotice } = useActiveNotices(page)
   if (!notices.length) return null
-  return <NoticeBanner notices={notices} onNoticeRead={removeNotice} sticky />
+  return <NoticeBanner notices={notices} onNoticeRead={removeNotice} sticky mobileStickyOffset />
 }
 
 export { NOTICE_PAGES }

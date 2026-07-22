@@ -14,6 +14,12 @@ import { isPastDate } from '../utils/mealDateUtils'
 import { getItemReview, collectSlotItemReviews } from '../utils/menuReviewUtils'
 import { parseQuantityInput } from '../utils/voteQuantityUtils'
 import { MenuSlotNote } from './MenuSlotNote'
+import { MobileMealVoteView } from './meals/mobile/MobileMealVoteView'
+import {
+  MealFeedbackEntryRow,
+  MealFeedbackSheet,
+  getFeedbackProgress,
+} from './meals/mobile'
 import {
   MealItemReviewEditor,
   OthersItemReviews,
@@ -115,6 +121,8 @@ export function MealVotePanel({
   displayName = '',
   canReview = true,
   showOthersFeedback = false,
+  onToggleOthersFeedback,
+  mobile = false,
 }) {
   const slotInfo = MEAL_SLOTS[slot]
   const SlotIcon = slot === 'morning' ? IconSun : IconMoon
@@ -144,6 +152,7 @@ export function MealVotePanel({
   const [hydrated, setHydrated] = useState(false)
   const [missingIds, setMissingIds] = useState([])
   const [invalidIds, setInvalidIds] = useState([])
+  const [feedbackSheetOpen, setFeedbackSheetOpen] = useState(false)
   const toast = useToast()
 
   useEffect(() => {
@@ -259,6 +268,44 @@ export function MealVotePanel({
   const renderFeedbackSection = () => {
     if (!showFeedbackSection || plannedItems.length === 0) return null
 
+    if (mobile) {
+      const { ratedCount, totalCount } = getFeedbackProgress(
+        plannedItems,
+        participation,
+      )
+      const canOpenSheet = canLeaveOwnReview || showOthersFeedback
+
+      return (
+        <>
+          <MealFeedbackEntryRow
+            ratedCount={ratedCount}
+            totalCount={canLeaveOwnReview ? totalCount : 0}
+            onOpen={() => setFeedbackSheetOpen(true)}
+            disabled={!canOpenSheet}
+            hint={
+              !canOpenSheet ? 'Vote first to leave feedback' : undefined
+            }
+          />
+          <MealFeedbackSheet
+            open={feedbackSheetOpen}
+            onClose={() => setFeedbackSheetOpen(false)}
+            slotLabel={slotInfo.labelEn}
+            canReview={canReview}
+            canLeaveOwnReview={canLeaveOwnReview}
+            showOthersFeedback={showOthersFeedback}
+            onToggleOthersFeedback={onToggleOthersFeedback}
+            plannedItems={plannedItems}
+            participation={participation}
+            othersParticipations={othersParticipations}
+            userId={userId}
+            dateId={dateId}
+            slot={slot}
+            displayName={displayName}
+          />
+        </>
+      )
+    }
+
     return (
       <section className="meal-feedback-section" aria-label="Reviews and feedback">
         <div className="meal-feedback-separator" aria-hidden />
@@ -288,6 +335,7 @@ export function MealVotePanel({
                     itemId={item.id}
                     displayName={displayName}
                     review={ownReview}
+                    mobile={mobile}
                   />
                 ) : null}
                 {showOthersInSection ? (
@@ -301,6 +349,76 @@ export function MealVotePanel({
           })}
         </ul>
       </section>
+    )
+  }
+
+  const renderVoteActions = (sticky = false) => (
+    <div className={`vote-actions ${sticky ? 'vote-actions-sticky' : ''}`}>
+      <button
+        type="button"
+        className={`btn btn-primary btn-sm btn-save slot-btn-${slot}`}
+        onClick={handleSave}
+        disabled={saving}
+      >
+        <IconSave size={16} />
+        {saving ? 'Saving…' : 'Save'}
+      </button>
+      {isComplete && (
+        <button
+          type="button"
+          className="btn btn-ghost btn-sm"
+          onClick={() => {
+            setNotEating(Boolean(participation?.notEating))
+            setVotes(participation?.votes ?? {})
+            setEditing(false)
+            setMissingIds([])
+          }}
+          disabled={saving}
+        >
+          Cancel
+        </button>
+      )}
+      {message && <span className="vote-msg">{message}</span>}
+    </div>
+  )
+
+  if (mobile) {
+    return (
+      <MobileMealVoteView
+        slot={slot}
+        slotLabel={slotInfo.labelEn}
+        slotNote={slotNote}
+        grouped={grouped}
+        hydrated={hydrated}
+        isComplete={isComplete}
+        showForm={showForm}
+        readOnly={readOnly}
+        locked={locked}
+        past={past}
+        blockReason={blockReason}
+        notEating={notEating}
+        votes={votes}
+        missingIds={missingIds}
+        invalidIds={invalidIds}
+        saving={saving}
+        message={message}
+        refreshing={refreshing}
+        onRefresh={onRefresh}
+        onNotEatingChange={(next) => {
+          setNotEating(next)
+          setMissingIds([])
+        }}
+        onUpdateVote={updateVote}
+        onSave={handleSave}
+        onCancelEdit={() => {
+          setNotEating(Boolean(participation?.notEating))
+          setVotes(participation?.votes ?? {})
+          setEditing(false)
+          setMissingIds([])
+        }}
+        onStartEdit={() => setEditing(true)}
+        renderFeedbackSection={renderFeedbackSection}
+      />
     )
   }
 
@@ -418,33 +536,7 @@ export function MealVotePanel({
             />
           )}
 
-          <div className="vote-actions">
-            <button
-              type="button"
-              className={`btn btn-primary btn-sm btn-save slot-btn-${slot}`}
-              onClick={handleSave}
-              disabled={saving}
-            >
-              <IconSave size={16} />
-              {saving ? 'Saving…' : 'Save'}
-            </button>
-            {isComplete && (
-              <button
-                type="button"
-                className="btn btn-ghost btn-sm"
-                onClick={() => {
-                  setNotEating(Boolean(participation?.notEating))
-                  setVotes(participation?.votes ?? {})
-                  setEditing(false)
-                  setMissingIds([])
-                }}
-                disabled={saving}
-              >
-                Cancel
-              </button>
-            )}
-            {message && <span className="vote-msg">{message}</span>}
-          </div>
+          {renderVoteActions(false)}
         </>
       ) : (
         <>

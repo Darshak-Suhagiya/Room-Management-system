@@ -67,6 +67,21 @@ service cloud.firestore {
       return isAdmin() || isRoomLeader() || isKitchenLeader();
     }
 
+    function canManageStocks() {
+      return isAdmin() || isKitchenLeader();
+    }
+
+    function canEditStockGroupDoc(groupId) {
+      return canManageStocks() || (
+        isApproved() &&
+        request.auth.uid in get(/databases/$(database)/documents/stockGroups/$(groupId)).data.editorUserIds
+      );
+    }
+
+    function isShoppingAssignee() {
+      return isApproved() && request.auth.uid in resource.data.assigneeIds;
+    }
+
     /**
      * Room leaders may update/delete non-admin users and may not assign admin.
      * They also cannot change their own role/status via this path.
@@ -198,6 +213,38 @@ service cloud.firestore {
     match /pushDigestCursor/{docId} {
       allow read: if canManagePush();
       allow write: if false;
+    }
+
+    match /stockGroups/{groupId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if canManageStocks();
+    }
+
+    match /stockItems/{itemId} {
+      allow read: if isSignedIn();
+      allow create: if canEditStockGroupDoc(request.resource.data.groupId);
+      allow delete: if canEditStockGroupDoc(resource.data.groupId);
+      // Group editors manage all fields; any approved user may adjust qty
+      // (shopping ticket fill / planned consume run client-side).
+      allow update: if canEditStockGroupDoc(resource.data.groupId)
+        || (
+          isApproved() &&
+          request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['quantity', 'lastFilledAt', 'lastUsedAt', 'updatedAt'])
+        );
+    }
+
+    match /stockMovements/{moveId} {
+      allow read: if isSignedIn();
+      allow create: if isApproved();
+      allow update, delete: if false;
+    }
+
+    match /shoppingTickets/{ticketId} {
+      allow read: if isSignedIn();
+      allow create: if canManageStocks();
+      allow update: if canManageStocks() || isShoppingAssignee();
+      allow delete: if canManageStocks();
     }
   }
 }

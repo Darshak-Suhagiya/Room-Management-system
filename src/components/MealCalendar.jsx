@@ -164,6 +164,7 @@ export function MealCalendar({
               disabled={!selectable}
               onClick={() => selectable && onSelect(id)}
               aria-pressed={isSelected}
+              aria-label={`${date.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}${isToday ? ', today' : ''}${hasMenu ? ', has menu' : ''}`}
             >
               <span className="cal-cell-num">{date.getDate()}</span>
               {showDot && (

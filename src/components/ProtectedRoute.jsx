@@ -8,6 +8,7 @@ import {
   canSeeMenuAnalytics,
   canViewNoticeAnalytics,
   canManagePush,
+  canViewStocks,
 } from '../config/rolePermissions'
 import { useAuth } from '../contexts/AuthContext'
 import { isUserApproved } from '../services/userService'
@@ -23,6 +24,7 @@ export function ProtectedRoute({
   menuAnalyticsAccess = false,
   noticesAccess = false,
   pushAccess = false,
+  stocksAccess = false,
 }) {
   const { user, profile, loading, isConfigured, needsEmailVerification } =
     useAuth()
@@ -88,6 +90,10 @@ export function ProtectedRoute({
   }
 
   if (pushAccess && !canManagePush(profile)) {
+    return <Navigate to="/" replace />
+  }
+
+  if (stocksAccess && !canViewStocks(profile)) {
     return <Navigate to="/" replace />
   }
 

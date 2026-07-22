@@ -47,6 +47,7 @@
   --success-soft: #ecfdf5;
   --success-border: #a7f3d0;
 
+  --warning: #d97706;
   --warning-soft: #fffbeb;
   --warning-border: #fcd34d;
   --warning-text: #92400e;
@@ -178,6 +179,13 @@
   --theme-info-bg: #ffffff;
   --theme-info-border: #e2e8f0;
   --theme-dot: #0d9488;
+
+  /* Category title accents — dark enough for WCAG AA on white */
+  --cat-0: #047857;
+  --cat-1: #1d4ed8;
+  --cat-2: #6d28d9;
+  --cat-3: #b45309;
+  --cat-4: #be185d;
 }
 
 [data-theme='teal-slate'][data-appearance='dark'] {
@@ -225,6 +233,7 @@
   --success-soft: #152a24;
   --success-border: #2d6b58;
 
+  --warning: #e0c878;
   --warning-soft: #2a2114;
   --warning-border: #8a6a2e;
   --warning-text: #e0c878;

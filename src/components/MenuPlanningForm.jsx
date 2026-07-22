@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { Info as IconInfo, X as IconX } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { Info as IconInfo } from 'lucide-react'
 import { MEAL_SLOTS, emptyMealSlot } from '../config/menuItems'
 import { useToast } from '../contexts/ToastContext'
 import { validateMenuPlan } from '../utils/validateMenuPlan'
@@ -10,6 +10,13 @@ import {
 } from '../utils/menuReviewUtils'
 import { formatDisplayDateGu } from '../utils/mealDateUtils'
 import { getPlanningViewSections } from '../utils/planningViewGroups'
+import {
+  MenuPlanStockPanel,
+  useLinkedStockForSlots,
+  useStockUsageState,
+} from './stock/MenuPlanStockPanel'
+import { listStockItems } from '../services/stockService'
+import { Modal } from './ui/Modal'
 
 function ItemChip({
   item,
@@ -185,6 +192,55 @@ function SlotEditor({
   )
 }
 
+function slotsEqual(a, b, categoryIds) {
+  for (const id of categoryIds) {
+    const left = [...(a?.[id] ?? [])].sort()
+    const right = [...(b?.[id] ?? [])].sort()
+    if (left.length !== right.length || left.some((value, index) => value !== right[index])) {
+      return false
+    }
+  }
+  return true
+}
+
+function stockUsageEqual(a, b) {
+  const slots = ['morning', 'evening']
+  for (const slot of slots) {
+    const left = a?.[slot] ?? {}
+    const right = b?.[slot] ?? {}
+    const keys = new Set([...Object.keys(left), ...Object.keys(right)])
+    for (const key of keys) {
+      if ((Number(left[key]) || 0) !== (Number(right[key]) || 0)) return false
+    }
+  }
+  return true
+}
+
+function menuPlanIsDirty(state, initialMenu, categoryIds) {
+  const base = initialMenu ?? {}
+  if (state.hasMorning !== Boolean(base.hasMorning)) return true
+  if (state.hasEvening !== Boolean(base.hasEvening)) return true
+  if ((state.morningNote ?? '') !== (base.morningNote ?? '')) return true
+  if ((state.eveningNote ?? '') !== (base.eveningNote ?? '')) return true
+  if ((state.morningMaharajNote ?? '') !== (base.morningMaharajNote ?? '')) return true
+  if ((state.eveningMaharajNote ?? '') !== (base.eveningMaharajNote ?? '')) return true
+  if (!slotsEqual(state.morning, base.morning ?? emptyMealSlot(categoryIds), categoryIds)) {
+    return true
+  }
+  if (!slotsEqual(state.evening, base.evening ?? emptyMealSlot(categoryIds), categoryIds)) {
+    return true
+  }
+  if (
+    !stockUsageEqual(state.stockUsage, {
+      morning: base.stockUsage?.morning ?? {},
+      evening: base.stockUsage?.evening ?? {},
+    })
+  ) {
+    return true
+  }
+  return false
+}
+
 export function MenuPlanningForm({
   dateId,
   initialMenu,
@@ -195,6 +251,11 @@ export function MenuPlanningForm({
   cookCounts = {},
   sentimentByItem = {},
   onDraftChange,
+  onDirtyChange,
+  formId,
+  hideActions = false,
+  visibleSlot = null,
+  className = '',
 }) {
   const toast = useToast()
   const [hasMorning, setHasMorning] = useState(false)
@@ -205,6 +266,30 @@ export function MenuPlanningForm({
   const [eveningNote, setEveningNote] = useState('')
   const [morningMaharajNote, setMorningMaharajNote] = useState('')
   const [eveningMaharajNote, setEveningMaharajNote] = useState('')
+  const [stockItems, setStockItems] = useState([])
+  const { stockUsage, setSlotUsage } = useStockUsageState(initialMenu, dateId)
+
+  useEffect(() => {
+    let cancelled = false
+    listStockItems()
+      .then((items) => {
+        if (!cancelled) setStockItems(items)
+      })
+      .catch(() => {
+        if (!cancelled) setStockItems([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [dateId])
+
+  const { morningLinked, eveningLinked } = useLinkedStockForSlots({
+    hasMorning,
+    hasEvening,
+    morning,
+    evening,
+    stockItems,
+  })
 
   useEffect(() => {
     setHasMorning(initialMenu?.hasMorning ?? false)
@@ -216,6 +301,31 @@ export function MenuPlanningForm({
     setMorningMaharajNote(initialMenu?.morningMaharajNote ?? '')
     setEveningMaharajNote(initialMenu?.eveningMaharajNote ?? '')
   }, [initialMenu, dateId, categoryIds])
+
+  const planState = useMemo(
+    () => ({
+      hasMorning,
+      hasEvening,
+      morning,
+      evening,
+      morningNote,
+      eveningNote,
+      morningMaharajNote,
+      eveningMaharajNote,
+      stockUsage,
+    }),
+    [
+      hasMorning,
+      hasEvening,
+      morning,
+      evening,
+      morningNote,
+      eveningNote,
+      morningMaharajNote,
+      eveningMaharajNote,
+      stockUsage,
+    ],
+  )
 
   useEffect(() => {
     onDraftChange?.({
@@ -240,6 +350,13 @@ export function MenuPlanningForm({
     onDraftChange,
   ])
 
+  useEffect(() => {
+    onDirtyChange?.(menuPlanIsDirty(planState, initialMenu, categoryIds))
+  }, [planState, initialMenu, categoryIds, onDirtyChange])
+
+  const showMorning = !visibleSlot || visibleSlot === 'morning'
+  const showEvening = !visibleSlot || visibleSlot === 'evening'
+
   const handleSubmit = (e) => {
     e.preventDefault()
     const validationError = validateMenuPlan({
@@ -262,11 +379,19 @@ export function MenuPlanningForm({
       eveningNote,
       morningMaharajNote,
       eveningMaharajNote,
+      stockUsage: {
+        morning: hasMorning ? stockUsage.morning : {},
+        evening: hasEvening ? stockUsage.evening : {},
+      },
     })
   }
 
   return (
-    <form className="menu-form" onSubmit={handleSubmit}>
+    <form
+      id={formId}
+      className={`menu-form ${className}`.trim()}
+      onSubmit={handleSubmit}
+    >
       <div className="slot-toggles">
         <label className="slot-toggle">
           <input
@@ -290,7 +415,7 @@ export function MenuPlanningForm({
         <p className="muted">Select morning and/or evening for this date.</p>
       )}
 
-      {hasMorning && (
+      {hasMorning && showMorning && (
         <SlotEditor
           slotKey="morning"
           catalog={catalog}
@@ -305,7 +430,7 @@ export function MenuPlanningForm({
         />
       )}
 
-      {hasEvening && (
+      {hasEvening && showEvening && (
         <SlotEditor
           slotKey="evening"
           catalog={catalog}
@@ -320,15 +445,49 @@ export function MenuPlanningForm({
         />
       )}
 
-      <div className="form-actions">
-        <button
-          type="submit"
-          className="btn btn-primary"
-          disabled={saving || (!hasMorning && !hasEvening)}
-        >
-          {saving ? 'Saving…' : 'Save plan'}
-        </button>
-      </div>
+      {(hasMorning || hasEvening) && (
+        <section className="stock-plan-section">
+          <h3>Stock consumption</h3>
+          <p className="muted">
+            Linked pantry items for selected dishes. Set how much this plan will
+            use — saved amounts are deducted (and reversed if you edit later).
+          </p>
+          {hasMorning && showMorning && (
+            <MenuPlanStockPanel
+              slotKey="morning"
+              slotLabel="Morning"
+              linkedItems={morningLinked}
+              usageMap={stockUsage.morning}
+              onChangeUsage={(itemId, qty) =>
+                setSlotUsage('morning', itemId, qty)
+              }
+            />
+          )}
+          {hasEvening && showEvening && (
+            <MenuPlanStockPanel
+              slotKey="evening"
+              slotLabel="Evening"
+              linkedItems={eveningLinked}
+              usageMap={stockUsage.evening}
+              onChangeUsage={(itemId, qty) =>
+                setSlotUsage('evening', itemId, qty)
+              }
+            />
+          )}
+        </section>
+      )}
+
+      {!hideActions && (
+        <div className="form-actions">
+          <button
+            type="submit"
+            className="btn btn-primary"
+            disabled={saving || (!hasMorning && !hasEvening)}
+          >
+            {saving ? 'Saving…' : 'Save plan'}
+          </button>
+        </div>
+      )}
     </form>
   )
 }
@@ -351,74 +510,49 @@ function ItemFeedbackHistoryModal({ item, history, onClose }) {
   if (!item) return null
 
   return (
-    <div
-      className="modal-overlay"
-      role="presentation"
-      onClick={onClose}
-      onKeyDown={(e) => e.key === 'Escape' && onClose()}
+    <Modal
+      open={Boolean(item)}
+      onClose={onClose}
+      title={item.gu}
+      subtitle={`Last ${history.length || 0} cook${history.length === 1 ? '' : 's'} — person reviews`}
+      wide
     >
-      <div
-        className="modal-dialog modal-dialog-wide"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="item-feedback-history-title"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <header className="modal-header">
-          <div>
-            <h2 id="item-feedback-history-title">{item.gu}</h2>
-            <p className="modal-subtitle">
-              Last {history.length || 0} cook{history.length === 1 ? '' : 's'} — person reviews
-            </p>
-          </div>
-          <button
-            type="button"
-            className="modal-close"
-            onClick={onClose}
-            aria-label="Close"
-          >
-            <IconX size={18} />
-          </button>
-        </header>
-        <div className="modal-body">
-          {history.length === 0 ? (
-            <p className="muted">No past cook history for this dish yet.</p>
-          ) : (
-            <ul className="plan-feedback-history plan-feedback-history-modal">
-              {history.map((occ) => (
-                <li key={`${occ.date}-${occ.slot}`} className="plan-feedback-occasion">
-                  <h3 className="plan-feedback-date">
-                    {formatDisplayDateGu(occ.date)} ·{' '}
-                    {MEAL_SLOTS[occ.slot]?.labelEn ?? occ.slot}
-                  </h3>
-                  {occ.reviews.length === 0 ? (
-                    <p className="muted">No reviews that day.</p>
-                  ) : (
-                    <ul className="plan-feedback-reviews">
-                      {occ.reviews.map((r) => (
-                        <li key={r.userId} className="plan-feedback-person">
-                          <div className="plan-feedback-who-row">
-                            <span className="plan-feedback-who">{r.displayName}</span>
-                            {r.rating && (
-                              <span className={`review-rating-badge rating-${r.rating}`}>
-                                {REVIEW_RATING_LABELS[r.rating]}
-                              </span>
-                            )}
-                          </div>
-                          {r.text ? (
-                            <p className="plan-feedback-text">{r.text}</p>
-                          ) : null}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </div>
-    </div>
+      {history.length === 0 ? (
+        <p className="muted">No past cook history for this dish yet.</p>
+      ) : (
+        <ul className="plan-feedback-history plan-feedback-history-modal">
+          {history.map((occ) => (
+            <li key={`${occ.date}-${occ.slot}`} className="plan-feedback-occasion">
+              <h3 className="plan-feedback-date">
+                {formatDisplayDateGu(occ.date)} ·{' '}
+                {MEAL_SLOTS[occ.slot]?.labelEn ?? occ.slot}
+              </h3>
+              {occ.reviews.length === 0 ? (
+                <p className="muted">No reviews that day.</p>
+              ) : (
+                <ul className="plan-feedback-reviews">
+                  {occ.reviews.map((r) => (
+                    <li key={r.userId} className="plan-feedback-person">
+                      <div className="plan-feedback-who-row">
+                        <span className="plan-feedback-who">{r.displayName}</span>
+                        {r.rating && (
+                          <span className={`review-rating-badge rating-${r.rating}`}>
+                            {REVIEW_RATING_LABELS[r.rating]}
+                          </span>
+                        )}
+                      </div>
+                      {r.text ? (
+                        <p className="plan-feedback-text">{r.text}</p>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </Modal>
   )
 }
 
@@ -439,7 +573,7 @@ export function PlanningSelectionPreview({
   }
 
   if (slots.length === 0) {
-    return <p className="muted">Select dishes on the right to preview feedback history.</p>
+    return <p className="muted planning-preview-hint">Select dishes below to preview feedback history.</p>
   }
 
   return (

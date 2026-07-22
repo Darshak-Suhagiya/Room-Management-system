@@ -4,6 +4,7 @@ import { VOTE_TYPES } from '../config/voteTypes'
 import { formatQuantity, parseOverrideTotal } from '../utils/voteQuantityUtils'
 import { groupPlannedByCategory } from '../utils/groupMenuByCategory'
 import { MenuSlotNote } from './MenuSlotNote'
+import { Modal } from './ui/Modal'
 
 function NameChips({ people, variant = '' }) {
   if (!people?.length) return null
@@ -63,7 +64,7 @@ function CompactTotalEditor({ stat, onSaveOverride, saving, onInvalid }) {
         />
         <button
           type="button"
-          className="btn btn-primary btn-sm"
+          className="btn btn-primary btn-sm slot-detail-set-btn"
           disabled={saving}
           onClick={() => {
             const parsed = parseOverrideTotal(value, { integer: isInteger })
@@ -200,51 +201,37 @@ export function MealSlotDetailModal({
   const colCount = 3 + (showVoteBreakdown ? 1 : 0) + (showAdjustCol ? 1 : 0)
 
   return (
-    <div
-      className="modal-overlay"
-      role="presentation"
-      onClick={onClose}
-      onKeyDown={(e) => e.key === 'Escape' && onClose()}
+    <Modal
+      open={Boolean(stats)}
+      onClose={onClose}
+      title={mealLabel}
+      subtitle={dateLabel}
+      wide
+      fullScreenMobile
+      className="slot-detail-dialog"
     >
-      <div
-        className="modal-dialog modal-dialog-wide slot-detail-dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="meal-slot-modal-title"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <header className="modal-header">
-          <div>
-            <h2 id="meal-slot-modal-title">{mealLabel}</h2>
-            <p className="modal-subtitle">{dateLabel}</p>
-            {everyoneNote?.trim() && (
-              <MenuSlotNote
-                note={everyoneNote}
-                slot={slot}
-                label="Notice"
-                className="menu-slot-note-in-modal"
-              />
-            )}
-            {cookNote?.trim() && (
-              <MenuSlotNote
-                note={cookNote}
-                slot={slot}
-                label="Cook note"
-                className="menu-slot-note-in-modal"
-              />
-            )}
-          </div>
-          <button
-            type="button"
-            className="modal-close"
-            onClick={onClose}
-            aria-label="Close"
-          >
-            ×
-          </button>
-        </header>
+      {(everyoneNote?.trim() || cookNote?.trim()) && (
+        <div className="slot-detail-modal-notes">
+          {everyoneNote?.trim() && (
+            <MenuSlotNote
+              note={everyoneNote}
+              slot={slot}
+              label="Notice"
+              className="menu-slot-note-in-modal"
+            />
+          )}
+          {cookNote?.trim() && (
+            <MenuSlotNote
+              note={cookNote}
+              slot={slot}
+              label="Cook note"
+              className="menu-slot-note-in-modal"
+            />
+          )}
+        </div>
+      )}
 
-        <div className="modal-body slot-detail-body">
+      <div className="slot-detail-body">
           <div className="slot-detail-attendance">
             <AttendanceTile
               title="Not eating"
@@ -297,11 +284,11 @@ export function MealSlotDetailModal({
                       return (
                         <tr key={item.id}>
                           <td className="slot-detail-item-name">{item.gu}</td>
-                          <td>
+                          <td data-label="Total">
                             <ItemTotalCell stat={stat} />
                           </td>
                           {showVoteBreakdown && (
-                            <td>
+                            <td data-label="Votes">
                               <VotesCell
                                 stat={stat}
                                 showVoteBreakdown={showVoteBreakdown}
@@ -309,7 +296,7 @@ export function MealSlotDetailModal({
                             </td>
                           )}
                           {showAdjustCol && (
-                            <td>
+                            <td data-label="Adjust">
                               {canOverride ? (
                                 <CompactTotalEditor
                                   key={`${item.id}-${stat.hasOverride}-${stat.displayTotal}-${stat.displayYes}`}
@@ -323,7 +310,7 @@ export function MealSlotDetailModal({
                               )}
                             </td>
                           )}
-                          <td>
+                          <td data-label="Who">
                             <WhoCell stat={stat} />
                           </td>
                         </tr>
@@ -342,7 +329,6 @@ export function MealSlotDetailModal({
             </div>
           ))}
         </div>
-      </div>
-    </div>
+    </Modal>
   )
 }

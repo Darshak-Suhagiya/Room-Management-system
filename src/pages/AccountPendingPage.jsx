@@ -28,7 +28,7 @@ export function AccountPendingPage() {
   }
 
   return (
-    <div className="page account-status-page">
+    <div className="page account-status-page pt-safe pb-safe">
       <div className="account-status-card">
         <h2>Account pending approval</h2>
         <p>

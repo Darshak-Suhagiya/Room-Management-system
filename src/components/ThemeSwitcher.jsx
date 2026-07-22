@@ -12,6 +12,8 @@ import {
   Waves,
 } from 'lucide-react'
 import { useTheme } from '../contexts/ThemeContext'
+import { useMediaQuery } from '../hooks/useMediaQuery'
+import { Modal } from './ui/Modal'
 
 const THEME_ICONS = {
   Waves,
@@ -27,6 +29,54 @@ function ThemeIcon({ name, size = 18 }) {
   return <Icon size={size} aria-hidden />
 }
 
+function ThemePickerList({ themes, theme, onSelect }) {
+  return (
+    <ul className="theme-picker-sheet-list" role="listbox" aria-label="Color theme">
+      {themes.map((t) => {
+        const selected = t.id === theme.id
+        return (
+          <li key={t.id} role="presentation">
+            <button
+              type="button"
+              role="option"
+              aria-selected={selected}
+              className={`theme-picker-option${selected ? ' is-selected' : ''}`}
+              onClick={() => onSelect(t.id)}
+            >
+              <span className="theme-picker-option-icon">
+                <ThemeIcon name={t.icon} size={18} />
+              </span>
+              <span className="theme-picker-option-meta">
+                <span className="theme-picker-option-name">{t.name}</span>
+                <span className="theme-picker-swatches" aria-hidden>
+                  <span
+                    className="theme-picker-swatch"
+                    style={{ background: t.swatches.primary }}
+                  />
+                  <span
+                    className="theme-picker-swatch"
+                    style={{ background: t.swatches.accent }}
+                  />
+                  <span
+                    className="theme-picker-swatch"
+                    style={{
+                      background: t.swatches.surface,
+                      boxShadow: 'inset 0 0 0 1px var(--border)',
+                    }}
+                  />
+                </span>
+              </span>
+              {selected && (
+                <Check size={16} className="theme-picker-check" aria-hidden />
+              )}
+            </button>
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
+
 export function ThemeSwitcher({ compact = false }) {
   const {
     theme,
@@ -40,6 +90,7 @@ export function ThemeSwitcher({ compact = false }) {
     setUiScale,
   } = useTheme()
 
+  const isMobile = useMediaQuery('(max-width: 899px)')
   const [menuOpen, setMenuOpen] = useState(false)
   const [activeIndex, setActiveIndex] = useState(() =>
     Math.max(
@@ -54,7 +105,7 @@ export function ThemeSwitcher({ compact = false }) {
   const CurrentIcon = THEME_ICONS[theme.icon] ?? Waves
 
   useEffect(() => {
-    if (!menuOpen) return undefined
+    if (!menuOpen || isMobile) return undefined
 
     const onPointerDown = (e) => {
       if (!rootRef.current?.contains(e.target)) setMenuOpen(false)
@@ -71,16 +122,16 @@ export function ThemeSwitcher({ compact = false }) {
       document.removeEventListener('pointerdown', onPointerDown)
       document.removeEventListener('keydown', onKeyDown)
     }
-  }, [menuOpen])
+  }, [menuOpen, isMobile])
 
   useEffect(() => {
-    if (!menuOpen) return
+    if (!menuOpen || isMobile) return
     const idx = themes.findIndex((t) => t.id === theme.id)
     setActiveIndex(idx >= 0 ? idx : 0)
     queueMicrotask(() => {
       listRef.current?.querySelector('[data-active="true"]')?.focus()
     })
-  }, [menuOpen, theme.id, themes])
+  }, [menuOpen, theme.id, themes, isMobile])
 
   const selectThemeAt = (index) => {
     const next = themes[index]
@@ -128,7 +179,7 @@ export function ThemeSwitcher({ compact = false }) {
           className="theme-picker-trigger"
           aria-haspopup="listbox"
           aria-expanded={menuOpen}
-          aria-controls={listboxId}
+          aria-controls={isMobile ? undefined : listboxId}
           title="Color theme"
           onClick={() => setMenuOpen((open) => !open)}
         >
@@ -137,7 +188,7 @@ export function ThemeSwitcher({ compact = false }) {
           <ChevronDown size={16} className="theme-picker-chevron" />
         </button>
 
-        {menuOpen && (
+        {menuOpen && !isMobile && (
           <ul
             ref={listRef}
             id={listboxId}
@@ -194,6 +245,23 @@ export function ThemeSwitcher({ compact = false }) {
           </ul>
         )}
       </div>
+
+      {menuOpen && isMobile && (
+        <Modal
+          open={menuOpen}
+          onClose={() => setMenuOpen(false)}
+          title="Color theme"
+        >
+          <ThemePickerList
+            themes={themes}
+            theme={theme}
+            onSelect={(id) => {
+              setTheme(id)
+              setMenuOpen(false)
+            }}
+          />
+        </Modal>
+      )}
 
       <label className="appearance-toggle" title="Light or dark mode">
         <ModeIcon size={18} className="appearance-toggle-icon" />

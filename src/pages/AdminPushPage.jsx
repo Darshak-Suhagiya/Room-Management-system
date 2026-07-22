@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Send, Sunrise, Sunset } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import { PushUserPickerField } from '../components/push/PushUserPicker'
+import { MobilePageHeader } from '../components/mobile'
 import { ALL_ROLES, ROLE_LABELS } from '../config/rolePermissions'
 import {
   PUSH_AUDIENCE_TYPES,
@@ -248,20 +250,30 @@ export function AdminPushPage() {
 
   return (
     <div className="page admin-push-page">
-      <header className="page-header">
-        <div>
-          <h1>Push notifications</h1>
-          <p className="page-lead">
-            Send now only (via Vercel + Firebase Cloud Messaging). No auto schedule.
-          </p>
-        </div>
-      </header>
+      <div className="layout-desktop">
+        <header className="page-header">
+          <div>
+            <h1>Push notifications</h1>
+            <p className="page-lead">
+              Send now only (via Vercel + Firebase Cloud Messaging). No auto schedule.
+            </p>
+          </div>
+        </header>
+      </div>
+
+      <div className="layout-mobile">
+        <MobilePageHeader
+          icon={Send}
+          title="Push"
+          description="Quick menu digests or custom sends."
+        />
+      </div>
 
       {error && <p className="form-error">{error}</p>}
       {success && <p className="form-success">{success}</p>}
       {loading && <p className="muted">Loading…</p>}
 
-      <div className="notices-tabs" role="tablist" aria-label="Push sections">
+      <div className="notices-tabs layout-desktop" role="tablist" aria-label="Push sections">
         <button
           type="button"
           role="tab"
@@ -292,8 +304,37 @@ export function AdminPushPage() {
         </button>
       </div>
 
+      <div className="mobile-segmented layout-mobile push-mobile-tabs" role="tablist" aria-label="Push sections">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === 'quick'}
+          className={`mobile-segmented-btn${tab === 'quick' ? ' is-active' : ''}`}
+          onClick={() => {
+            setTab('quick')
+            setSuccess('')
+            setError('')
+          }}
+        >
+          Quick send
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === 'compose'}
+          className={`mobile-segmented-btn${tab === 'compose' ? ' is-active' : ''}`}
+          onClick={() => {
+            setTab('compose')
+            setSuccess('')
+            setError('')
+          }}
+        >
+          Custom send
+        </button>
+      </div>
+
       {tab === 'quick' && (
-        <div className="card push-form">
+        <div className="card push-form push-form-mobile-stack">
           <p className="muted">
             Save defaults, then tap Send for today’s morning or evening menu digest.
           </p>
@@ -470,7 +511,7 @@ export function AdminPushPage() {
       )}
 
       {tab === 'compose' && (
-        <form className="card push-form" onSubmit={submitCompose}>
+        <form className="card push-form push-form-mobile-stack" onSubmit={submitCompose}>
           <label>
             Title
             <input
@@ -625,18 +666,11 @@ export function AdminPushPage() {
             )}
 
             {compose.audienceType === PUSH_AUDIENCE_TYPES.USERS && (
-              <div className="push-user-picker">
-                {users.map((u) => (
-                  <label key={u.id} className="checkbox-chip">
-                    <input
-                      type="checkbox"
-                      checked={compose.userIds.includes(u.id)}
-                      onChange={() => toggleUser(u.id)}
-                    />
-                    {u.displayName || u.email || u.id}
-                  </label>
-                ))}
-              </div>
+              <PushUserPickerField
+                users={users}
+                selectedIds={compose.userIds}
+                onToggle={toggleUser}
+              />
             )}
           </fieldset>
 

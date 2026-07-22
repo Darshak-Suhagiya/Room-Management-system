@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { UtensilsCrossed } from 'lucide-react'
 import { useToast } from '../contexts/ToastContext'
 import { useMenuCatalog } from '../hooks/useMenuCatalog'
 import { VOTE_TYPES, VOTE_TYPE_LABELS, defaultVoteTypeForCategory } from '../config/voteTypes'
@@ -11,6 +12,7 @@ import {
   updateMenuItem,
 } from '../services/catalogService'
 import { PlanningViewGroupsEditor } from '../components/PlanningViewGroupsEditor'
+import { MobilePageHeader } from '../components/mobile'
 
 function VoteTypeSegmented({ value, onChange }) {
   return (
@@ -247,104 +249,76 @@ function confirmDelete(message) {
   return window.confirm(message)
 }
 
-export function AdminMenuCatalogPage() {
-  const { catalog, loading, seeding, error } = useMenuCatalog({ autoSeed: true })
-  const toast = useToast()
-  const [newCatEn, setNewCatEn] = useState('')
-  const [newCatGu, setNewCatGu] = useState('')
+function CatalogCategorySection({
+  cat,
+  catalog,
+  notify,
+  handleError,
+  accordion = false,
+}) {
+  const items = catalog.itemsByCategory[cat.id] ?? []
+  const itemCount = items.length
 
-  const notify = (text) => toast.success(text)
-  const handleError = (err) => toast.error(err.message ?? 'Invalid value.')
-
-  if (loading) {
-    return <p className="page-loading">Loading…</p>
-  }
-
-  return (
-    <div className="page admin-page">
-      <header className="page-header">
-        <h2>Menu editing</h2>
-        <p>
-          Add dishes and set vote type: Yes/No for shaak, Number for roti, etc.
-          Optional notes and recipe are visible only to Maharaj on the vote dashboard.
-        </p>
-      </header>
-
-      {seeding && <p className="muted">Importing default menu list…</p>}
-      {error && <p className="form-error">{error}</p>}
-
-      {catalog.categories.length === 0 && (
-        <div className="seed-banner">
-          <p>No menu items in database yet.</p>
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={async () => {
-              try {
-                await seedDefaultCatalog()
-                notify('Default menu list imported.')
-              } catch (err) {
-                handleError(err)
-              }
+  const body = (
+    <>
+      <ul className="catalog-list">
+        {items.map((item) => (
+          <ItemRow
+            key={item.id}
+            item={item}
+            onSave={async (id, data) => {
+              await updateMenuItem(id, data)
+              notify('Item updated.')
             }}
-          >
-            Import default menu list
-          </button>
-        </div>
-      )}
-
-      <section className="catalog-section">
-        <h3>Add category</h3>
-        <form
-          className="inline-form"
-          onSubmit={async (e) => {
-            e.preventDefault()
-            if (!newCatGu.trim() || !newCatEn.trim()) {
-              handleError({ message: 'Category labels cannot be empty.' })
-              return
-            }
-            try {
-              await addCategory({
-                labelEn: newCatEn.trim(),
-                labelGu: newCatGu.trim(),
-              })
-              setNewCatEn('')
-              setNewCatGu('')
-              notify('Category added.')
-            } catch (err) {
-              handleError(err)
-            }
-          }}
-        >
-          <input
-            value={newCatGu}
-            onChange={(e) => setNewCatGu(e.target.value)}
-            placeholder="Gujarati label"
-            required
+            onError={handleError}
+            onDelete={async (row) => {
+              const label = row.gu || row.en || 'this item'
+              if (
+                !confirmDelete(
+                  `Remove "${label}" from the menu? This cannot be undone.`,
+                )
+              ) {
+                return
+              }
+              await deleteMenuItem(row.id)
+              notify('Item removed.')
+            }}
           />
-          <input
-            value={newCatEn}
-            onChange={(e) => setNewCatEn(e.target.value)}
-            placeholder="English label"
-            required
-          />
-          <button type="submit" className="btn btn-primary btn-sm">
-            Add category
-          </button>
-        </form>
-      </section>
+        ))}
+      </ul>
 
-      {catalog.categories.map((cat) => (
-        <section key={cat.id} className="catalog-section">
-          <div className="catalog-section-header">
-            <h3>
-              {cat.labelGu} · {cat.labelEn}
-            </h3>
+      <AddItemForm
+        categoryId={cat.id}
+        onAdded={() => notify('Item added.')}
+        onError={handleError}
+      />
+
+      <PlanningViewGroupsEditor
+        category={cat}
+        items={items}
+        onSaved={(msg) => notify(msg)}
+        onError={handleError}
+      />
+    </>
+  )
+
+  if (accordion) {
+    return (
+      <details className="catalog-accordion" open={itemCount > 0}>
+        <summary className="catalog-accordion-summary">
+          <span className="catalog-accordion-title">
+            {cat.labelGu} · {cat.labelEn}
+          </span>
+          <span className="catalog-accordion-meta muted">
+            {itemCount} item{itemCount === 1 ? '' : 's'}
+          </span>
+        </summary>
+        <div className="catalog-accordion-body">
+          <div className="catalog-section-header catalog-accordion-actions">
             <button
               type="button"
               className="btn btn-danger btn-sm"
               onClick={async () => {
-                const items = catalog.itemsByCategory[cat.id] ?? []
                 const msg =
                   items.length > 0
                     ? `Delete category "${cat.labelEn}" and all ${items.length} item(s)? This cannot be undone.`
@@ -361,47 +335,178 @@ export function AdminMenuCatalogPage() {
               Delete category
             </button>
           </div>
+          {body}
+        </div>
+      </details>
+    )
+  }
 
-          <ul className="catalog-list">
-            {(catalog.itemsByCategory[cat.id] ?? []).map((item) => (
-              <ItemRow
-                key={item.id}
-                item={item}
-                onSave={async (id, data) => {
-                  await updateMenuItem(id, data)
-                  notify('Item updated.')
-                }}
-                onError={handleError}
-                onDelete={async (row) => {
-                  const label = row.gu || row.en || 'this item'
-                  if (
-                    !confirmDelete(
-                      `Remove "${label}" from the menu? This cannot be undone.`,
-                    )
-                  ) {
-                    return
-                  }
-                  await deleteMenuItem(row.id)
-                  notify('Item removed.')
-                }}
-              />
-            ))}
-          </ul>
+  return (
+    <section className="catalog-section">
+      <div className="catalog-section-header">
+        <h3>
+          {cat.labelGu} · {cat.labelEn}
+        </h3>
+        <button
+          type="button"
+          className="btn btn-danger btn-sm"
+          onClick={async () => {
+            const msg =
+              items.length > 0
+                ? `Delete category "${cat.labelEn}" and all ${items.length} item(s)? This cannot be undone.`
+                : `Delete category "${cat.labelEn}"? This cannot be undone.`
+            if (!confirmDelete(msg)) return
+            try {
+              await deleteCategory(cat.id)
+              notify('Category removed.')
+            } catch (err) {
+              handleError(err)
+            }
+          }}
+        >
+          Delete category
+        </button>
+      </div>
+      {body}
+    </section>
+  )
+}
 
-          <AddItemForm
-            categoryId={cat.id}
-            onAdded={() => notify('Item added.')}
-            onError={handleError}
-          />
+function AddCategoryForm({ notify, handleError }) {
+  const [newCatEn, setNewCatEn] = useState('')
+  const [newCatGu, setNewCatGu] = useState('')
 
-          <PlanningViewGroupsEditor
-            category={cat}
-            items={catalog.itemsByCategory[cat.id] ?? []}
-            onSaved={(msg) => notify(msg)}
-            onError={handleError}
-          />
-        </section>
-      ))}
+  return (
+    <section className="catalog-section catalog-add-category">
+      <h3>Add category</h3>
+      <form
+        className="inline-form"
+        onSubmit={async (e) => {
+          e.preventDefault()
+          if (!newCatGu.trim() || !newCatEn.trim()) {
+            handleError({ message: 'Category labels cannot be empty.' })
+            return
+          }
+          try {
+            await addCategory({
+              labelEn: newCatEn.trim(),
+              labelGu: newCatGu.trim(),
+            })
+            setNewCatEn('')
+            setNewCatGu('')
+            notify('Category added.')
+          } catch (err) {
+            handleError(err)
+          }
+        }}
+      >
+        <input
+          value={newCatGu}
+          onChange={(e) => setNewCatGu(e.target.value)}
+          placeholder="Gujarati label"
+          required
+        />
+        <input
+          value={newCatEn}
+          onChange={(e) => setNewCatEn(e.target.value)}
+          placeholder="English label"
+          required
+        />
+        <button type="submit" className="btn btn-primary btn-sm">
+          Add category
+        </button>
+      </form>
+    </section>
+  )
+}
+
+export function AdminMenuCatalogPage() {
+  const { catalog, loading, seeding, error } = useMenuCatalog({ autoSeed: true })
+  const toast = useToast()
+
+  const notify = (text) => toast.success(text)
+  const handleError = (err) => toast.error(err.message ?? 'Invalid value.')
+
+  if (loading) {
+    return <p className="page-loading">Loading…</p>
+  }
+
+  const seedBanner =
+    catalog.categories.length === 0 ? (
+      <div className="seed-banner">
+        <p>No menu items in database yet.</p>
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={async () => {
+            try {
+              await seedDefaultCatalog()
+              notify('Default menu list imported.')
+            } catch (err) {
+              handleError(err)
+            }
+          }}
+        >
+          Import default menu list
+        </button>
+      </div>
+    ) : null
+
+  const categorySections = catalog.categories.map((cat) => (
+    <CatalogCategorySection
+      key={cat.id}
+      cat={cat}
+      catalog={catalog}
+      notify={notify}
+      handleError={handleError}
+    />
+  ))
+
+  const mobileCategorySections = catalog.categories.map((cat) => (
+    <CatalogCategorySection
+      key={cat.id}
+      cat={cat}
+      catalog={catalog}
+      notify={notify}
+      handleError={handleError}
+      accordion
+    />
+  ))
+
+  return (
+    <div className="page admin-page admin-catalog-page">
+      <div className="layout-desktop">
+        <header className="page-header">
+          <h2>Menu editing</h2>
+          <p>
+            Add dishes and set vote type: Yes/No for shaak, Number for roti, etc.
+            Optional notes and recipe are visible only to Maharaj on the vote dashboard.
+          </p>
+        </header>
+
+        {seeding && <p className="muted">Importing default menu list…</p>}
+        {error && <p className="form-error">{error}</p>}
+        {seedBanner}
+        <AddCategoryForm notify={notify} handleError={handleError} />
+        {categorySections}
+      </div>
+
+      <div className="layout-mobile admin-catalog-mobile">
+        <MobilePageHeader
+          icon={UtensilsCrossed}
+          title="Menu editing"
+          description="Dishes, vote types, and Maharaj-only notes."
+        />
+
+        {seeding && <p className="muted">Importing default menu list…</p>}
+        {error && <p className="form-error">{error}</p>}
+        {seedBanner}
+        <AddCategoryForm notify={notify} handleError={handleError} />
+
+        <div className="catalog-accordion-list mobile-section-gap">
+          {mobileCategorySections}
+        </div>
+      </div>
     </div>
   )
 }

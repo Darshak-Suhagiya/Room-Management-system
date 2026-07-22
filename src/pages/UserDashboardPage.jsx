@@ -1,10 +1,15 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { MealVotePanel } from '../components/MealVotePanel'
 import { MealCalendar } from '../components/MealCalendar'
+import { MealDayStrip } from '../components/meals/MealDayStrip'
+import { MealSlotTabs } from '../components/meals/MealSlotTabs'
+import { MealCalendarSheet } from '../components/meals/MealCalendarSheet'
+import { MealsOptionsSheet } from '../components/meals/MealsOptionsSheet'
 import { NoticeBannerSlot } from '../components/NoticeBannerSlot'
-import { PushPermissionCard } from '../components/PushPermissionCard'
+import { PushPermissionPrompt } from '../components/PushPermissionPrompt'
+import { useMediaQuery } from '../hooks/useMediaQuery'
 import { NOTICE_PAGES } from '../config/constants'
 import { useMenuCatalog } from '../hooks/useMenuCatalog'
 import { getAllPlannedMenus } from '../services/menuService'
@@ -23,6 +28,7 @@ import {
 } from 'lucide-react'
 import {
   formatDateId,
+  formatDisplayDateGu,
   formatMealDayHeader,
   isTodayDate,
   sortMenusByDateDesc,
@@ -38,6 +44,8 @@ function SlotWithLock({
   displayName,
   canReview,
   showOthersFeedback,
+  onToggleOthersFeedback,
+  mobile = false,
 }) {
   const [locked, setLocked] = useState(false)
   const [refreshTick, setRefreshTick] = useState(0)
@@ -73,6 +81,8 @@ function SlotWithLock({
       displayName={displayName}
       canReview={canReview}
       showOthersFeedback={showOthersFeedback}
+      onToggleOthersFeedback={onToggleOthersFeedback}
+      mobile={mobile}
     />
   )
 }
@@ -168,6 +178,10 @@ export function UserDashboardPage() {
   const [menusLoading, setMenusLoading] = useState(true)
   const [error, setError] = useState('')
   const [selectedDate, setSelectedDate] = useState(null)
+  const [selectedSlot, setSelectedSlot] = useState('morning')
+  const [calendarOpen, setCalendarOpen] = useState(false)
+  const [optionsOpen, setOptionsOpen] = useState(false)
+  const mobileInitializedRef = useRef(false)
   const [participations, setParticipations] = useState([])
   const [showOthersFeedback, setShowOthersFeedback] = useState(() => {
     try {
@@ -181,6 +195,7 @@ export function UserDashboardPage() {
 
   const categoryKey = categoryIds.join(',')
   const today = formatDateId(new Date())
+  const isMobileLayout = useMediaQuery('(max-width: 899px)')
   const displayName =
     profile?.displayName || user?.displayName || user?.email?.split('@')[0] || 'Member'
 
@@ -230,6 +245,19 @@ export function UserDashboardPage() {
     [sortedMenus],
   )
 
+  const plannedDateIds = useMemo(
+    () => [...plannedDates].sort((a, b) => a.localeCompare(b)),
+    [plannedDates],
+  )
+
+  const mobileStripDateIds = useMemo(() => {
+    const future = plannedDateIds.filter((d) => d >= today)
+    if (!future.includes(today)) {
+      return [today, ...future].sort((a, b) => a.localeCompare(b))
+    }
+    return future
+  }, [plannedDateIds, today])
+
   useEffect(() => {
     if (!user?.uid) return undefined
     return subscribeUserParticipations(user.uid, setParticipations)
@@ -271,10 +299,45 @@ export function UserDashboardPage() {
   }, [sortedMenus, plannedDates, today])
 
   useEffect(() => {
+    if (isMobileLayout) return
     setSelectedDate((prev) =>
       prev && plannedDates.has(prev) ? prev : defaultDate,
     )
-  }, [defaultDate, plannedDates])
+  }, [defaultDate, plannedDates, isMobileLayout])
+
+  useEffect(() => {
+    if (!isMobileLayout || mobileInitializedRef.current || menusLoading) return
+    mobileInitializedRef.current = true
+    setSelectedDate(today)
+  }, [isMobileLayout, menusLoading, today])
+
+  const selectedMenu = sortedMenus.find((m) => m.date === selectedDate) ?? null
+
+  const availableSlots = useMemo(() => {
+    if (!selectedMenu) return []
+    const slots = []
+    if (selectedMenu.hasMorning) slots.push('morning')
+    if (selectedMenu.hasEvening) slots.push('evening')
+    return slots
+  }, [selectedMenu])
+
+  useEffect(() => {
+    if (availableSlots.length === 0) return
+    if (!availableSlots.includes(selectedSlot)) {
+      setSelectedSlot(availableSlots[0])
+    }
+  }, [selectedDate, availableSlots, selectedSlot])
+
+  const slotComplete = useMemo(() => {
+    if (!selectedMenu) return {}
+    const out = {}
+    for (const slot of availableSlots) {
+      const plannedItems = getPlannedMenuItems(selectedMenu, slot, catalog)
+      const p = participationByKey[`${selectedMenu.date}_${slot}`]
+      out[slot] = hasMealVoteComplete(p, plannedItems)
+    }
+    return out
+  }, [selectedMenu, availableSlots, participationByKey, catalog])
 
   if (catalogLoading) {
     return <p className="page-loading">Loading…</p>
@@ -286,98 +349,198 @@ export function UserDashboardPage() {
     return <p className="page-loading">Loading menus…</p>
   }
 
-  const selectedMenu = sortedMenus.find((m) => m.date === selectedDate) ?? null
+  const slotPanelProps = {
+    userId: user.uid,
+    menu: selectedMenu,
+    catalog,
+    onReloadMenus: loadMenus,
+    displayName,
+    canReview: canSeeMealReviews,
+    showOthersFeedback,
+    onToggleOthersFeedback: toggleOthersFeedback,
+  }
 
   return (
     <div className="page meals-page">
       <NoticeBannerSlot page={NOTICE_PAGES.MEALS} />
-      <PushPermissionCard />
-      <header className="page-header page-header-icon">
-        <span className="page-header-icon-wrap" aria-hidden>
-          <IconUtensils size={22} />
-        </span>
-        <div>
-          <h2>My meals</h2>
-          <p>Pick a day on the calendar. Your vote appears next to each item.</p>
-        </div>
-      </header>
+      <PushPermissionPrompt />
 
       {seeding && <p className="muted">Loading menus…</p>}
       {displayError && <p className="form-error">{displayError}</p>}
 
-      <div className="meals-dashboard">
-        <div className="meals-main">
-          {sortedMenus.length === 0 || !selectedMenu ? (
-            <p className="muted">No menus planned yet.</p>
-          ) : (
-            <article className="menu-day-card">
-              <header className="menu-day-header">
-                <div className="menu-day-header-text">
-                  <IconCalendar size={18} className="menu-day-cal-icon" />
-                  <div>
-                    <span className="menu-day-date">
-                      {formatMealDayHeader(selectedMenu.date).line1}
-                    </span>
-                    <span className="menu-day-weekday">
-                      {formatMealDayHeader(selectedMenu.date).line2}
-                    </span>
-                  </div>
-                </div>
-                {isTodayDate(selectedMenu.date) && (
-                  <span className="today-badge">Today</span>
-                )}
-              </header>
-              <div className="menu-slots-row">
-                {selectedMenu.hasMorning && (
-                  <SlotWithLock
-                    userId={user.uid}
-                    dateId={selectedMenu.date}
-                    slot="morning"
-                    menu={selectedMenu}
-                    catalog={catalog}
-                    onReloadMenus={loadMenus}
-                    displayName={displayName}
-                    canReview={canSeeMealReviews}
-                    showOthersFeedback={showOthersFeedback}
-                  />
-                )}
-                {selectedMenu.hasEvening && (
-                  <SlotWithLock
-                    userId={user.uid}
-                    dateId={selectedMenu.date}
-                    slot="evening"
-                    menu={selectedMenu}
-                    catalog={catalog}
-                    onReloadMenus={loadMenus}
-                    displayName={displayName}
-                    canReview={canSeeMealReviews}
-                    showOthersFeedback={showOthersFeedback}
-                  />
-                )}
-              </div>
-            </article>
-          )}
-        </div>
+      {/* Desktop layout — unchanged */}
+      <div className="meals-layout-desktop">
+        <header className="page-header page-header-icon">
+          <span className="page-header-icon-wrap" aria-hidden>
+            <IconUtensils size={22} />
+          </span>
+          <div>
+            <h2>My meals</h2>
+            <p>Pick a day on the calendar. Your vote appears next to each item.</p>
+          </div>
+        </header>
 
-        <aside className="meals-rail">
-          <MealCalendar
-            plannedDates={plannedDates}
-            selectedDate={selectedDate}
-            today={today}
-            onSelect={setSelectedDate}
-            dateStatus={dateStatus}
-          />
-          <QuickLinks
-            isMaharaj={isMaharaj}
-            canAccessVoteDashboard={canAccessVoteDashboard}
-            canPlanMenus={canPlanMenus}
-            canEditMenuCatalog={canEditMenuCatalog}
-            canSeeMealReviews={canSeeMealReviews}
-            canSeeMenuAnalytics={canSeeMenuAnalytics}
-            showOthersFeedback={showOthersFeedback}
-            onToggleOthersFeedback={toggleOthersFeedback}
-          />
-        </aside>
+        <div className="meals-dashboard">
+          <div className="meals-main">
+            {sortedMenus.length === 0 || !selectedMenu ? (
+              <p className="muted">No menus planned yet.</p>
+            ) : (
+              <article className="menu-day-card">
+                <header className="menu-day-header">
+                  <div className="menu-day-header-text">
+                    <IconCalendar size={18} className="menu-day-cal-icon" />
+                    <div>
+                      <span className="menu-day-date">
+                        {formatMealDayHeader(selectedMenu.date).line1}
+                      </span>
+                      <span className="menu-day-weekday">
+                        {formatMealDayHeader(selectedMenu.date).line2}
+                      </span>
+                    </div>
+                  </div>
+                  {isTodayDate(selectedMenu.date) && (
+                    <span className="today-badge">Today</span>
+                  )}
+                </header>
+                <div className="menu-slots-row">
+                  {selectedMenu.hasMorning && (
+                    <SlotWithLock
+                      {...slotPanelProps}
+                      dateId={selectedMenu.date}
+                      slot="morning"
+                    />
+                  )}
+                  {selectedMenu.hasEvening && (
+                    <SlotWithLock
+                      {...slotPanelProps}
+                      dateId={selectedMenu.date}
+                      slot="evening"
+                    />
+                  )}
+                </div>
+              </article>
+            )}
+          </div>
+
+          <aside className="meals-rail">
+            <MealCalendar
+              plannedDates={plannedDates}
+              selectedDate={selectedDate}
+              today={today}
+              onSelect={setSelectedDate}
+              dateStatus={dateStatus}
+            />
+            <QuickLinks
+              isMaharaj={isMaharaj}
+              canAccessVoteDashboard={canAccessVoteDashboard}
+              canPlanMenus={canPlanMenus}
+              canEditMenuCatalog={canEditMenuCatalog}
+              canSeeMealReviews={canSeeMealReviews}
+              canSeeMenuAnalytics={canSeeMenuAnalytics}
+              showOthersFeedback={showOthersFeedback}
+              onToggleOthersFeedback={toggleOthersFeedback}
+            />
+          </aside>
+        </div>
+      </div>
+
+      {/* Mobile / PWA layout */}
+      <div className="meals-layout-mobile">
+        <header className="meals-mobile-top-row">
+          <div className="meals-mobile-top-title">
+            <span className="meals-mobile-top-icon" aria-hidden>
+              <IconUtensils size={20} />
+            </span>
+            <div>
+              <h2>My meals</h2>
+              <p className="muted">Pick a day, vote morning or evening.</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm meals-mobile-options-btn"
+            onClick={() => setOptionsOpen(true)}
+          >
+            Options
+          </button>
+        </header>
+
+        {sortedMenus.length === 0 ? (
+          <p className="muted">No menus planned yet.</p>
+        ) : (
+          <>
+            <MealDayStrip
+              plannedDateIds={mobileStripDateIds}
+              selectedDate={selectedDate}
+              today={today}
+              dateStatus={dateStatus}
+              onSelect={setSelectedDate}
+              onOpenCalendar={() => setCalendarOpen(true)}
+            />
+
+            <header className="meals-mobile-day-head">
+              <span className="meals-mobile-day-label">
+                {formatDisplayDateGu(selectedDate ?? today)}
+                {isTodayDate(selectedDate ?? today) && (
+                  <span className="meals-mobile-day-today"> · Today</span>
+                )}
+              </span>
+            </header>
+
+            {!selectedMenu ? (
+              <div className="meals-mobile-empty">
+                <p className="meals-mobile-empty-title">
+                  {isTodayDate(selectedDate)
+                    ? 'No menu planned for today'
+                    : 'No menu planned for this day'}
+                </p>
+                <p className="muted">
+                  Pick another date from the strip above or open Calendar to browse
+                  all planned menus.
+                </p>
+              </div>
+            ) : (
+              <>
+                <MealSlotTabs
+                  slots={availableSlots}
+                  selectedSlot={selectedSlot}
+                  slotComplete={slotComplete}
+                  onSelect={setSelectedSlot}
+                />
+
+                <div className="meals-mobile-slot-panel">
+                  {availableSlots.includes(selectedSlot) && (
+                    <SlotWithLock
+                      {...slotPanelProps}
+                      dateId={selectedMenu.date}
+                      slot={selectedSlot}
+                      mobile
+                    />
+                  )}
+                </div>
+              </>
+            )}
+          </>
+        )}
+
+        <MealsOptionsSheet
+          open={optionsOpen}
+          onClose={() => setOptionsOpen(false)}
+          canSeeMealReviews={canSeeMealReviews}
+          canSeeMenuAnalytics={canSeeMenuAnalytics}
+          showOthersFeedback={showOthersFeedback}
+          onToggleOthersFeedback={toggleOthersFeedback}
+        />
+
+        <MealCalendarSheet
+          open={calendarOpen}
+          onClose={() => setCalendarOpen(false)}
+          plannedDates={plannedDates}
+          selectedDate={selectedDate}
+          today={today}
+          onSelect={setSelectedDate}
+          dateStatus={dateStatus}
+        />
       </div>
     </div>
   )

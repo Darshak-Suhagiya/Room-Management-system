@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
 import { ThemeProvider } from './contexts/ThemeContext'
@@ -7,23 +8,74 @@ import { ProtectedRoute } from './components/ProtectedRoute'
 import { LoginPage } from './pages/LoginPage'
 import { SetupPage } from './pages/SetupPage'
 import { HomePage } from './pages/HomePage'
-import { AdminMenuPlanningPage } from './pages/AdminMenuPlanningPage'
-import { AdminMenuCatalogPage } from './pages/AdminMenuCatalogPage'
-import { AdminVotesDashboardPage } from './pages/AdminVotesDashboardPage'
-import { AdminUsersPage } from './pages/AdminUsersPage'
+import { SettingsPage } from './pages/SettingsPage'
 import { AccountPendingPage } from './pages/AccountPendingPage'
 import { VerifyEmailPage } from './pages/VerifyEmailPage'
 import { AuthActionPage } from './pages/AuthActionPage'
 import { AuthQueryRedirect } from './components/AuthQueryRedirect'
-import { AdminSevaPage } from './pages/AdminSevaPage'
-import { SevaOverviewPage } from './pages/SevaOverviewPage'
-import { SevaPrintablePage } from './pages/SevaPrintablePage'
-import { AllMenusPage } from './pages/AllMenusPage'
-import { MenuAnalyticsPage } from './pages/MenuAnalyticsPage'
-import { LeaveCalendarPage } from './pages/LeaveCalendarPage'
-import { AdminNoticesPage } from './pages/AdminNoticesPage'
-import { AdminPushPage } from './pages/AdminPushPage'
-import './App.css'
+
+const AdminMenuPlanningPage = lazy(() =>
+  import('./pages/AdminMenuPlanningPage').then((m) => ({
+    default: m.AdminMenuPlanningPage,
+  })),
+)
+const AdminMenuCatalogPage = lazy(() =>
+  import('./pages/AdminMenuCatalogPage').then((m) => ({
+    default: m.AdminMenuCatalogPage,
+  })),
+)
+const AdminVotesDashboardPage = lazy(() =>
+  import('./pages/AdminVotesDashboardPage').then((m) => ({
+    default: m.AdminVotesDashboardPage,
+  })),
+)
+const AdminUsersPage = lazy(() =>
+  import('./pages/AdminUsersPage').then((m) => ({ default: m.AdminUsersPage })),
+)
+const AdminSevaPage = lazy(() =>
+  import('./pages/AdminSevaPage').then((m) => ({ default: m.AdminSevaPage })),
+)
+const SevaOverviewPage = lazy(() =>
+  import('./pages/SevaOverviewPage').then((m) => ({
+    default: m.SevaOverviewPage,
+  })),
+)
+const SevaPrintablePage = lazy(() =>
+  import('./pages/SevaPrintablePage').then((m) => ({
+    default: m.SevaPrintablePage,
+  })),
+)
+const AllMenusPage = lazy(() =>
+  import('./pages/AllMenusPage').then((m) => ({ default: m.AllMenusPage })),
+)
+const MenuAnalyticsPage = lazy(() =>
+  import('./pages/MenuAnalyticsPage').then((m) => ({
+    default: m.MenuAnalyticsPage,
+  })),
+)
+const LeaveCalendarPage = lazy(() =>
+  import('./pages/LeaveCalendarPage').then((m) => ({
+    default: m.LeaveCalendarPage,
+  })),
+)
+const AdminNoticesPage = lazy(() =>
+  import('./pages/AdminNoticesPage').then((m) => ({
+    default: m.AdminNoticesPage,
+  })),
+)
+const AdminPushPage = lazy(() =>
+  import('./pages/AdminPushPage').then((m) => ({ default: m.AdminPushPage })),
+)
+const StocksPage = lazy(() =>
+  import('./pages/StocksPage').then((m) => ({ default: m.StocksPage })),
+)
+const ShoppingPage = lazy(() =>
+  import('./pages/ShoppingPage').then((m) => ({ default: m.ShoppingPage })),
+)
+
+function RouteFallback() {
+  return <p className="page-loading">Loading…</p>
+}
 
 function App() {
   return (
@@ -37,6 +89,7 @@ function App() {
             : import.meta.env.BASE_URL || undefined
         }
       >
+        <Suspense fallback={<RouteFallback />}>
         <Routes>
           <Route path="/setup" element={<SetupPage />} />
           <Route path="/login" element={<LoginPage />} />
@@ -53,6 +106,7 @@ function App() {
             <Route index element={<HomePage />} />
             <Route path="menus" element={<AllMenusPage />} />
             <Route path="leaves" element={<LeaveCalendarPage />} />
+            <Route path="settings" element={<SettingsPage />} />
             <Route
               path="admin/notices"
               element={
@@ -78,6 +132,22 @@ function App() {
               }
             />
             <Route path="seva" element={<SevaOverviewPage />} />
+            <Route
+              path="stocks"
+              element={
+                <ProtectedRoute stocksAccess>
+                  <StocksPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="shopping"
+              element={
+                <ProtectedRoute stocksAccess>
+                  <ShoppingPage />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="admin/planning"
               element={
@@ -133,6 +203,7 @@ function App() {
           </Route>
           <Route path="*" element={<AuthQueryRedirect />} />
         </Routes>
+        </Suspense>
       </BrowserRouter>
       </ToastProvider>
     </AuthProvider>

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Ban, CircleCheck, Clock, Users as UsersIcon } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import { MobileFilterBar, MobilePageHeader } from '../components/mobile'
 import { ROLES, USER_STATUS } from '../config/constants'
 import {
   ROLE_LABELS,
@@ -195,48 +196,207 @@ export function AdminUsersPage() {
   }
 
   return (
-    <div className="page admin-page">
-      <header className="page-header">
-        <h2>Users</h2>
-        <p>
-          Edit names and roles, approve or deactivate accounts. Only approved users
-          are counted in vote stats.
-          {!isAdmin && (
-            <>
-              {' '}
-              As Room leader you can manage members, but not Admin accounts or the
-              Admin role.
-            </>
-          )}
-        </p>
-      </header>
+    <div className="page admin-page admin-users-page">
+      <div className="layout-desktop">
+        <header className="page-header">
+          <h2>Users</h2>
+          <p>
+            Edit names and roles, approve or deactivate accounts. Only approved users
+            are counted in vote stats.
+            {!isAdmin && (
+              <>
+                {' '}
+                As Room leader you can manage members, but not Admin accounts or the
+                Admin role.
+              </>
+            )}
+          </p>
+        </header>
 
-      {error && <p className="form-error">{error}</p>}
+        {error && <p className="form-error">{error}</p>}
 
-      <div className="stat-cards">
-        {statCards.map((card) => {
-          const Icon = card.icon
-          const active = statusFilter === card.id
+        <div className="stat-cards">
+          {statCards.map((card) => {
+            const Icon = card.icon
+            const active = statusFilter === card.id
+            return (
+              <button
+                key={card.id}
+                type="button"
+                className={`stat-card-tile stat-card-btn${active ? ' is-active' : ''}`}
+                onClick={() => setStatusFilter(card.id)}
+              >
+                <span className={`stat-card-icon ${card.tone}`}>
+                  <Icon size={22} />
+                </span>
+                <span>
+                  <span className="stat-card-value">{card.value}</span>
+                  <span className="stat-card-label">{card.label}</span>
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      <div className="layout-mobile">
+        <MobilePageHeader
+          icon={UsersIcon}
+          title="Users"
+          description={
+            isAdmin
+              ? 'Manage members, roles, and approvals.'
+              : 'Manage members — Admin accounts are read-only.'
+          }
+        />
+
+        {error && <p className="form-error">{error}</p>}
+
+        <MobileFilterBar>
+          <div className="admin-users-filter-chips">
+            {statCards.map((card) => {
+              const Icon = card.icon
+              const active = statusFilter === card.id
+              return (
+                <button
+                  key={card.id}
+                  type="button"
+                  className={`admin-users-filter-chip${active ? ' is-active' : ''}`}
+                  onClick={() => setStatusFilter(card.id)}
+                >
+                  <Icon size={14} aria-hidden />
+                  <span>{card.label}</span>
+                  <span className="admin-users-filter-count">{card.value}</span>
+                </button>
+              )
+            })}
+          </div>
+        </MobileFilterBar>
+      </div>
+
+      <div className="admin-users-mobile-list layout-mobile flex flex-col gap-3">
+        {visibleUsers.length === 0 && (
+          <p className="muted">No users in this view.</p>
+        )}
+        {visibleUsers.map((u) => {
+          const draft = drafts[u.id] ?? draftFromUser(u)
+          const dirty = draftChanged(u, draft)
+          const isSelf = u.id === user?.uid
+          const busy = busyId === u.id
+          const canEdit = canEditManagedUser(profile, u)
+          const roleLocked = busy || isSelf || !canEdit
+          const nameLocked = busy || !canEdit
+
           return (
-            <button
-              key={card.id}
-              type="button"
-              className={`stat-card-tile stat-card-btn${active ? ' is-active' : ''}`}
-              onClick={() => setStatusFilter(card.id)}
+            <article
+              key={u.id}
+              className="admin-user-mobile-card rounded-default border border-border bg-surface p-4 flex flex-col gap-3"
             >
-              <span className={`stat-card-icon ${card.tone}`}>
-                <Icon size={22} />
-              </span>
-              <span>
-                <span className="stat-card-value">{card.value}</span>
-                <span className="stat-card-label">{card.label}</span>
-              </span>
-            </button>
+              <div className="admin-user-name-cell">
+                <span className="admin-user-avatar" aria-hidden="true">
+                  {getUserInitials(draft.displayName || u.email)}
+                </span>
+                <input
+                  type="text"
+                  className="admin-user-name-input"
+                  value={draft.displayName}
+                  disabled={nameLocked}
+                  onChange={(e) => setDraft(u.id, { displayName: e.target.value })}
+                  onBlur={() => dirty && saveProfile(u)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      saveProfile(u)
+                    }
+                  }}
+                />
+              </div>
+              <p className="admin-user-email text-sm text-muted break-all">{u.email}</p>
+              <div className="flex flex-wrap items-center gap-2">
+                <select
+                  className="admin-user-role-select flex-1 min-h-11"
+                  value={draft.role}
+                  disabled={roleLocked}
+                  onChange={(e) => setDraft(u.id, { role: e.target.value })}
+                >
+                  {assignableRoles.map((role) => (
+                    <option key={role} value={role}>
+                      {ROLE_LABELS[role]}
+                    </option>
+                  ))}
+                  {!assignableRoles.includes(draft.role) && (
+                    <option value={draft.role}>
+                      {ROLE_LABELS[draft.role] ?? draft.role}
+                    </option>
+                  )}
+                </select>
+                <span className={`status-pill status-${u.status}`}>
+                  {STATUS_LABEL[u.status] ?? u.status}
+                </span>
+              </div>
+              <div className="admin-users-actions flex flex-wrap gap-2">
+                {dirty && canEdit && (
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm min-h-11 flex-1"
+                    disabled={busy}
+                    onClick={() => saveProfile(u)}
+                  >
+                    {busy ? '…' : 'Save'}
+                  </button>
+                )}
+                {!isSelf && canEdit && u.role !== ROLES.ADMIN && (
+                  <>
+                    {u.status !== USER_STATUS.APPROVED && (
+                      <button
+                        type="button"
+                        className="btn btn-primary btn-sm min-h-11 flex-1"
+                        disabled={busy}
+                        onClick={() => setStatus(u.id, USER_STATUS.APPROVED)}
+                      >
+                        Approve
+                      </button>
+                    )}
+                    {u.status !== USER_STATUS.DEACTIVATED && (
+                      <button
+                        type="button"
+                        className="btn btn-danger btn-sm min-h-11 flex-1"
+                        disabled={busy}
+                        onClick={() => setStatus(u.id, USER_STATUS.DEACTIVATED)}
+                      >
+                        Deactivate
+                      </button>
+                    )}
+                    {u.status === USER_STATUS.DEACTIVATED && (
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm min-h-11 flex-1"
+                        disabled={busy}
+                        onClick={() => setStatus(u.id, USER_STATUS.APPROVED)}
+                      >
+                        Reactivate
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="btn btn-danger btn-sm min-h-11 flex-1"
+                      disabled={busy}
+                      onClick={() => removeUser(u)}
+                    >
+                      Delete user
+                    </button>
+                  </>
+                )}
+                {!canEdit && (
+                  <span className="muted admin-users-hint">Admin only</span>
+                )}
+              </div>
+            </article>
           )
         })}
       </div>
 
-      <div className="admin-users-table-wrap">
+      <div className="admin-users-table-wrap layout-desktop">
         <table className="admin-users-table">
           <thead>
             <tr>

@@ -10,7 +10,10 @@ import {
   YAxis,
 } from 'recharts'
 import { ChartPie } from 'lucide-react'
+import { MobilePageHeader } from '../components/mobile'
+import { Modal } from '../components/ui/Modal'
 import { useMenuCatalog } from '../hooks/useMenuCatalog'
+import { useMediaQuery } from '../hooks/useMediaQuery'
 import { getAllPlannedMenus } from '../services/menuService'
 import { getAllParticipations } from '../services/participationService'
 import { formatDisplayDateGu } from '../utils/mealDateUtils'
@@ -68,6 +71,7 @@ export function MenuAnalyticsPage() {
   const [sortDir, setSortDir] = useState('desc')
   const [selectedId, setSelectedId] = useState(null)
   const [historyMode, setHistoryMode] = useState('range') // last5 | range
+  const isMobileLayout = useMediaQuery('(max-width: 899px)')
 
   const load = useCallback(async () => {
     if (!categoryIds?.length) {
@@ -233,31 +237,126 @@ export function MenuAnalyticsPage() {
     return sortDir === 'asc' ? ' ↑' : ' ↓'
   }
 
+  const renderItemDetail = () => {
+    if (!selectedRow) {
+      return (
+        <p className="muted">
+          Select an item in the list to see cook history and feedback.
+        </p>
+      )
+    }
+
+    return (
+      <>
+        <h3>{selectedRow.gu}</h3>
+        <p className="muted">{selectedRow.categoryLabel}</p>
+        <div className="analytics-detail-summary">
+          <span>
+            <strong>{selectedRow.timesMade}</strong> times made
+          </span>
+          <span className="analytics-rating-summary">
+            <span className="review-count-pill rating-good">{selectedRow.good}</span>
+            <span className="review-count-pill rating-okay">{selectedRow.okay}</span>
+            <span className="review-count-pill rating-bad">{selectedRow.bad}</span>
+          </span>
+        </div>
+
+        <div className="analytics-history-modes" role="group" aria-label="History mode">
+          <button
+            type="button"
+            className={`btn btn-sm ${historyMode === 'last5' ? 'btn-primary' : 'btn-secondary'}`}
+            onClick={() => setHistoryMode('last5')}
+          >
+            Last 5 cooks
+          </button>
+          <button
+            type="button"
+            className={`btn btn-sm ${historyMode === 'range' ? 'btn-primary' : 'btn-secondary'}`}
+            onClick={() => setHistoryMode('range')}
+          >
+            All in range
+          </button>
+        </div>
+
+        {selectedHistory.length === 0 ? (
+          <p className="muted">
+            {selectedRow.timesMade === 0
+              ? 'This item was never planned in the selected window.'
+              : 'No cook occasions found.'}
+          </p>
+        ) : (
+          <ul className="analytics-history-list">
+            {selectedHistory.map((occ) => (
+              <li key={`${occ.date}-${occ.slot}`} className="analytics-history-item">
+                <div className="analytics-history-head">
+                  <strong>{formatDisplayDateGu(occ.date)}</strong>
+                  <span className="muted">
+                    <SlotLabel slot={occ.slot} />
+                  </span>
+                </div>
+                {occ.reviews.length === 0 ? (
+                  <p className="muted analytics-history-empty">No reviews for this meal.</p>
+                ) : (
+                  <ul className="analytics-review-list">
+                    {occ.reviews.map((rev) => (
+                      <li key={`${rev.userId}-${occ.date}-${occ.slot}`}>
+                        <div className="analytics-review-meta">
+                          <span>{rev.displayName}</span>
+                          <RatingBadge rating={rev.rating} />
+                        </div>
+                        {rev.text ? (
+                          <p className="analytics-review-text">{rev.text}</p>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </>
+    )
+  }
+
+  const chartHeight = isMobileLayout ? 160 : 220
+
   if (catalogLoading || loading) {
     return <p className="page-loading">Loading analytics…</p>
   }
 
   return (
     <div className="page analytics-page">
-      <header className="page-header page-header-icon">
-        <span className="page-header-icon-wrap" aria-hidden>
-          <ChartPie size={22} />
-        </span>
-        <div>
-          <h2>Menu Analytics</h2>
-          <p>
-            How often dishes were planned, and Good / Okay / Bad feedback for the
-            selected date range. “Times made” counts each morning or evening
-            appearance.
-          </p>
-        </div>
-      </header>
+      <div className="layout-desktop">
+        <header className="page-header page-header-icon">
+          <span className="page-header-icon-wrap" aria-hidden>
+            <ChartPie size={22} />
+          </span>
+          <div>
+            <h2>Menu Analytics</h2>
+            <p>
+              How often dishes were planned, and Good / Okay / Bad feedback for the
+              selected date range. “Times made” counts each morning or evening
+              appearance.
+            </p>
+          </div>
+        </header>
+      </div>
 
+      <div className="layout-mobile">
+        <MobilePageHeader
+          icon={ChartPie}
+          title="Menu Analytics"
+          description="Dish frequency and feedback for the selected range."
+        />
+      </div>
+
+      <div className="mobile-section-gap">
       {(error || catalogError) && (
         <p className="form-error">{error || catalogError}</p>
       )}
 
-      <div className="analytics-filters">
+      <div className="analytics-filters analytics-filters-mobile-sticky md:static md:mx-0 md:px-0 md:pb-0 md:border-0 md:bg-transparent md:backdrop-blur-none">
         <div className="analytics-preset-row" role="group" aria-label="Date range">
           {[
             { id: ANALYTICS_RANGE_PRESETS.ALL, label: 'All time' },
@@ -357,7 +456,7 @@ export function MenuAnalyticsPage() {
           {topCookedChart.length === 0 ? (
             <p className="muted">No cooks in this range.</p>
           ) : (
-            <ResponsiveContainer width="100%" height={220}>
+            <ResponsiveContainer width="100%" height={chartHeight}>
               <BarChart data={topCookedChart} margin={{ top: 8, right: 8, left: 0, bottom: 40 }}>
                 <CartesianGrid strokeDasharray="3 3" opacity={0.4} />
                 <XAxis dataKey="name" tick={{ fontSize: 11 }} interval={0} angle={-25} textAnchor="end" height={50} />
@@ -376,7 +475,7 @@ export function MenuAnalyticsPage() {
           {overview.totalReviews === 0 ? (
             <p className="muted">No reviews in this range.</p>
           ) : (
-            <ResponsiveContainer width="100%" height={220}>
+            <ResponsiveContainer width="100%" height={chartHeight}>
               <BarChart data={ratingMixChart} margin={{ top: 8, right: 8, left: 0, bottom: 8 }}>
                 <CartesianGrid strokeDasharray="3 3" opacity={0.4} />
                 <XAxis dataKey="name" tick={{ fontSize: 12 }} />
@@ -394,7 +493,27 @@ export function MenuAnalyticsPage() {
       </div>
 
       <div className="analytics-main">
-        <div className="analytics-table-wrap">
+        <div className="analytics-mobile-list md:hidden flex flex-col gap-2 mb-4">
+          {filteredRows.map((r) => (
+            <button
+              key={r.id}
+              type="button"
+              className={`analytics-mobile-card text-left rounded-default border border-border bg-surface p-3 w-full${selectedId === r.id ? ' is-selected ring-2 ring-primary' : ''}`}
+              onClick={() => setSelectedId(r.id)}
+            >
+              <strong className="block">{r.gu}</strong>
+              <span className="text-sm text-muted">{r.categoryLabel}</span>
+              <div className="flex flex-wrap gap-2 mt-2 text-xs">
+                <span>Made {r.timesMade}</span>
+                <span className="review-count-pill rating-good">{r.good} good</span>
+                <span className="review-count-pill rating-okay">{r.okay} okay</span>
+                <span className="review-count-pill rating-bad">{r.bad} bad</span>
+                <span>Net {r.net}</span>
+              </div>
+            </button>
+          ))}
+        </div>
+        <div className="analytics-table-wrap hidden md:block">
           <table className="analytics-table">
             <thead>
               <tr>
@@ -462,82 +581,21 @@ export function MenuAnalyticsPage() {
           </table>
         </div>
 
-        <aside className="analytics-detail">
-          {!selectedRow ? (
-            <p className="muted">Select an item in the table to see cook history and feedback.</p>
-          ) : (
-            <>
-              <h3>{selectedRow.gu}</h3>
-              <p className="muted">{selectedRow.categoryLabel}</p>
-              <div className="analytics-detail-summary">
-                <span>
-                  <strong>{selectedRow.timesMade}</strong> times made
-                </span>
-                <span className="analytics-rating-summary">
-                  <span className="review-count-pill rating-good">{selectedRow.good}</span>
-                  <span className="review-count-pill rating-okay">{selectedRow.okay}</span>
-                  <span className="review-count-pill rating-bad">{selectedRow.bad}</span>
-                </span>
-              </div>
-
-              <div className="analytics-history-modes" role="group" aria-label="History mode">
-                <button
-                  type="button"
-                  className={`btn btn-sm ${historyMode === 'last5' ? 'btn-primary' : 'btn-secondary'}`}
-                  onClick={() => setHistoryMode('last5')}
-                >
-                  Last 5 cooks
-                </button>
-                <button
-                  type="button"
-                  className={`btn btn-sm ${historyMode === 'range' ? 'btn-primary' : 'btn-secondary'}`}
-                  onClick={() => setHistoryMode('range')}
-                >
-                  All in range
-                </button>
-              </div>
-
-              {selectedHistory.length === 0 ? (
-                <p className="muted">
-                  {selectedRow.timesMade === 0
-                    ? 'This item was never planned in the selected window.'
-                    : 'No cook occasions found.'}
-                </p>
-              ) : (
-                <ul className="analytics-history-list">
-                  {selectedHistory.map((occ) => (
-                    <li key={`${occ.date}-${occ.slot}`} className="analytics-history-item">
-                      <div className="analytics-history-head">
-                        <strong>{formatDisplayDateGu(occ.date)}</strong>
-                        <span className="muted">
-                          <SlotLabel slot={occ.slot} />
-                        </span>
-                      </div>
-                      {occ.reviews.length === 0 ? (
-                        <p className="muted analytics-history-empty">No reviews for this meal.</p>
-                      ) : (
-                        <ul className="analytics-review-list">
-                          {occ.reviews.map((rev) => (
-                            <li key={`${rev.userId}-${occ.date}-${occ.slot}`}>
-                              <div className="analytics-review-meta">
-                                <span>{rev.displayName}</span>
-                                <RatingBadge rating={rev.rating} />
-                              </div>
-                              {rev.text ? (
-                                <p className="analytics-review-text">{rev.text}</p>
-                              ) : null}
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </>
-          )}
+        <aside className="analytics-detail hidden md:block">
+          {renderItemDetail()}
         </aside>
       </div>
+
+      <Modal
+        open={Boolean(selectedRow) && isMobileLayout}
+        onClose={() => setSelectedId(null)}
+        title={selectedRow?.gu ?? 'Item details'}
+        wide
+      >
+        <div className="analytics-detail analytics-detail-mobile-sheet">
+          {renderItemDetail()}
+        </div>
+      </Modal>
 
       <section className="analytics-insights">
         <h3>Insights</h3>
@@ -616,6 +674,7 @@ export function MenuAnalyticsPage() {
           </div>
         </div>
       </section>
+      </div>
     </div>
   )
 }

@@ -47,6 +47,7 @@ export function SevaDailySchedule({
           </div>
         )}
       </div>
+      <div className="seva-table-scroll overflow-x-auto -webkit-overflow-scrolling-touch">
       <table className="seva-table seva-schedule-table">
         <thead>
           <tr>
@@ -109,6 +110,7 @@ export function SevaDailySchedule({
           )}
         </tbody>
       </table>
+      </div>
     </section>
   )
 }

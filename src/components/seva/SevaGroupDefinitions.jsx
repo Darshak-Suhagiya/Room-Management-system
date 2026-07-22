@@ -6,6 +6,7 @@ export function SevaGroupDefinitions({
 }) {
   return (
     <section className="seva-section seva-defs-section">
+      <div className="seva-table-scroll">
       <table className="seva-table seva-defs-table">
         <tbody>
           {dailyGroups.map((group) => (
@@ -53,6 +54,7 @@ export function SevaGroupDefinitions({
           ))}
         </tbody>
       </table>
+      </div>
     </section>
   )
 }

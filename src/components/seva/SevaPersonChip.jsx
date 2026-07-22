@@ -1,5 +1,6 @@
 import { displayPersonName, getPersonById } from '../../utils/sevaLoadUtils'
 import { useSevaPersonColor } from '../../contexts/SevaPersonColorContext'
+import { useCoarsePointer } from '../../hooks/useCoarsePointer'
 
 export function SevaPersonChip({
   person,
@@ -14,9 +15,10 @@ export function SevaPersonChip({
     : note || '—'
 
   const personColors = useSevaPersonColor(editable ? person?.id : null)
+  const coarsePointer = useCoarsePointer()
 
   const handleDragStart = (e) => {
-    if (!editable || !dragPayload) return
+    if (!editable || !dragPayload || coarsePointer) return
     e.dataTransfer.setData('application/seva-drag', JSON.stringify(dragPayload))
     e.dataTransfer.effectAllowed = 'move'
   }
@@ -33,7 +35,7 @@ export function SevaPersonChip({
             }
           : undefined
       }
-      draggable={editable && !!dragPayload}
+      draggable={editable && !!dragPayload && !coarsePointer}
       onDragStart={handleDragStart}
     >
       <span className="seva-chip-label">{label}</span>

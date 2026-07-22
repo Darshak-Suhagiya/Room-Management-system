@@ -36,9 +36,34 @@ export function applyThemeToDocument(themeId) {
   document.documentElement.setAttribute('data-theme', id)
 }
 
+/** Sync PWA / mobile browser chrome with the active theme header color. */
+export function applyBrowserThemeColor() {
+  const color = getComputedStyle(document.documentElement)
+    .getPropertyValue('--header-bg')
+    .trim()
+  if (!color) return
+
+  let meta = document.querySelector('meta[name="theme-color"]')
+  if (!meta) {
+    meta = document.createElement('meta')
+    meta.name = 'theme-color'
+    document.head.appendChild(meta)
+  }
+  meta.content = color
+
+  const appearance = document.documentElement.getAttribute('data-appearance')
+  const appleMeta = document.querySelector(
+    'meta[name="apple-mobile-web-app-status-bar-style"]',
+  )
+  if (appleMeta) {
+    appleMeta.content = appearance === 'dark' ? 'black-translucent' : 'default'
+  }
+}
+
 export function applyThemeSettings(themeId, appearance) {
   applyThemeToDocument(themeId)
   applyAppearanceToDocument(appearance)
+  applyBrowserThemeColor()
 }
 
 export function persistThemeId(themeId) {

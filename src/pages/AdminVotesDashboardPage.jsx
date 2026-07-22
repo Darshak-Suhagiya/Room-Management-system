@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { BarChart3 } from 'lucide-react'
 import { MealDashboardSlotCard } from '../components/MealDashboardSlotCard'
 import { MealSlotDetailModal } from '../components/MealSlotDetailModal'
 import { MenuItemDetailModal } from '../components/MenuItemDetailModal'
@@ -28,6 +29,7 @@ import {
 import { buildVoteStats, getPlannedMenuItems } from '../utils/menuVoteUtils'
 import { VoteSummary } from '../components/VoteSummary'
 import { MealCalendar } from '../components/MealCalendar'
+import { MobileFilterBar, MobilePageHeader } from '../components/mobile'
 
 const MEALS_PER_PAGE = 4
 
@@ -40,6 +42,79 @@ function groupSlotsByDate(slots) {
     map.get(entry.date).slots.push(entry)
   }
   return Array.from(map.values())
+}
+
+function shiftDateId(dateId, deltaDays) {
+  const [y, m, d] = dateId.split('-').map(Number)
+  const date = new Date(y, m - 1, d)
+  date.setDate(date.getDate() + deltaDays)
+  return formatDateId(date)
+}
+
+function VoteDayGroups({
+  groups,
+  statsByKey,
+  todayRef,
+  canLockVotes,
+  showVoteCountBreakdown,
+  busyKey,
+  isMaharaj,
+  canSeeMaharajMenuDetails,
+  onOpenItemDetail,
+  onToggleLock,
+  onRefresh,
+  onCardClick,
+}) {
+  return (
+    <div className="menu-list dashboard-by-date">
+      {groups.map((group) => {
+        const isToday = isTodayDate(group.date)
+        const isTomorrow = isTomorrowDate(group.date)
+        return (
+          <article
+            key={group.date}
+            id={`dash-day-${group.date}`}
+            ref={isToday ? todayRef : null}
+            className={`menu-day-card ${isToday ? 'is-today' : ''} ${isTomorrow ? 'is-tomorrow' : ''}`}
+          >
+            <h2 className="menu-day-title">
+              {formatDisplayDateGu(group.date)}
+              {isToday && <span className="today-badge">Today</span>}
+              {isTomorrow && (
+                <span className="today-badge tomorrow-badge">Tomorrow</span>
+              )}
+            </h2>
+            <div className="menu-slots-row">
+              {group.slots.map((entry) => (
+                <MealDashboardSlotCard
+                  key={entry.key}
+                  entry={entry}
+                  stats={statsByKey[entry.key]}
+                  isToday={isToday}
+                  showSlotToolbar
+                  canLock={canLockVotes}
+                  showVoteBreakdown={showVoteCountBreakdown}
+                  lockBusy={busyKey === `lock-${entry.key}`}
+                  refreshing={busyKey === `refresh-${entry.key}`}
+                  showEveryoneNote={!isMaharaj}
+                  showMaharajNote={canSeeMaharajMenuDetails}
+                  showCookItemDetails={canSeeMaharajMenuDetails}
+                  onOpenItemDetail={onOpenItemDetail}
+                  onToggleLock={
+                    canLockVotes
+                      ? (locked) => onToggleLock(entry, locked)
+                      : undefined
+                  }
+                  onRefresh={() => onRefresh(entry)}
+                  onCardClick={(s) => onCardClick(s, entry)}
+                />
+              ))}
+            </div>
+          </article>
+        )
+      })}
+    </div>
+  )
 }
 
 export function AdminVotesDashboardPage() {
@@ -60,8 +135,6 @@ export function AdminVotesDashboardPage() {
   const [statsByKey, setStatsByKey] = useState({})
   const [loading, setLoading] = useState(true)
   const todayId = formatDateId(new Date())
-  // Default: show today (calendar-selected custom day). Fallback to today+tomorrow
-  // kept available in the Date filter dropdown.
   const [dateFilter, setDateFilter] = useState('custom')
   const [customDate, setCustomDate] = useState(todayId)
   const [slotFilter, setSlotFilter] = useState('all')
@@ -124,6 +197,7 @@ export function AdminVotesDashboardPage() {
     page * MEALS_PER_PAGE + MEALS_PER_PAGE,
   )
   const pageGroups = useMemo(() => groupSlotsByDate(pageSlots), [pageSlots])
+  const allGroups = useMemo(() => groupSlotsByDate(mealSlots), [mealSlots])
 
   const loadSlotStats = useCallback(
     async (entry, menuDoc = entry.menu) => {
@@ -154,7 +228,6 @@ export function AdminVotesDashboardPage() {
     return [...rest, freshMenu].sort((a, b) => b.date.localeCompare(a.date))
   }, [])
 
-  // Load stats for every slot in the current filter so summary cards stay accurate
   const loadFilterStats = useCallback(async () => {
     if (mealSlots.length === 0) return
     const next = {}
@@ -189,7 +262,6 @@ export function AdminVotesDashboardPage() {
     setPage(0)
   }, [slotFilter, dateFilter, customDate])
 
-  // Once menus load, land on today if planned; otherwise nearest upcoming planned day
   useEffect(() => {
     if (loading || plannedDates.length === 0 || didInitDateRef.current) return
     didInitDateRef.current = true
@@ -205,7 +277,6 @@ export function AdminVotesDashboardPage() {
       setDateFilter('custom')
       setCustomDate(upcoming[0])
     } else {
-      // Use newest planned day (already sorted desc via getPlannedDateIds)
       setDateFilter('custom')
       setCustomDate(plannedDates[0])
     }
@@ -214,7 +285,6 @@ export function AdminVotesDashboardPage() {
   useEffect(() => {
     if (dateFilter !== 'custom' || plannedDates.length === 0) return
     if (!plannedDates.includes(customDate)) {
-      // Prefer today, then nearest upcoming, then newest — never jump to an arbitrary old pick
       if (plannedDates.includes(todayId)) {
         setCustomDate(todayId)
         return
@@ -339,147 +409,215 @@ export function AdminVotesDashboardPage() {
     })
   }
 
+  const navigateCustomDate = (delta) => {
+    const next = shiftDateId(customDate, delta)
+    if (plannedDates.length === 0) {
+      setCustomDate(next)
+      return
+    }
+    const sorted = [...plannedDates].sort((a, b) => a.localeCompare(b))
+    if (delta > 0) {
+      const upcoming = sorted.find((d) => d > customDate)
+      if (upcoming) setCustomDate(upcoming)
+      else setCustomDate(next)
+    } else {
+      const previous = [...sorted].reverse().find((d) => d < customDate)
+      if (previous) setCustomDate(previous)
+      else setCustomDate(next)
+    }
+  }
+
+  const cardListProps = {
+    statsByKey,
+    todayRef,
+    canLockVotes,
+    showVoteCountBreakdown,
+    busyKey,
+    isMaharaj,
+    canSeeMaharajMenuDetails,
+    onOpenItemDetail: setItemDetail,
+    onToggleLock: handleToggleLock,
+    onRefresh: handleRefreshSlot,
+    onCardClick: openCardModal,
+  }
+
+  const emptyMessage =
+    dateFilter === 'today_tomorrow'
+      ? 'No menu planned for today or tomorrow.'
+      : dateFilter === 'custom'
+        ? 'No menu planned for this date.'
+        : 'No menus planned.'
+
   if (catalogLoading || loading) {
     return <p className="page-loading">Loading…</p>
   }
 
   return (
-    <div className="page admin-page">
-      <header className="page-header">
-        <h2>Vote dashboard</h2>
-        <p>
-          {isMaharaj
-            ? 'View adjusted meal totals, cook notes, and dish notes/recipes. Lock or unlock voting per slot.'
-            : canAdjustVoteTotals
-              ? `Default: today and tomorrow — ${users.length} members in counts. Lock, refresh, and adjust totals on each card.`
-              : `View votes — ${users.length} members in counts. Open a card for details.`}
-        </p>
-      </header>
+    <div className="page admin-page admin-votes-page">
+      <div className="layout-desktop">
+        <header className="page-header">
+          <h2>Vote dashboard</h2>
+          <p>
+            {isMaharaj
+              ? 'View adjusted meal totals, cook notes, and dish notes/recipes. Lock or unlock voting per slot.'
+              : canAdjustVoteTotals
+                ? `Default: today and tomorrow — ${users.length} members in counts. Lock, refresh, and adjust totals on each card.`
+                : `View votes — ${users.length} members in counts. Open a card for details.`}
+          </p>
+        </header>
 
-      <div className="rail-layout">
-        <div className="dash-main">
-      <div className="dashboard-filters">
-        <label>
-          Date
-          <select
-            value={dateFilter}
-            onChange={(e) => setDateFilter(e.target.value)}
-          >
-            <option value="today_tomorrow">Today and tomorrow</option>
-            <option value="all">All dates</option>
-            <option value="custom">Specific date</option>
-          </select>
-        </label>
-        <label>
-          Slot
-          <select value={slotFilter} onChange={(e) => setSlotFilter(e.target.value)}>
-            <option value="all">All</option>
-            <option value="morning">{MEAL_SLOTS.morning.labelEn}</option>
-            <option value="evening">{MEAL_SLOTS.evening.labelEn}</option>
-          </select>
-        </label>
-        <div className="pagination">
-          <button
-            type="button"
-            className="btn btn-ghost btn-sm"
-            disabled={page <= 0}
-            onClick={() => setPage((p) => p - 1)}
-          >
-            ← Prev
-          </button>
-          <span>
-            Page {page + 1} / {totalPages}
-          </span>
-          <button
-            type="button"
-            className="btn btn-ghost btn-sm"
-            disabled={page >= totalPages - 1}
-            onClick={() => setPage((p) => p + 1)}
-          >
-            Next →
-          </button>
+        <div className="rail-layout">
+          <div className="dash-main">
+            <div className="dashboard-filters">
+              <label>
+                Date
+                <select
+                  value={dateFilter}
+                  onChange={(e) => setDateFilter(e.target.value)}
+                >
+                  <option value="today_tomorrow">Today and tomorrow</option>
+                  <option value="all">All dates</option>
+                  <option value="custom">Specific date</option>
+                </select>
+              </label>
+              <label>
+                Slot
+                <select
+                  value={slotFilter}
+                  onChange={(e) => setSlotFilter(e.target.value)}
+                >
+                  <option value="all">All</option>
+                  <option value="morning">{MEAL_SLOTS.morning.labelEn}</option>
+                  <option value="evening">{MEAL_SLOTS.evening.labelEn}</option>
+                </select>
+              </label>
+              <div className="pagination">
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  disabled={page <= 0}
+                  onClick={() => setPage((p) => p - 1)}
+                >
+                  ← Prev
+                </button>
+                <span>
+                  Page {page + 1} / {totalPages}
+                </span>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  disabled={page >= totalPages - 1}
+                  onClick={() => setPage((p) => p + 1)}
+                >
+                  Next →
+                </button>
+              </div>
+            </div>
+
+            {mealSlots.length > 0 && (
+              <VoteSummary
+                mealSlots={mealSlots}
+                statsByKey={statsByKey}
+                totalMembers={users.length}
+              />
+            )}
+
+            {mealSlots.length === 0 ? (
+              <p className="muted">{emptyMessage}</p>
+            ) : (
+              <VoteDayGroups groups={pageGroups} {...cardListProps} />
+            )}
+          </div>
+
+          <aside className="rail-col">
+            <MealCalendar
+              plannedDates={plannedDatesSet}
+              selectedDate={dateFilter === 'custom' ? customDate : null}
+              today={todayId}
+              onSelect={(id) => {
+                setDateFilter('custom')
+                setCustomDate(id)
+              }}
+            />
+          </aside>
         </div>
       </div>
 
-      {mealSlots.length > 0 && (
-        <VoteSummary
-          mealSlots={mealSlots}
-          statsByKey={statsByKey}
-          totalMembers={users.length}
+      <div className="layout-mobile admin-votes-mobile">
+        <MobilePageHeader
+          icon={BarChart3}
+          title="Vote dashboard"
+          description={
+            isMaharaj
+              ? 'Totals, notes, and lock per slot.'
+              : `${users.length} members in counts.`
+          }
         />
-      )}
 
-      {mealSlots.length === 0 ? (
-        <p className="muted">
-          {dateFilter === 'today_tomorrow'
-            ? 'No menu planned for today or tomorrow.'
-            : dateFilter === 'custom'
-              ? 'No menu planned for this date.'
-              : 'No menus planned.'}
-        </p>
-      ) : (
-        <div className="menu-list dashboard-by-date">
-          {pageGroups.map((group) => {
-            const isToday = isTodayDate(group.date)
-            const isTomorrow = isTomorrowDate(group.date)
-            return (
-              <article
-                key={group.date}
-                id={`dash-day-${group.date}`}
-                ref={isToday ? todayRef : null}
-                className={`menu-day-card ${isToday ? 'is-today' : ''} ${isTomorrow ? 'is-tomorrow' : ''}`}
+        <MobileFilterBar className="admin-votes-mobile-filters">
+          <div className="admin-votes-mobile-filter-row">
+            <label className="admin-votes-mobile-field">
+              <span className="admin-votes-mobile-label">Date</span>
+              <select
+                value={dateFilter}
+                onChange={(e) => setDateFilter(e.target.value)}
               >
-                <h2 className="menu-day-title">
-                  {formatDisplayDateGu(group.date)}
-                  {isToday && <span className="today-badge">Today</span>}
-                  {isTomorrow && (
-                    <span className="today-badge tomorrow-badge">Tomorrow</span>
-                  )}
-                </h2>
-                <div className="menu-slots-row">
-                  {group.slots.map((entry) => (
-                    <MealDashboardSlotCard
-                      key={entry.key}
-                      entry={entry}
-                      stats={statsByKey[entry.key]}
-                      isToday={isToday}
-                      showSlotToolbar
-                      canLock={canLockVotes}
-                      showVoteBreakdown={showVoteCountBreakdown}
-                      lockBusy={busyKey === `lock-${entry.key}`}
-                      refreshing={busyKey === `refresh-${entry.key}`}
-                      showEveryoneNote={!isMaharaj}
-                      showMaharajNote={canSeeMaharajMenuDetails}
-                      showCookItemDetails={canSeeMaharajMenuDetails}
-                      onOpenItemDetail={setItemDetail}
-                      onToggleLock={
-                        canLockVotes
-                          ? (locked) => handleToggleLock(entry, locked)
-                          : undefined
-                      }
-                      onRefresh={() => handleRefreshSlot(entry)}
-                      onCardClick={(s) => openCardModal(s, entry)}
-                    />
-                  ))}
-                </div>
-              </article>
-            )
-          })}
-        </div>
-      )}
-        </div>
+                <option value="today_tomorrow">Today &amp; tomorrow</option>
+                <option value="all">All dates</option>
+                <option value="custom">One day</option>
+              </select>
+            </label>
+            <label className="admin-votes-mobile-field">
+              <span className="admin-votes-mobile-label">Slot</span>
+              <select
+                value={slotFilter}
+                onChange={(e) => setSlotFilter(e.target.value)}
+              >
+                <option value="all">All</option>
+                <option value="morning">{MEAL_SLOTS.morning.labelEn}</option>
+                <option value="evening">{MEAL_SLOTS.evening.labelEn}</option>
+              </select>
+            </label>
+          </div>
 
-        <aside className="rail-col">
-          <MealCalendar
-            plannedDates={plannedDatesSet}
-            selectedDate={dateFilter === 'custom' ? customDate : null}
-            today={todayId}
-            onSelect={(id) => {
-              setDateFilter('custom')
-              setCustomDate(id)
-            }}
+          {dateFilter === 'custom' && (
+            <div className="admin-votes-day-nav">
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                aria-label="Previous day"
+                onClick={() => navigateCustomDate(-1)}
+              >
+                ←
+              </button>
+              <span className="admin-votes-day-nav-label">
+                {formatDisplayDateGu(customDate)}
+              </span>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                aria-label="Next day"
+                onClick={() => navigateCustomDate(1)}
+              >
+                →
+              </button>
+            </div>
+          )}
+        </MobileFilterBar>
+
+        {mealSlots.length > 0 && (
+          <VoteSummary
+            mealSlots={mealSlots}
+            statsByKey={statsByKey}
+            totalMembers={users.length}
           />
-        </aside>
+        )}
+
+        {mealSlots.length === 0 ? (
+          <p className="muted">{emptyMessage}</p>
+        ) : (
+          <VoteDayGroups groups={allGroups} {...cardListProps} />
+        )}
       </div>
 
       {modalSlot && (

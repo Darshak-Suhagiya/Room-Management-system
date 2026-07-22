@@ -8,6 +8,9 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { NoticeBanner } from '../components/NoticeBanner'
+import { MobilePageHeader } from '../components/mobile'
+import { Modal } from '../components/ui/Modal'
+import { useMediaQuery } from '../hooks/useMediaQuery'
 import {
   ALL_ROLES,
   ROLE_LABELS,
@@ -63,8 +66,174 @@ function formatTs(iso) {
   }
 }
 
+function NoticeDetailPanel({
+  notice,
+  tab,
+  canManageNotices,
+  canViewNoticeAnalytics,
+  saving,
+  stats,
+  receiptsLoading,
+  onEdit,
+  onEnd,
+}) {
+  return (
+    <>
+      <h3 className="rail-card-title">{notice.title}</h3>
+      <p className="notices-detail-msg">{notice.message}</p>
+      <p className="muted notices-detail-meta">
+        Audience: {audienceSummary(notice)}
+        {notice.startAt && <> · Start {String(notice.startAt).slice(0, 10)}</>}
+        {notice.endAt && <> · End {String(notice.endAt).slice(0, 10)}</>}
+        {notice.endedAt && <> · Ended {formatTs(notice.endedAt)}</>}
+      </p>
+
+      {canManageNotices && tab === 'active' && (
+        <div className="notices-detail-actions">
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={() => onEdit(notice)}
+          >
+            Edit
+          </button>
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            disabled={saving}
+            onClick={() => onEnd(notice)}
+          >
+            End now
+          </button>
+        </div>
+      )}
+
+      {canViewNoticeAnalytics && (
+        <div className="notices-analytics">
+          <h4>Analytics</h4>
+          <div className="notices-analytics-stats">
+            <div className="notices-stat">
+              <Eye size={16} aria-hidden />
+              <span className="notices-stat-value">{stats.seenCount}</span>
+              <span className="notices-stat-label">Seen</span>
+            </div>
+            <div className="notices-stat">
+              <Check size={16} aria-hidden />
+              <span className="notices-stat-value">{stats.readCount}</span>
+              <span className="notices-stat-label">Marked read</span>
+            </div>
+          </div>
+
+          {receiptsLoading ? (
+            <p className="muted">Loading receipts…</p>
+          ) : (
+            <>
+              <h5 className="notices-analytics-sub">Seen</h5>
+              {stats.seen.length === 0 ? (
+                <p className="muted">No one has seen this yet.</p>
+              ) : (
+                <ul className="notices-receipt-list">
+                  {stats.seen.map((r) => (
+                    <li key={`seen-${r.userId}`}>
+                      <span>
+                        {r.displayName || r.userId}
+                        {r.role && (
+                          <span className="muted">
+                            {' '}
+                            ({ROLE_LABELS[r.role] || r.role})
+                          </span>
+                        )}
+                      </span>
+                      <span className="muted">{formatTs(r.seenAt)}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <h5 className="notices-analytics-sub">Marked as read</h5>
+              {stats.read.length === 0 ? (
+                <p className="muted">No one has marked this as read.</p>
+              ) : (
+                <ul className="notices-receipt-list">
+                  {stats.read.map((r) => (
+                    <li key={`read-${r.userId}`}>
+                      <span>
+                        {r.displayName || r.userId}
+                        {r.role && (
+                          <span className="muted">
+                            {' '}
+                            ({ROLE_LABELS[r.role] || r.role})
+                          </span>
+                        )}
+                      </span>
+                      <span className="muted">{formatTs(r.readAt)}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </>
+  )
+}
+
+function NoticeList({
+  list,
+  tab,
+  loading,
+  selectedId,
+  onSelect,
+}) {
+  if (loading) return <p className="muted">Loading…</p>
+  if (list.length === 0) {
+    return (
+      <p className="muted">
+        {tab === 'active' ? 'No active notices.' : 'No past notices.'}
+      </p>
+    )
+  }
+
+  return (
+    <ul className="notices-card-list">
+      {list.map((notice) => (
+        <li key={notice.id}>
+          <button
+            type="button"
+            className={`notices-card${selectedId === notice.id ? ' is-selected' : ''}`}
+            onClick={() => onSelect(notice.id)}
+          >
+            <div className="notices-card-top">
+              <span className={`notice-tone-pill notice-tone-${notice.tone}`}>
+                {NOTICE_TONE_LABELS[notice.tone] || notice.tone}
+              </span>
+              {tab === 'active' && isNoticeActiveNow(notice) && (
+                <span className="notices-live-badge">Live</span>
+              )}
+            </div>
+            <strong className="notices-card-title">{notice.title}</strong>
+            <p className="notices-card-msg">{notice.message}</p>
+            <p className="muted notices-card-meta">
+              {audienceSummary(notice)}
+              {(notice.pages || []).length > 0 && (
+                <>
+                  {' · '}
+                  {(notice.pages || [])
+                    .map((p) => NOTICE_PAGE_LABELS[p] || p)
+                    .join(', ')}
+                </>
+              )}
+            </p>
+          </button>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 export function AdminNoticesPage() {
   const { user, canManageNotices, canViewNoticeAnalytics } = useAuth()
+  const isMobile = useMediaQuery('(max-width: 899px)')
   const [tab, setTab] = useState('active')
   const [activeList, setActiveList] = useState([])
   const [pastList, setPastList] = useState([])
@@ -163,6 +332,7 @@ export function AdminNoticesPage() {
   }
 
   const openEdit = (notice) => {
+    setSelectedId(null)
     setEditingId(notice.id)
     setForm({
       title: notice.title,
@@ -276,64 +446,80 @@ export function AdminNoticesPage() {
 
   const list = tab === 'active' ? activeList : pastList
 
-  if (!canViewNoticeAnalytics && !canManageNotices) {
-    return <p className="form-error">You do not have access to notices.</p>
-  }
+  const detailProps = selectedNotice
+    ? {
+        notice: selectedNotice,
+        tab,
+        canManageNotices,
+        canViewNoticeAnalytics,
+        saving,
+        stats,
+        receiptsLoading,
+        onEdit: openEdit,
+        onEnd: handleEnd,
+      }
+    : null
 
-  return (
-    <div className="page admin-page notices-admin-page">
-      <header className="page-header page-header-icon page-header-with-actions">
-        <span className="page-header-icon-wrap" aria-hidden>
-          <Megaphone size={22} />
-        </span>
-        <div>
-          <h2>Notices</h2>
-          <p>
-            Sticky notices on My Meals and Room Seva
-            {canManageNotices
-              ? ' — create, end, and track who has read them.'
-              : ' — view analytics for active and past notices.'}
-          </p>
-        </div>
-        {canManageNotices && (
-          <button type="button" className="btn btn-primary" onClick={openCreate}>
-            <Plus size={18} />
-            New notice
-          </button>
-        )}
-      </header>
+  const tabBar = (
+    <div className="notices-tabs layout-desktop" role="tablist">
+      <button
+        type="button"
+        role="tab"
+        aria-selected={tab === 'active'}
+        className={`notices-tab${tab === 'active' ? ' is-active' : ''}`}
+        onClick={() => {
+          setTab('active')
+          setSelectedId(null)
+        }}
+      >
+        Active ({activeList.length})
+      </button>
+      <button
+        type="button"
+        role="tab"
+        aria-selected={tab === 'past'}
+        className={`notices-tab${tab === 'past' ? ' is-active' : ''}`}
+        onClick={() => {
+          setTab('past')
+          setSelectedId(null)
+        }}
+      >
+        Past ({pastList.length})
+      </button>
+    </div>
+  )
 
-      {error && <p className="form-error">{error}</p>}
+  const mobileTabBar = (
+    <div className="mobile-segmented layout-mobile" role="tablist" aria-label="Notice tabs">
+      <button
+        type="button"
+        role="tab"
+        aria-selected={tab === 'active'}
+        className={`mobile-segmented-btn${tab === 'active' ? ' is-active' : ''}`}
+        onClick={() => {
+          setTab('active')
+          setSelectedId(null)
+        }}
+      >
+        Active ({activeList.length})
+      </button>
+      <button
+        type="button"
+        role="tab"
+        aria-selected={tab === 'past'}
+        className={`mobile-segmented-btn${tab === 'past' ? ' is-active' : ''}`}
+        onClick={() => {
+          setTab('past')
+          setSelectedId(null)
+        }}
+      >
+        Past ({pastList.length})
+      </button>
+    </div>
+  )
 
-      <div className="notices-tabs" role="tablist">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === 'active'}
-          className={`notices-tab${tab === 'active' ? ' is-active' : ''}`}
-          onClick={() => {
-            setTab('active')
-            setSelectedId(null)
-          }}
-        >
-          Active ({activeList.length})
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === 'past'}
-          className={`notices-tab${tab === 'past' ? ' is-active' : ''}`}
-          onClick={() => {
-            setTab('past')
-            setSelectedId(null)
-          }}
-        >
-          Past ({pastList.length})
-        </button>
-      </div>
-
-      {formOpen && canManageNotices && (
-        <section className="notices-form-card rail-card">
+  const composeForm = formOpen && canManageNotices && (
+    <section className="notices-form-card rail-card notices-compose-full">
           <div className="notices-form-head">
             <h3>{editingId ? 'Edit notice' : 'New notice'}</h3>
             <button
@@ -501,161 +687,105 @@ export function AdminNoticesPage() {
             </div>
           </div>
         </section>
-      )}
+  )
 
-      <div className="notices-layout">
-        <section className="notices-list-col">
-          {loading ? (
-            <p className="muted">Loading…</p>
-          ) : list.length === 0 ? (
-            <p className="muted">
-              {tab === 'active' ? 'No active notices.' : 'No past notices.'}
+  if (!canViewNoticeAnalytics && !canManageNotices) {
+    return <p className="form-error">You do not have access to notices.</p>
+  }
+
+  return (
+    <div className="page admin-page notices-admin-page">
+      <div className="layout-desktop">
+        <header className="page-header page-header-icon page-header-with-actions">
+          <span className="page-header-icon-wrap" aria-hidden>
+            <Megaphone size={22} />
+          </span>
+          <div>
+            <h2>Notices</h2>
+            <p>
+              Sticky notices on My Meals and Room Seva
+              {canManageNotices
+                ? ' — create, end, and track who has read them.'
+                : ' — view analytics for active and past notices.'}
             </p>
-          ) : (
-            <ul className="notices-card-list">
-              {list.map((notice) => (
-                <li key={notice.id}>
-                  <button
-                    type="button"
-                    className={`notices-card${selectedId === notice.id ? ' is-selected' : ''}`}
-                    onClick={() => setSelectedId(notice.id)}
-                  >
-                    <div className="notices-card-top">
-                      <span className={`notice-tone-pill notice-tone-${notice.tone}`}>
-                        {NOTICE_TONE_LABELS[notice.tone] || notice.tone}
-                      </span>
-                      {tab === 'active' && isNoticeActiveNow(notice) && (
-                        <span className="notices-live-badge">Live</span>
-                      )}
-                    </div>
-                    <strong className="notices-card-title">{notice.title}</strong>
-                    <p className="notices-card-msg">{notice.message}</p>
-                    <p className="muted notices-card-meta">
-                      {audienceSummary(notice)}
-                      {(notice.pages || []).length > 0 && (
-                        <>
-                          {' · '}
-                          {(notice.pages || [])
-                            .map((p) => NOTICE_PAGE_LABELS[p] || p)
-                            .join(', ')}
-                        </>
-                      )}
-                    </p>
-                  </button>
-                </li>
-              ))}
-            </ul>
+          </div>
+          {canManageNotices && (
+            <button type="button" className="btn btn-primary" onClick={openCreate}>
+              <Plus size={18} />
+              New notice
+            </button>
           )}
+        </header>
+      </div>
+
+      <div className="layout-mobile">
+        <MobilePageHeader
+          icon={Megaphone}
+          title="Notices"
+          description={
+            canManageNotices
+              ? 'Create, end, and track read receipts.'
+              : 'View analytics for notices.'
+          }
+          action={
+            canManageNotices ? (
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                onClick={openCreate}
+              >
+                <Plus size={16} />
+                New
+              </button>
+            ) : null
+          }
+        />
+      </div>
+
+      {error && <p className="form-error">{error}</p>}
+
+      {tabBar}
+      {mobileTabBar}
+      {composeForm}
+
+      <div className="layout-desktop notices-layout">
+        <section className="notices-list-col">
+          <NoticeList
+            list={list}
+            tab={tab}
+            loading={loading}
+            selectedId={selectedId}
+            onSelect={setSelectedId}
+          />
         </section>
 
         <aside className="notices-detail-col rail-card">
-          {!selectedNotice ? (
+          {!detailProps ? (
             <p className="muted">Select a notice to see analytics.</p>
           ) : (
-            <>
-              <h3 className="rail-card-title">{selectedNotice.title}</h3>
-              <p className="notices-detail-msg">{selectedNotice.message}</p>
-              <p className="muted notices-detail-meta">
-                Audience: {audienceSummary(selectedNotice)}
-                {selectedNotice.startAt && (
-                  <> · Start {String(selectedNotice.startAt).slice(0, 10)}</>
-                )}
-                {selectedNotice.endAt && (
-                  <> · End {String(selectedNotice.endAt).slice(0, 10)}</>
-                )}
-                {selectedNotice.endedAt && (
-                  <> · Ended {formatTs(selectedNotice.endedAt)}</>
-                )}
-              </p>
-
-              {canManageNotices && tab === 'active' && (
-                <div className="notices-detail-actions">
-                  <button
-                    type="button"
-                    className="btn btn-secondary btn-sm"
-                    onClick={() => openEdit(selectedNotice)}
-                  >
-                    Edit
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-sm"
-                    disabled={saving}
-                    onClick={() => handleEnd(selectedNotice)}
-                  >
-                    End now
-                  </button>
-                </div>
-              )}
-
-              <div className="notices-analytics">
-                <h4>Analytics</h4>
-                <div className="notices-analytics-stats">
-                  <div className="notices-stat">
-                    <Eye size={16} aria-hidden />
-                    <span className="notices-stat-value">{stats.seenCount}</span>
-                    <span className="notices-stat-label">Seen</span>
-                  </div>
-                  <div className="notices-stat">
-                    <Check size={16} aria-hidden />
-                    <span className="notices-stat-value">{stats.readCount}</span>
-                    <span className="notices-stat-label">Marked read</span>
-                  </div>
-                </div>
-
-                {receiptsLoading ? (
-                  <p className="muted">Loading receipts…</p>
-                ) : (
-                  <>
-                    <h5 className="notices-analytics-sub">Seen</h5>
-                    {stats.seen.length === 0 ? (
-                      <p className="muted">No one has seen this yet.</p>
-                    ) : (
-                      <ul className="notices-receipt-list">
-                        {stats.seen.map((r) => (
-                          <li key={`seen-${r.userId}`}>
-                            <span>
-                              {r.displayName || r.userId}
-                              {r.role && (
-                                <span className="muted">
-                                  {' '}
-                                  ({ROLE_LABELS[r.role] || r.role})
-                                </span>
-                              )}
-                            </span>
-                            <span className="muted">{formatTs(r.seenAt)}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                    <h5 className="notices-analytics-sub">Marked as read</h5>
-                    {stats.read.length === 0 ? (
-                      <p className="muted">No one has marked this as read.</p>
-                    ) : (
-                      <ul className="notices-receipt-list">
-                        {stats.read.map((r) => (
-                          <li key={`read-${r.userId}`}>
-                            <span>
-                              {r.displayName || r.userId}
-                              {r.role && (
-                                <span className="muted">
-                                  {' '}
-                                  ({ROLE_LABELS[r.role] || r.role})
-                                </span>
-                              )}
-                            </span>
-                            <span className="muted">{formatTs(r.readAt)}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </>
-                )}
-              </div>
-            </>
+            <NoticeDetailPanel {...detailProps} />
           )}
         </aside>
       </div>
+
+      <div className="layout-mobile">
+        <NoticeList
+          list={list}
+          tab={tab}
+          loading={loading}
+          selectedId={selectedId}
+          onSelect={setSelectedId}
+        />
+      </div>
+
+      <Modal
+        open={isMobile && Boolean(selectedNotice)}
+        onClose={() => setSelectedId(null)}
+        title={selectedNotice?.title ?? 'Notice'}
+        wide
+      >
+        {detailProps && <NoticeDetailPanel {...detailProps} />}
+      </Modal>
     </div>
   )
 }
