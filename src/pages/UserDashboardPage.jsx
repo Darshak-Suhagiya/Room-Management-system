@@ -9,6 +9,7 @@ import { MealCalendarSheet } from '../components/meals/MealCalendarSheet'
 import { MealsOptionsSheet } from '../components/meals/MealsOptionsSheet'
 import { NoticeBannerSlot } from '../components/NoticeBannerSlot'
 import { PushPermissionPrompt } from '../components/PushPermissionPrompt'
+import { PwaInstallPrompt } from '../components/PwaInstallPrompt'
 import { useMediaQuery } from '../hooks/useMediaQuery'
 import { useDelayedLoading } from '../hooks/useDelayedLoading'
 import { MobilePageSkeleton } from '../components/mobile/MobilePageSkeleton'
@@ -368,6 +369,7 @@ export function UserDashboardPage() {
   return (
     <div className="page meals-page">
       <NoticeBannerSlot page={NOTICE_PAGES.MEALS} />
+      <PwaInstallPrompt />
       <PushPermissionPrompt />
 
       {seeding && <p className="muted">Loading menus…</p>}

@@ -5,6 +5,7 @@ import {
   getStoredAppearance,
   getStoredThemeId,
 } from './lib/applyTheme'
+import { registerAppServiceWorker } from './lib/registerAppServiceWorker'
 import './index.css'
 import App from './App.jsx'
 
@@ -18,6 +19,8 @@ try {
 } catch {
   /* ignore */
 }
+
+registerAppServiceWorker()
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

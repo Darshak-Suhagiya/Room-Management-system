@@ -35,6 +35,11 @@ async function ensureMessagingSw() {
   }
   const base = import.meta.env.BASE_URL || '/'
   const swUrl = `${base}firebase-messaging-sw.js`.replace(/\/{2,}/g, '/')
+  const existing = await navigator.serviceWorker.getRegistration(base)
+  if (existing?.active?.scriptURL?.includes('firebase-messaging-sw.js')) {
+    await navigator.serviceWorker.ready
+    return existing
+  }
   const reg = await navigator.serviceWorker.register(swUrl, {
     scope: base,
   })

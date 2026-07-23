@@ -23,6 +23,11 @@ const messaging = firebase.messaging();
 // so FCM/the browser already displays them. Showing again causes duplicates.
 messaging.onBackgroundMessage(() => {});
 
+// Required for Chromium/Samsung PWA installability (controls the page + fetch handler).
+self.addEventListener('fetch', (event) => {
+  event.respondWith(fetch(event.request));
+});
+
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const url = event.notification.data?.click_action || './';

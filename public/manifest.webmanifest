@@ -1,9 +1,12 @@
 {
+  "id": "/",
   "name": "Room Management",
   "short_name": "Room Mgmt",
   "description": "Room Management system",
   "start_url": "./",
+  "scope": "./",
   "display": "standalone",
+  "orientation": "portrait-primary",
   "background_color": "#ffffff",
   "theme_color": "#ffffff",
   "icons": [

@@ -4740,6 +4740,22 @@
     min-height: var(--touch-min, 2.75rem);
   }
 
+  .pwa-install-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    width: 100%;
+  }
+
+  .pwa-install-actions .btn-primary {
+    flex: 1;
+  }
+
+  .pwa-install-actions .btn-icon-only {
+    width: var(--touch-min, 2.75rem);
+    flex-shrink: 0;
+  }
+
   /* Auth pages */
   .auth-page,
   .setup-page,
