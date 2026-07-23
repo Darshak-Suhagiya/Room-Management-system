@@ -8,6 +8,7 @@ import {
 } from '../utils/menuReviewUtils'
 import { saveMealItemReview } from '../services/participationService'
 import { useToast } from '../contexts/ToastContext'
+import { useSaveMutation } from '../hooks/useSaveMutation'
 
 const RATING_OPTIONS = [
   { value: REVIEW_RATINGS.GOOD, label: REVIEW_RATING_LABELS[REVIEW_RATINGS.GOOD] },
@@ -38,9 +39,9 @@ export function MealItemReviewEditor({
 }) {
   const toast = useToast()
   const windowOpen = isReviewWindowOpen(dateId)
+  const { busy: saving, run } = useSaveMutation()
   const [rating, setRating] = useState(() => normalizeReviewRating(review?.rating))
   const [text, setText] = useState(() => review?.text ?? '')
-  const [saving, setSaving] = useState(false)
   const [baseline, setBaseline] = useState(() => ({
     rating: normalizeReviewRating(review?.rating),
     text: review?.text ?? '',
@@ -48,9 +49,8 @@ export function MealItemReviewEditor({
 
   const persist = async (nextRating, nextText) => {
     if (!windowOpen || disabled) return
-    setSaving(true)
-    try {
-      await saveMealItemReview({
+    const { ok, error, stale } = await run(() =>
+      saveMealItemReview({
         userId,
         dateId,
         slot,
@@ -58,15 +58,17 @@ export function MealItemReviewEditor({
         rating: nextRating,
         text: nextText,
         displayName,
-      })
-      setBaseline({ rating: nextRating, text: nextText })
-    } catch (err) {
-      toast.error(err.message)
-      setRating(baseline.rating)
-      setText(baseline.text)
-    } finally {
-      setSaving(false)
+      }),
+    )
+    if (!ok) {
+      if (!stale) {
+        toast.error(error.message)
+        setRating(baseline.rating)
+        setText(baseline.text)
+      }
+      return
     }
+    if (!stale) setBaseline({ rating: nextRating, text: nextText })
   }
 
   if (!windowOpen) {

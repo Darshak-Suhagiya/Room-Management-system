@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { BarChart3 } from 'lucide-react'
 import { MealDashboardSlotCard } from '../components/MealDashboardSlotCard'
 import { MealSlotDetailModal } from '../components/MealSlotDetailModal'
 import { MenuItemDetailModal } from '../components/MenuItemDetailModal'
+import { VotesMobileView } from '../components/votes/mobile'
 import { MEAL_SLOTS } from '../config/menuItems'
 import { useAuth } from '../contexts/AuthContext'
 import { useMenuCatalog } from '../hooks/useMenuCatalog'
+import { useMediaQuery } from '../hooks/useMediaQuery'
+import { MobilePageSkeleton } from '../components/mobile/MobilePageSkeleton'
+import { useDelayedLoading } from '../hooks/useDelayedLoading'
 import {
   getAllPlannedMenus,
   getMenuByDate,
@@ -29,7 +32,6 @@ import {
 import { buildVoteStats, getPlannedMenuItems } from '../utils/menuVoteUtils'
 import { VoteSummary } from '../components/VoteSummary'
 import { MealCalendar } from '../components/MealCalendar'
-import { MobileFilterBar, MobilePageHeader } from '../components/mobile'
 
 const MEALS_PER_PAGE = 4
 
@@ -42,13 +44,6 @@ function groupSlotsByDate(slots) {
     map.get(entry.date).slots.push(entry)
   }
   return Array.from(map.values())
-}
-
-function shiftDateId(dateId, deltaDays) {
-  const [y, m, d] = dateId.split('-').map(Number)
-  const date = new Date(y, m - 1, d)
-  date.setDate(date.getDate() + deltaDays)
-  return formatDateId(date)
 }
 
 function VoteDayGroups({
@@ -127,9 +122,8 @@ export function AdminVotesDashboardPage() {
     canSeeMaharajMenuDetails,
   } = useAuth()
   const toast = useToast()
-  const { catalog, loading: catalogLoading, categoryIds } = useMenuCatalog({
-    autoSeed: true,
-  })
+  const isMobile = useMediaQuery('(max-width: 899px)')
+  const { catalog, loading: catalogLoading, categoryIds } = useMenuCatalog()
   const [menus, setMenus] = useState([])
   const [users, setUsers] = useState([])
   const [statsByKey, setStatsByKey] = useState({})
@@ -175,8 +169,23 @@ export function AdminVotesDashboardPage() {
     }
   }, [catalogLoading, loadDashboard, toast])
 
+  // Mobile is always day-first (custom date)
+  useEffect(() => {
+    if (isMobile && dateFilter !== 'custom') {
+      setDateFilter('custom')
+    }
+  }, [isMobile, dateFilter])
+
   const plannedDates = useMemo(() => getPlannedDateIds(menus), [menus])
   const plannedDatesSet = useMemo(() => new Set(plannedDates), [plannedDates])
+
+  const dateStatus = useMemo(() => {
+    const map = {}
+    for (const dateId of plannedDates) {
+      map[dateId] = 'planned'
+    }
+    return map
+  }, [plannedDates])
 
   const mealSlots = useMemo(() => {
     const expanded = expandMenusToMealSlots(menus)
@@ -197,7 +206,6 @@ export function AdminVotesDashboardPage() {
     page * MEALS_PER_PAGE + MEALS_PER_PAGE,
   )
   const pageGroups = useMemo(() => groupSlotsByDate(pageSlots), [pageSlots])
-  const allGroups = useMemo(() => groupSlotsByDate(mealSlots), [mealSlots])
 
   const loadSlotStats = useCallback(
     async (entry, menuDoc = entry.menu) => {
@@ -355,6 +363,7 @@ export function AdminVotesDashboardPage() {
 
   const handleSaveOverride = async (entry, itemId, rawTotal) => {
     if (!canAdjustVoteTotals) return
+    const slotKey = entry.key
     setOverrideSavingId(itemId)
     try {
       const total = rawTotal
@@ -380,7 +389,7 @@ export function AdminVotesDashboardPage() {
       const stats = await loadSlotStats(entry)
       setStatsByKey((prev) => ({ ...prev, [entry.key]: stats }))
       setModalSlot((prev) =>
-        prev && prev.entry?.key === entry.key ? { ...prev, stats } : prev,
+        prev && prev.entry?.key === slotKey ? { ...prev, stats } : prev,
       )
     } catch (err) {
       toast.error(err.message)
@@ -409,24 +418,6 @@ export function AdminVotesDashboardPage() {
     })
   }
 
-  const navigateCustomDate = (delta) => {
-    const next = shiftDateId(customDate, delta)
-    if (plannedDates.length === 0) {
-      setCustomDate(next)
-      return
-    }
-    const sorted = [...plannedDates].sort((a, b) => a.localeCompare(b))
-    if (delta > 0) {
-      const upcoming = sorted.find((d) => d > customDate)
-      if (upcoming) setCustomDate(upcoming)
-      else setCustomDate(next)
-    } else {
-      const previous = [...sorted].reverse().find((d) => d < customDate)
-      if (previous) setCustomDate(previous)
-      else setCustomDate(next)
-    }
-  }
-
   const cardListProps = {
     statsByKey,
     todayRef,
@@ -448,8 +439,60 @@ export function AdminVotesDashboardPage() {
         ? 'No menu planned for this date.'
         : 'No menus planned.'
 
-  if (catalogLoading || loading) {
-    return <p className="page-loading">Loading…</p>
+  const showInitialLoad = catalogLoading || loading
+  const showLoadSkeleton = useDelayedLoading(showInitialLoad)
+
+  if (showInitialLoad && showLoadSkeleton) {
+    return <MobilePageSkeleton />
+  }
+
+  if (showInitialLoad) {
+    return null
+  }
+
+  const mobileDescription = isMaharaj
+    ? 'Totals, notes, and lock per slot.'
+    : `${users.length} members in counts.`
+
+  if (isMobile) {
+    return (
+      <div className="page admin-page admin-votes-page">
+        <VotesMobileView
+          todayId={todayId}
+          selectedDate={customDate}
+          onSelectDate={(id) => {
+            setDateFilter('custom')
+            setCustomDate(id)
+          }}
+          plannedDateIds={plannedDates}
+          dateStatus={dateStatus}
+          plannedDatesSet={plannedDatesSet}
+          slotFilter={slotFilter}
+          onSlotFilterChange={setSlotFilter}
+          daySlots={mealSlots}
+          statsByKey={statsByKey}
+          totalMembers={users.length}
+          canLockVotes={canLockVotes}
+          canAdjustVoteTotals={canAdjustVoteTotals}
+          showVoteCountBreakdown={showVoteCountBreakdown}
+          isMaharaj={isMaharaj}
+          canSeeMaharajMenuDetails={canSeeMaharajMenuDetails}
+          busyKey={busyKey}
+          overrideSavingId={overrideSavingId}
+          onToggleLock={handleToggleLock}
+          onRefresh={handleRefreshSlot}
+          onSaveOverride={handleSaveOverride}
+          onOpenItemDetail={setItemDetail}
+          description={mobileDescription}
+        />
+        {itemDetail && (
+          <MenuItemDetailModal
+            item={itemDetail}
+            onClose={() => setItemDetail(null)}
+          />
+        )}
+      </div>
+    )
   }
 
   return (
@@ -541,83 +584,6 @@ export function AdminVotesDashboardPage() {
             />
           </aside>
         </div>
-      </div>
-
-      <div className="layout-mobile admin-votes-mobile">
-        <MobilePageHeader
-          icon={BarChart3}
-          title="Vote dashboard"
-          description={
-            isMaharaj
-              ? 'Totals, notes, and lock per slot.'
-              : `${users.length} members in counts.`
-          }
-        />
-
-        <MobileFilterBar className="admin-votes-mobile-filters">
-          <div className="admin-votes-mobile-filter-row">
-            <label className="admin-votes-mobile-field">
-              <span className="admin-votes-mobile-label">Date</span>
-              <select
-                value={dateFilter}
-                onChange={(e) => setDateFilter(e.target.value)}
-              >
-                <option value="today_tomorrow">Today &amp; tomorrow</option>
-                <option value="all">All dates</option>
-                <option value="custom">One day</option>
-              </select>
-            </label>
-            <label className="admin-votes-mobile-field">
-              <span className="admin-votes-mobile-label">Slot</span>
-              <select
-                value={slotFilter}
-                onChange={(e) => setSlotFilter(e.target.value)}
-              >
-                <option value="all">All</option>
-                <option value="morning">{MEAL_SLOTS.morning.labelEn}</option>
-                <option value="evening">{MEAL_SLOTS.evening.labelEn}</option>
-              </select>
-            </label>
-          </div>
-
-          {dateFilter === 'custom' && (
-            <div className="admin-votes-day-nav">
-              <button
-                type="button"
-                className="btn btn-ghost btn-sm"
-                aria-label="Previous day"
-                onClick={() => navigateCustomDate(-1)}
-              >
-                ←
-              </button>
-              <span className="admin-votes-day-nav-label">
-                {formatDisplayDateGu(customDate)}
-              </span>
-              <button
-                type="button"
-                className="btn btn-ghost btn-sm"
-                aria-label="Next day"
-                onClick={() => navigateCustomDate(1)}
-              >
-                →
-              </button>
-            </div>
-          )}
-        </MobileFilterBar>
-
-        {mealSlots.length > 0 && (
-          <VoteSummary
-            mealSlots={mealSlots}
-            statsByKey={statsByKey}
-            totalMembers={users.length}
-          />
-        )}
-
-        {mealSlots.length === 0 ? (
-          <p className="muted">{emptyMessage}</p>
-        ) : (
-          <VoteDayGroups groups={allGroups} {...cardListProps} />
-        )}
       </div>
 
       {modalSlot && (

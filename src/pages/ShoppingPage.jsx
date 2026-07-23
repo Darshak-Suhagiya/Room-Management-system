@@ -10,7 +10,10 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useToast } from '../contexts/ToastContext'
-import { MobilePageHeader } from '../components/mobile'
+import { MobilePageHeader, MobilePageSkeleton } from '../components/mobile'
+import { useDelayedLoading } from '../hooks/useDelayedLoading'
+import { useSaveMutation } from '../hooks/useSaveMutation'
+import { ShoppingMobileView } from '../components/stock/mobile'
 import { StockQtySlider } from '../components/stock/StockQtySlider'
 import { ShoppingTicketPreview } from '../components/stock/ShoppingTicketPreview'
 import {
@@ -106,12 +109,13 @@ function TicketCard({
   onTicketUpdated,
 }) {
   const toast = useToast()
-  const [busy, setBusy] = useState(false)
+  const checkSave = useSaveMutation()
   const [showAssignees, setShowAssignees] = useState(false)
   const canManage = canManageStocks(profile)
   const canEdit = canEditShoppingTicket(profile, ticket)
   const open = ticket.status === SHOPPING_TICKET_STATUS.OPEN
   const pill = statusPill(ticket.status)
+  const busy = checkSave.busy
 
   const groupNames = ticket.groupIds
     .map((id) => groups.find((g) => g.id === id)?.name || id)
@@ -125,16 +129,15 @@ function TicketCard({
 
   const checkLine = async (itemId, qty) => {
     if (!canEdit || !open) return
-    setBusy(true)
-    try {
-      const updated = await checkTicketLine(ticket.id, itemId, userId, qty)
-      toast.success('Item checked — stock filled')
-      onTicketUpdated?.(updated)
-    } catch (err) {
-      toast.error(err.message)
-    } finally {
-      setBusy(false)
+    const { ok, result, error, stale } = await checkSave.run(() =>
+      checkTicketLine(ticket.id, itemId, userId, qty),
+    )
+    if (!ok) {
+      if (!stale) toast.error(error.message)
+      return
     }
+    toast.success('Item checked — stock filled')
+    onTicketUpdated?.(result)
   }
 
   const toggleAssignee = async (uid) => {
@@ -245,12 +248,18 @@ function TicketCard({
           >
             <div className="shopping-line-title">
               <strong>{line.name}</strong>
-              <span className="muted">
-                Stock was {formatStockQty(line.currentQty, line.unit)} · need{' '}
-                {formatStockQty(line.needPerIteration, line.unit)} · suggest{' '}
-                {formatStockQty(line.suggestedQty, line.unit)}{' '}
-                {STOCK_UNIT_LABELS[line.unit] || line.unit}
-              </span>
+              <div className="shopping-meta-chips" aria-label="Line details">
+                <span className="shopping-meta-chip">
+                  In stock {formatStockQty(line.currentQty, line.unit)}{' '}
+                  {STOCK_UNIT_LABELS[line.unit] || line.unit}
+                </span>
+                <span className="shopping-meta-chip">
+                  Need {formatStockQty(line.needPerIteration, line.unit)}
+                </span>
+                <span className="shopping-meta-chip is-suggest">
+                  Suggest {formatStockQty(line.suggestedQty, line.unit)}
+                </span>
+              </div>
             </div>
             <ShoppingLineEditor
               line={line}
@@ -391,10 +400,11 @@ export function ShoppingPage() {
   const [previewLines, setPreviewLines] = useState([])
   const [previewItems, setPreviewItems] = useState([])
   const [previewLoading, setPreviewLoading] = useState(false)
-  const [creating, setCreating] = useState(false)
+  const createSave = useSaveMutation()
   const initialLoadDone = useRef(false)
 
   const manage = canManageStocks(profile)
+  const creating = createSave.busy
 
   const reload = useCallback(async ({ silent = false } = {}) => {
     if (!silent && !initialLoadDone.current) setLoading(true)
@@ -488,20 +498,59 @@ export function ShoppingPage() {
   }
 
   const confirmCreate = async (lines) => {
-    setCreating(true)
-    try {
-      const created = await createShoppingTicketWithLines(
+    const { ok, result, error, stale } = await createSave.run(() =>
+      createShoppingTicketWithLines(
         { groupIds: selectedGroups, lines, assigneeIds: [] },
         user?.uid,
-      )
-      toast.success('Shopping ticket created')
-      cancelCreate()
-      setTab('open')
-      setTickets((prev) => [created, ...prev.filter((t) => t.id !== created.id)])
+      ),
+    )
+    if (!ok) {
+      if (!stale) toast.error(error.message)
+      return
+    }
+    toast.success('Shopping ticket created')
+    if (stale) return
+    cancelCreate()
+    setTab('open')
+    setTickets((prev) => [result, ...prev.filter((t) => t.id !== result.id)])
+  }
+
+  const handleCheckLine = async (ticket, itemId, qty) => {
+    if (!ticket) return
+    try {
+      const updated = await checkTicketLine(ticket.id, itemId, user?.uid, qty)
+      toast.success('Item checked — stock filled')
+      patchTicket(updated)
+      return updated
     } catch (err) {
       toast.error(err.message)
-    } finally {
-      setCreating(false)
+      throw err
+    }
+  }
+
+  const handleToggleAssignee = async (ticket, uid) => {
+    if (!ticket) return
+    const next = ticket.assigneeIds.includes(uid)
+      ? ticket.assigneeIds.filter((x) => x !== uid)
+      : [...ticket.assigneeIds, uid]
+    try {
+      await updateShoppingTicket(ticket.id, { assigneeIds: next })
+      patchTicket({ ...ticket, assigneeIds: next })
+    } catch (err) {
+      toast.error(err.message)
+    }
+  }
+
+  const handleCancelTicket = async (ticket) => {
+    if (!ticket) return
+    try {
+      const updated = await cancelShoppingTicket(ticket.id)
+      patchTicket(updated)
+      toast.success('Ticket cancelled')
+      return updated
+    } catch (err) {
+      toast.error(err.message)
+      throw err
     }
   }
 
@@ -563,8 +612,10 @@ export function ShoppingPage() {
       />
     ) : null
 
+  const showLoadSkeleton = useDelayedLoading(loading)
+
   if (loading) {
-    return <p className="page-loading">Loading shopping…</p>
+    return showLoadSkeleton ? <MobilePageSkeleton /> : null
   }
 
   if (createStep === 'preview') {
@@ -573,13 +624,33 @@ export function ShoppingPage() {
         <div className="layout-desktop">
           <ShoppingTicketPreview {...previewProps} />
         </div>
-        <div className="layout-mobile shopping-mobile">
-          <MobilePageHeader
-            icon={ShoppingCart}
-            title="Review list"
-            description="Adjust amounts before creating the ticket."
+        <div className="layout-mobile shopping-mobile admin-mobile-page-with-bar">
+          <ShoppingMobileView
+            groups={groups}
+            users={users}
+            userId={user?.uid}
+            tab={tab}
+            onTabChange={setTab}
+            openTickets={openTickets}
+            closedTickets={closedTickets}
+            visibleTickets={visibleTickets}
+            manage={manage}
+            createStep="preview"
+            selectedGroups={selectedGroups}
+            previewLines={previewLines}
+            previewItems={previewItems}
+            previewLoading={previewLoading}
+            creating={creating}
+            onStartCreate={startCreate}
+            onCancelCreate={cancelCreate}
+            onToggleGroup={toggleGroup}
+            onContinuePreview={goToPreview}
+            onBackPreview={() => setCreateStep('select')}
+            onCreateTicket={confirmCreate}
+            onCheckLine={handleCheckLine}
+            onToggleAssignee={handleToggleAssignee}
+            onCancelTicket={handleCancelTicket}
           />
-          <ShoppingTicketPreview {...previewProps} mobile />
         </div>
       </div>
     )
@@ -620,32 +691,33 @@ export function ShoppingPage() {
         {ticketList}
       </div>
 
-      <div className="layout-mobile shopping-mobile">
-        <MobilePageHeader
-          icon={ShoppingCart}
-          title="Shopping"
-          description="Tickets for groups below need — tick items to fill stock."
+      <div className="layout-mobile shopping-mobile admin-mobile-page-with-bar">
+        <ShoppingMobileView
+          groups={groups}
+          users={users}
+          userId={user?.uid}
+          tab={tab}
+          onTabChange={setTab}
+          openTickets={openTickets}
+          closedTickets={closedTickets}
+          visibleTickets={visibleTickets}
+          manage={manage}
+          createStep={createStep}
+          selectedGroups={selectedGroups}
+          previewLines={previewLines}
+          previewItems={previewItems}
+          previewLoading={previewLoading}
+          creating={creating}
+          onStartCreate={startCreate}
+          onCancelCreate={cancelCreate}
+          onToggleGroup={toggleGroup}
+          onContinuePreview={goToPreview}
+          onBackPreview={() => setCreateStep('select')}
+          onCreateTicket={confirmCreate}
+          onCheckLine={handleCheckLine}
+          onToggleAssignee={handleToggleAssignee}
+          onCancelTicket={handleCancelTicket}
         />
-
-        <div className="shopping-mobile-actions">
-          <Link to="/stocks" className="btn btn-secondary">
-            <Package size={16} aria-hidden /> Stocks
-          </Link>
-          {newTicketButton}
-        </div>
-
-        {!createStep && (
-          <ShoppingListTabs
-            tab={tab}
-            openCount={openTickets.length}
-            closedCount={closedTickets.length}
-            onTabChange={setTab}
-            mobile
-          />
-        )}
-
-        {createWizard(true)}
-        {ticketList}
       </div>
     </div>
   )

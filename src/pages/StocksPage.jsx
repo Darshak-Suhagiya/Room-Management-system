@@ -11,7 +11,10 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useToast } from '../contexts/ToastContext'
-import { MobilePageHeader } from '../components/mobile'
+import { MobilePageHeader, MobilePageSkeleton } from '../components/mobile'
+import { useDelayedLoading } from '../hooks/useDelayedLoading'
+import { useSaveMutation } from '../hooks/useSaveMutation'
+import { StocksMobileView } from '../components/stock/mobile'
 import { StockQtySlider } from '../components/stock/StockQtySlider'
 import {
   STOCK_ITERATION_PERIODS,
@@ -94,8 +97,10 @@ function StockItemCard({
   userId,
 }) {
   const toast = useToast()
+  const qtySave = useSaveMutation()
+  const metaSave = useSaveMutation()
+  const deleteSave = useSaveMutation()
   const [qtyDraft, setQtyDraft] = useState(item.quantity)
-  const [busy, setBusy] = useState(false)
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState(item.name)
   const [unit, setUnit] = useState(item.unit)
@@ -112,52 +117,51 @@ function StockItemCard({
     setMenuItemIds(item.menuItemIds || [])
   }, [item])
 
+  const busy = qtySave.busy || metaSave.busy || deleteSave.busy
+
   const saveQty = async () => {
     if (!canEdit) return
-    setBusy(true)
-    try {
-      const updated = await setStockQuantity(item.id, qtyDraft, { userId })
-      toast.success('Stock updated')
-      onItemUpdated?.(updated)
-    } catch (err) {
-      toast.error(err.message)
-    } finally {
-      setBusy(false)
+    const { ok, result, error, stale } = await qtySave.run(() =>
+      setStockQuantity(item.id, qtyDraft, { userId }),
+    )
+    if (!ok) {
+      if (!stale) toast.error(error.message)
+      return
     }
+    toast.success('Stock updated')
+    onItemUpdated?.(result)
   }
 
   const saveMeta = async () => {
-    setBusy(true)
-    try {
-      const updated = await updateStockItem(item.id, {
+    const { ok, result, error, stale } = await metaSave.run(() =>
+      updateStockItem(item.id, {
         name,
         unit,
         needPerIteration: need,
         iterationPeriod: period,
         menuItemIds: group.linkToMenu ? menuItemIds : [],
-      })
-      toast.success('Item saved')
-      setEditing(false)
-      onItemUpdated?.(updated)
-    } catch (err) {
-      toast.error(err.message)
-    } finally {
-      setBusy(false)
+      }),
+    )
+    if (!ok) {
+      if (!stale) toast.error(error.message)
+      return
     }
+    toast.success('Item saved')
+    onItemUpdated?.(result)
+    if (!stale) setEditing(false)
   }
 
   const remove = async () => {
     if (!window.confirm(`Delete “${item.name}”?`)) return
-    setBusy(true)
-    try {
-      await deleteStockItem(item.id)
-      toast.success('Item deleted')
-      onItemRemoved?.(item.id)
-    } catch (err) {
-      toast.error(err.message)
-    } finally {
-      setBusy(false)
+    const { ok, error, stale } = await deleteSave.run(() =>
+      deleteStockItem(item.id),
+    )
+    if (!ok) {
+      if (!stale) toast.error(error.message)
+      return
     }
+    toast.success('Item deleted')
+    onItemRemoved?.(item.id)
   }
 
   const catalogItems = catalog?.items ?? []
@@ -348,9 +352,7 @@ function StockItemCard({
 export function StocksPage() {
   const { user, profile, canManageStocks: manageStocks } = useAuth()
   const toast = useToast()
-  const { catalog } = useMenuCatalog({
-    autoSeed: false,
-  })
+  const { catalog } = useMenuCatalog()
   const [groups, setGroups] = useState([])
   const [items, setItems] = useState([])
   const [users, setUsers] = useState([])
@@ -364,6 +366,8 @@ export function StocksPage() {
   const [showEditors, setShowEditors] = useState(false)
   const [showAddGroup, setShowAddGroup] = useState(false)
   const initialLoadDone = useRef(false)
+  const createGroupSave = useSaveMutation()
+  const createItemSave = useSaveMutation()
 
   const reload = useCallback(async ({ silent = false } = {}) => {
     if (!silent && !initialLoadDone.current) setLoading(true)
@@ -399,6 +403,17 @@ export function StocksPage() {
     setItems((prev) => prev.filter((x) => x.id !== itemId))
   }, [])
 
+  const handleDeleteItem = async (item) => {
+    try {
+      await deleteStockItem(item.id)
+      toast.success('Item deleted')
+      removeItemLocal(item.id)
+    } catch (err) {
+      toast.error(err.message)
+      throw err
+    }
+  }
+
   const patchGroup = useCallback((updated) => {
     if (!updated?.id) return
     setGroups((prev) =>
@@ -431,28 +446,32 @@ export function StocksPage() {
 
   const addGroup = async (e) => {
     e.preventDefault()
-    try {
-      const g = await createStockGroup(
+    if (createGroupSave.busy) return
+    const { ok, result, error, stale } = await createGroupSave.run(() =>
+      createStockGroup(
         { name: newGroupName, linkToMenu: newGroupLink },
         user?.uid,
-      )
-      setNewGroupName('')
-      setShowAddGroup(false)
-      toast.success('Group created')
-      setGroups((prev) =>
-        [...prev, g].sort((a, b) => a.order - b.order || a.name.localeCompare(b.name)),
-      )
-      setActiveGroupId(g.id)
-    } catch (err) {
-      toast.error(err.message)
+      ),
+    )
+    if (!ok) {
+      if (!stale) toast.error(error.message)
+      return
     }
+    toast.success('Group created')
+    if (stale) return
+    setNewGroupName('')
+    setShowAddGroup(false)
+    setGroups((prev) =>
+      [...prev, result].sort((a, b) => a.order - b.order || a.name.localeCompare(b.name)),
+    )
+    setActiveGroupId(result.id)
   }
 
   const addItem = async (e) => {
     e.preventDefault()
-    if (!activeGroupId) return
-    try {
-      const created = await createStockItem(
+    if (!activeGroupId || createItemSave.busy) return
+    const { ok, result, error, stale } = await createItemSave.run(() =>
+      createStockItem(
         {
           groupId: activeGroupId,
           name: newItemName,
@@ -461,15 +480,18 @@ export function StocksPage() {
           quantity: 0,
         },
         user?.uid,
-      )
-      setNewItemName('')
-      toast.success('Item added')
-      setItems((prev) =>
-        [...prev, created].sort((a, b) => a.name.localeCompare(b.name)),
-      )
-    } catch (err) {
-      toast.error(err.message)
+      ),
+    )
+    if (!ok) {
+      if (!stale) toast.error(error.message)
+      return
     }
+    toast.success('Item added')
+    if (stale) return
+    setNewItemName('')
+    setItems((prev) =>
+      [...prev, result].sort((a, b) => a.name.localeCompare(b.name)),
+    )
   }
 
   const toggleEditor = async (uid) => {
@@ -521,8 +543,10 @@ export function StocksPage() {
     </button>
   ) : null
 
+  const showLoadSkeleton = useDelayedLoading(loading)
+
   if (loading) {
-    return <p className="page-loading">Loading stocks…</p>
+    return showLoadSkeleton ? <MobilePageSkeleton /> : null
   }
 
   const stocksBody = (
@@ -549,8 +573,8 @@ export function StocksPage() {
               />
               Related to menu
             </label>
-            <button type="submit" className="btn btn-primary">
-              Create
+            <button type="submit" className="btn btn-primary" disabled={createGroupSave.busy}>
+              {createGroupSave.busy ? 'Creating…' : 'Create'}
             </button>
           </div>
         </form>
@@ -672,8 +696,13 @@ export function StocksPage() {
                     }
                   />
                 </label>
-                <button type="submit" className="btn btn-primary stock-form-submit">
-                  <Plus size={16} aria-hidden /> Add
+                <button
+                  type="submit"
+                  className="btn btn-primary stock-form-submit"
+                  disabled={createItemSave.busy}
+                >
+                  <Plus size={16} aria-hidden />
+                  {createItemSave.busy ? 'Adding…' : 'Add'}
                 </button>
               </div>
             </form>
@@ -734,21 +763,30 @@ export function StocksPage() {
       </div>
 
       <div className="layout-mobile stocks-mobile">
-        <MobilePageHeader
-          icon={Package}
-          title="Stocks"
-          description="Pantry levels by group — fill, use, and link items."
+        <StocksMobileView
+          groups={groups}
+          items={items}
+          activeGroupId={activeGroupId}
+          onSelectGroup={setActiveGroupId}
+          activeGroup={activeGroup}
+          groupItems={groupItems}
+          canEdit={canEdit}
+          manageStocks={manageStocks}
+          catalog={catalog}
+          userId={user?.uid}
+          onItemUpdated={patchItem}
+          onDeleteItem={handleDeleteItem}
+          onGroupCreated={(group) => {
+            setGroups((prev) =>
+              [...prev, group].sort((a, b) => a.order - b.order || a.name.localeCompare(b.name)),
+            )
+          }}
+          onItemCreated={(created) => {
+            setItems((prev) =>
+              [...prev, created].sort((a, b) => a.name.localeCompare(b.name)),
+            )
+          }}
         />
-
-        <div className="stocks-mobile-actions">
-          <Link to="/shopping" className="btn btn-secondary">
-            <ShoppingCart size={16} aria-hidden /> Shopping
-          </Link>
-          {headerActions}
-        </div>
-
-        <div className="stock-group-tabs-mobile">{groupTabs}</div>
-        {stocksBody}
       </div>
     </div>
   )

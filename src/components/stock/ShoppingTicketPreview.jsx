@@ -12,19 +12,33 @@ import { STOCK_UNIT_LABELS } from '../../config/constants'
 import { formatStockQty } from '../../services/stockService'
 import { makeShoppingLineFromItem } from '../../services/shoppingService'
 
-function PreviewLineRow({ line, groupName, onQtyChange, onRemove }) {
+function MetaChips({ line, groupName }) {
+  const unitLabel = STOCK_UNIT_LABELS[line.unit] || line.unit
+  return (
+    <div className="shopping-meta-chips" aria-label="Line details">
+      {groupName && (
+        <span className="shopping-meta-chip is-group">{groupName}</span>
+      )}
+      <span className="shopping-meta-chip">
+        In stock {formatStockQty(line.currentQty, line.unit)} {unitLabel}
+      </span>
+      <span className="shopping-meta-chip">
+        Need {formatStockQty(line.needPerIteration, line.unit)}
+      </span>
+      <span className="shopping-meta-chip is-suggest">
+        Suggest {formatStockQty(line.suggestedQty, line.unit)}
+      </span>
+    </div>
+  )
+}
+
+function PreviewLineRow({ line, groupName, onQtyChange, onRemove, mobile = false }) {
   return (
     <li className="shopping-preview-line">
       <div className="shopping-preview-line-head">
         <div>
           <strong>{line.name}</strong>
-          <span className="muted">
-            {groupName && `${groupName} · `}
-            in stock {formatStockQty(line.currentQty, line.unit)}{' '}
-            {STOCK_UNIT_LABELS[line.unit]} · need{' '}
-            {formatStockQty(line.needPerIteration, line.unit)} · suggest{' '}
-            {formatStockQty(line.suggestedQty, line.unit)}
-          </span>
+          <MetaChips line={line} groupName={groupName} />
         </div>
         <button
           type="button"
@@ -36,6 +50,7 @@ function PreviewLineRow({ line, groupName, onQtyChange, onRemove }) {
         </button>
       </div>
       <StockQtySlider
+        variant={mobile ? 'mobile' : 'desktop'}
         value={line.qty}
         onChange={(v) => onQtyChange(line.itemId, v)}
         needPerIteration={line.needPerIteration}
@@ -123,9 +138,9 @@ export function ShoppingTicketPreview({
               <ShoppingCart size={18} aria-hidden /> Review shopping list
             </h3>
             <p className="muted stock-panel-lead">
-              Groups: <strong>{groupLabels || '—'}</strong> · {lines.length}{' '}
-              item{lines.length === 1 ? '' : 's'} · adjust amounts (slider snaps
-              at need) · remove or add items before creating.
+              <strong>{groupLabels || '—'}</strong>
+              {' · '}
+              {lines.length} item{lines.length === 1 ? '' : 's'}
             </p>
           </div>
         </header>
@@ -146,6 +161,7 @@ export function ShoppingTicketPreview({
                 groupName={groupNameById[line.groupId]}
                 onQtyChange={setLineQty}
                 onRemove={removeLine}
+                mobile={mobile}
               />
             ))}
           </ul>

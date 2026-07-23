@@ -1,12 +1,19 @@
 import { useEffect, useMemo, useState } from 'react'
 import { saveCategoryPlanningGroups } from '../services/catalogService'
 import { makePlanningGroupId } from '../utils/planningViewGroups'
+import { useSaveMutation } from '../hooks/useSaveMutation'
 
 /**
  * Optional planning-view groups for one category (Menu Editing).
  * Does not affect votes or stored menus — only how Menu Planning lists dishes.
  */
-export function PlanningViewGroupsEditor({ category, items, onSaved, onError }) {
+export function PlanningViewGroupsEditor({
+  category,
+  items,
+  onSaved,
+  onError,
+  onBusyChange,
+}) {
   const existingGroups = useMemo(
     () =>
       [...(category.planningGroups ?? [])]
@@ -28,7 +35,11 @@ export function PlanningViewGroupsEditor({ category, items, onSaved, onError }) 
     }
     return map
   })
-  const [saving, setSaving] = useState(false)
+  const { busy: saving, run } = useSaveMutation()
+
+  useEffect(() => {
+    onBusyChange?.(saving)
+  }, [saving, onBusyChange])
 
   useEffect(() => {
     const next = [...(category.planningGroups ?? [])]
@@ -76,8 +87,7 @@ export function PlanningViewGroupsEditor({ category, items, onSaved, onError }) 
   }
 
   const handleSave = async () => {
-    setSaving(true)
-    try {
+    const { ok, result, error, stale } = await run(async () => {
       const payloadGroups = enabled
         ? groups
             .map((g, index) => ({
@@ -93,16 +103,18 @@ export function PlanningViewGroupsEditor({ category, items, onSaved, onError }) 
       }
 
       await saveCategoryPlanningGroups(category.id, payloadGroups, assignments)
-      onSaved?.(
-        payloadGroups.length > 0
-          ? 'Planning view groups saved.'
-          : 'Planning view groups cleared — flat list in Menu Planning.',
-      )
-    } catch (err) {
-      onError?.(err)
-    } finally {
-      setSaving(false)
+      return payloadGroups
+    })
+    if (!ok) {
+      if (!stale) onError?.(error)
+      return
     }
+    if (stale) return
+    onSaved?.(
+      result.length > 0
+        ? 'Planning view groups saved.'
+        : 'Planning view groups cleared — flat list in Menu Planning.',
+    )
   }
 
   return (

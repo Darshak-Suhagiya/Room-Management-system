@@ -1,17 +1,20 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CalendarDays } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useToast } from '../contexts/ToastContext'
-import {
-  MenuPlanningForm,
-  PlanningSelectionPreview,
-} from '../components/MenuPlanningForm'
+import { MenuPlanningForm, PlanningSelectionPreview } from '../components/MenuPlanningForm'
 import { MealCalendar } from '../components/MealCalendar'
 import { MealCalendarSheet } from '../components/meals/MealCalendarSheet'
 import { MealDayStrip } from '../components/meals/MealDayStrip'
-import { MealSlotTabs } from '../components/meals/MealSlotTabs'
-import { MobilePageHeader } from '../components/mobile'
+import {
+  PlanningMobileForm,
+  PlanningPreviewEntryRow,
+  PlanningPreviewSheet,
+} from '../components/planning/mobile'
+import { MobilePageHeader, MobilePageSkeleton } from '../components/mobile'
 import { MobileActionBar } from '../components/ui/MobileActionBar'
+import { useDelayedLoading } from '../hooks/useDelayedLoading'
+import { useSaveMutation } from '../hooks/useSaveMutation'
 import { useMenuCatalog } from '../hooks/useMenuCatalog'
 import {
   formatDateId,
@@ -42,9 +45,11 @@ export function AdminMenuPlanningPage() {
     categoryIds,
   } = useMenuCatalog({ autoSeed: true })
   const [selectedDate, setSelectedDate] = useState(formatDateId(new Date()))
+  const selectedDateRef = useRef(selectedDate)
+  selectedDateRef.current = selectedDate
   const [menu, setMenu] = useState(null)
   const [menuLoading, setMenuLoading] = useState(false)
-  const [saving, setSaving] = useState(false)
+  const { busy: saving, run: runSave } = useSaveMutation()
   const [plannedDates, setPlannedDates] = useState(new Set())
   const [allMenus, setAllMenus] = useState([])
   const [participations, setParticipations] = useState([])
@@ -52,6 +57,7 @@ export function AdminMenuPlanningPage() {
   const [formDirty, setFormDirty] = useState(false)
   const [activeSlot, setActiveSlot] = useState('morning')
   const [calendarOpen, setCalendarOpen] = useState(false)
+  const [previewOpen, setPreviewOpen] = useState(false)
 
   const categoryKey = categoryIds.join(',')
   const today = formatDateId(new Date())
@@ -124,37 +130,61 @@ export function AdminMenuPlanningPage() {
     return [...ids].sort((a, b) => a.localeCompare(b))
   }, [today, selectedDate, plannedDates])
 
+  const dateStatus = useMemo(() => {
+    const map = {}
+    for (const menu of allMenus) {
+      const dateId = menu.dateId ?? menu.id
+      if (!dateId) continue
+      const hasMorning =
+        menu.hasMorning &&
+        menu.morning &&
+        Object.values(menu.morning).some((ids) => Array.isArray(ids) && ids.length > 0)
+      const hasEvening =
+        menu.hasEvening &&
+        menu.evening &&
+        Object.values(menu.evening).some((ids) => Array.isArray(ids) && ids.length > 0)
+      map[dateId] = hasMorning || hasEvening ? 'planned' : 'empty'
+    }
+    return map
+  }, [allMenus])
+
+  const showLoadSkeleton = useDelayedLoading(catalogLoading || menuLoading)
+
   const handleDraftChange = useCallback((next) => {
     setDraft(next)
   }, [])
 
   const handleSave = async (data) => {
-    setSaving(true)
-    try {
-      const { menu: saved, clearedSlots } = await saveMenu(
-        selectedDate,
-        data,
-        user.uid,
-        categoryIds,
-      )
-      setMenu(saved)
-      if (clearedSlots.length > 0) {
-        const labels = clearedSlots
-          .map((s) => (s === 'morning' ? 'morning' : 'evening'))
-          .join(' and ')
-        toast.success(
-          `Menu saved. ${labels} votes and adjusted totals were cleared because the menu changed.`,
-        )
-      } else {
-        toast.success('Menu plan saved.')
-      }
-      loadHistory().catch(() => {})
-    } catch (err) {
-      toast.error(err.message)
-    } finally {
-      setSaving(false)
+    const dateAtSave = selectedDate
+    const { ok, result, error, stale } = await runSave(() =>
+      saveMenu(dateAtSave, data, user.uid, categoryIds),
+    )
+    if (!ok) {
+      if (!stale) toast.error(error.message)
+      return
     }
+    toast.success(
+      result.clearedSlots.length > 0
+        ? `Menu saved. ${result.clearedSlots
+            .map((s) => (s === 'morning' ? 'morning' : 'evening'))
+            .join(' and ')} votes and adjusted totals were cleared because the menu changed.`
+        : 'Menu plan saved.',
+    )
+    if (stale || selectedDateRef.current !== dateAtSave) {
+      loadHistory().catch(() => {})
+      return
+    }
+    setMenu(result.menu)
+    loadHistory().catch(() => {})
   }
+
+  const selectDate = useCallback(
+    (dateId) => {
+      if (saving) return
+      setSelectedDate(dateId)
+    },
+    [saving],
+  )
 
   const formProps = {
     dateId: selectedDate,
@@ -170,7 +200,7 @@ export function AdminMenuPlanningPage() {
   }
 
   if (catalogLoading) {
-    return <p className="page-loading">Loading…</p>
+    return showLoadSkeleton ? <MobilePageSkeleton /> : null
   }
 
   return (
@@ -217,13 +247,13 @@ export function AdminMenuPlanningPage() {
               plannedDates={plannedDates}
               selectedDate={selectedDate}
               today={today}
-              onSelect={setSelectedDate}
+              onSelect={selectDate}
             />
           </aside>
         </div>
       </div>
 
-      <div className="layout-mobile admin-plan-mobile">
+      <div className="layout-mobile admin-plan-mobile admin-mobile-page-with-bar">
         <MobilePageHeader
           icon={CalendarDays}
           title="Menu planning"
@@ -237,7 +267,8 @@ export function AdminMenuPlanningPage() {
           plannedDateIds={stripDateIds}
           selectedDate={selectedDate}
           today={today}
-          onSelect={setSelectedDate}
+          dateStatus={dateStatus}
+          onSelect={selectDate}
           onOpenCalendar={() => setCalendarOpen(true)}
         />
 
@@ -246,33 +277,31 @@ export function AdminMenuPlanningPage() {
         </p>
 
         {menuLoading ? (
-          <p className="muted">Loading menu for this date…</p>
+          showLoadSkeleton ? <MobilePageSkeleton /> : null
         ) : (
           <div className="mobile-section-gap admin-plan-mobile-body">
-            <details className="plan-preview-collapsible">
-              <summary>Preview &amp; feedback</summary>
-              <PlanningSelectionPreview
-                draft={draft}
-                catalog={catalog}
-                itemHistoryById={itemHistoryById}
-              />
-            </details>
-
-            <MealSlotTabs
-              slots={['morning', 'evening']}
-              selectedSlot={activeSlot}
-              onSelect={setActiveSlot}
+            <PlanningPreviewEntryRow
+              draft={draft}
+              itemHistoryById={itemHistoryById}
+              onOpen={() => setPreviewOpen(true)}
             />
 
-            <MenuPlanningForm
+            <PlanningMobileForm
               {...formProps}
               formId={PLAN_FORM_ID}
-              hideActions
-              visibleSlot={activeSlot}
-              className="admin-plan-mobile-form"
+              activeSlot={activeSlot}
+              onActiveSlotChange={setActiveSlot}
             />
           </div>
         )}
+
+        <PlanningPreviewSheet
+          open={previewOpen}
+          onClose={() => setPreviewOpen(false)}
+          draft={draft}
+          catalog={catalog}
+          itemHistoryById={itemHistoryById}
+        />
 
         <MealCalendarSheet
           open={calendarOpen}
@@ -281,7 +310,7 @@ export function AdminMenuPlanningPage() {
           plannedDates={plannedDates}
           selectedDate={selectedDate}
           today={today}
-          onSelect={setSelectedDate}
+          onSelect={selectDate}
         />
 
         <MobileActionBar open={formDirty || saving}>

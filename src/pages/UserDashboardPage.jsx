@@ -10,6 +10,8 @@ import { MealsOptionsSheet } from '../components/meals/MealsOptionsSheet'
 import { NoticeBannerSlot } from '../components/NoticeBannerSlot'
 import { PushPermissionPrompt } from '../components/PushPermissionPrompt'
 import { useMediaQuery } from '../hooks/useMediaQuery'
+import { useDelayedLoading } from '../hooks/useDelayedLoading'
+import { MobilePageSkeleton } from '../components/mobile/MobilePageSkeleton'
 import { NOTICE_PAGES } from '../config/constants'
 import { useMenuCatalog } from '../hooks/useMenuCatalog'
 import { getAllPlannedMenus } from '../services/menuService'
@@ -173,7 +175,7 @@ export function UserDashboardPage() {
     seeding,
     error: catalogError,
     categoryIds,
-  } = useMenuCatalog({ autoSeed: true })
+  } = useMenuCatalog()
   const [menus, setMenus] = useState([])
   const [menusLoading, setMenusLoading] = useState(true)
   const [error, setError] = useState('')
@@ -339,14 +341,17 @@ export function UserDashboardPage() {
     return out
   }, [selectedMenu, availableSlots, participationByKey, catalog])
 
-  if (catalogLoading) {
-    return <p className="page-loading">Loading…</p>
+  const showInitialLoad = catalogLoading || menusLoading
+  const showLoadSkeleton = useDelayedLoading(showInitialLoad)
+
+  if (showInitialLoad && showLoadSkeleton) {
+    return <MobilePageSkeleton />
   }
 
   const displayError = catalogError || error
 
-  if (menusLoading) {
-    return <p className="page-loading">Loading menus…</p>
+  if (showInitialLoad) {
+    return null
   }
 
   const slotPanelProps = {

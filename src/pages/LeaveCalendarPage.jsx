@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CalendarDays, CalendarOff } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { MealCalendar } from '../components/MealCalendar'
 import { MealCalendarSheet } from '../components/meals/MealCalendarSheet'
-import { MobileDayStrip, MobilePageHeader } from '../components/mobile'
+import { MobileDayStrip, MobilePageHeader, MobilePageSkeleton } from '../components/mobile'
+import { useDelayedLoading } from '../hooks/useDelayedLoading'
+import { useSaveMutation } from '../hooks/useSaveMutation'
 import {
   LEAVE_PERIOD_LABELS,
   LEAVE_PERIODS,
@@ -269,7 +271,7 @@ export function LeaveCalendarPage() {
   const [maharajs, setMaharajs] = useState([])
   const [leaves, setLeaves] = useState([])
   const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
+  const { busy: saving, run: runSave } = useSaveMutation()
   const [error, setError] = useState('')
   const [viewMonth, setViewMonth] = useState(currentMonthView)
   const [selectedDate, setSelectedDate] = useState(() => formatDateId(new Date()))
@@ -278,6 +280,7 @@ export function LeaveCalendarPage() {
   const [reason, setReason] = useState('')
   const [editing, setEditing] = useState(false)
   const [calendarSheetOpen, setCalendarSheetOpen] = useState(false)
+  const initialLoadDone = useRef(false)
 
   const today = formatDateId(new Date())
 
@@ -312,6 +315,7 @@ export function LeaveCalendarPage() {
       setError(err.message || 'Could not load leave entries.')
     } finally {
       setLoading(false)
+      initialLoadDone.current = true
     }
   }, [maharajs, viewMonth.year, viewMonth.month])
 
@@ -401,10 +405,9 @@ export function LeaveCalendarPage() {
   const handleCreate = async (e) => {
     e.preventDefault()
     if (!selectedMaharaj || !user) return
-    setSaving(true)
     setError('')
-    try {
-      await createLeave({
+    const { ok, error: err, stale } = await runSave(() =>
+      createLeave({
         personId: selectedMaharaj.id,
         personName: selectedMaharaj.displayName || selectedMaharaj.email || 'Maharaj',
         date: selectedDate,
@@ -412,23 +415,23 @@ export function LeaveCalendarPage() {
         reason,
         recordedBy: user.uid,
         recordedByName: profile?.displayName || profile?.email || 'User',
-      })
-      setReason('')
-      await loadLeaves()
-    } catch (err) {
-      setError(err.message || 'Could not save leave.')
-    } finally {
-      setSaving(false)
+      }),
+    )
+    if (!ok) {
+      if (!stale) setError(err.message || 'Could not save leave.')
+      return
     }
+    if (stale) return
+    setReason('')
+    await loadLeaves()
   }
 
   const handleUpdate = async (e) => {
     e.preventDefault()
     if (!canManageLeaves || !selectedMaharaj || !user) return
-    setSaving(true)
     setError('')
-    try {
-      await updateLeave({
+    const { ok, error: err, stale } = await runSave(() =>
+      updateLeave({
         personId: selectedMaharaj.id,
         personName: selectedMaharaj.displayName || selectedMaharaj.email || 'Maharaj',
         date: selectedDate,
@@ -436,47 +439,46 @@ export function LeaveCalendarPage() {
         reason,
         updatedBy: user.uid,
         existingLeaves: dayLeaves.filter((l) => l.personId === selectedMaharaj.id),
-      })
-      setEditing(false)
-      await loadLeaves()
-    } catch (err) {
-      setError(err.message || 'Could not update leave.')
-    } finally {
-      setSaving(false)
+      }),
+    )
+    if (!ok) {
+      if (!stale) setError(err.message || 'Could not update leave.')
+      return
     }
+    if (stale) return
+    setEditing(false)
+    await loadLeaves()
   }
 
   const handleDeleteDay = async () => {
     if (!canManageLeaves || !selectedMaharaj) return
     if (!window.confirm('Delete all leave entries for this day?')) return
-    setSaving(true)
     setError('')
-    try {
-      await deleteLeavesForPersonDate(selectedMaharaj.id, selectedDate)
-      setEditing(false)
-      setReason('')
-      await loadLeaves()
-    } catch (err) {
-      setError(err.message || 'Could not delete leave.')
-    } finally {
-      setSaving(false)
+    const { ok, error: err, stale } = await runSave(() =>
+      deleteLeavesForPersonDate(selectedMaharaj.id, selectedDate),
+    )
+    if (!ok) {
+      if (!stale) setError(err.message || 'Could not delete leave.')
+      return
     }
+    if (stale) return
+    setEditing(false)
+    setReason('')
+    await loadLeaves()
   }
 
   const handleDeleteOne = async (docId) => {
     if (!canManageLeaves) return
     if (!window.confirm('Delete this leave entry?')) return
-    setSaving(true)
     setError('')
-    try {
-      await deleteLeave(docId)
-      setEditing(false)
-      await loadLeaves()
-    } catch (err) {
-      setError(err.message || 'Could not delete leave.')
-    } finally {
-      setSaving(false)
+    const { ok, error: err, stale } = await runSave(() => deleteLeave(docId))
+    if (!ok) {
+      if (!stale) setError(err.message || 'Could not delete leave.')
+      return
     }
+    if (stale) return
+    setEditing(false)
+    await loadLeaves()
   }
 
   const selectedLabel = selectedDate
@@ -549,6 +551,15 @@ export function LeaveCalendarPage() {
     handleUpdate,
     handleDeleteDay,
     handleDeleteOne,
+  }
+
+  const showInitialLoad = loading && !initialLoadDone.current
+  const showLoadSkeleton = useDelayedLoading(showInitialLoad)
+  if (showInitialLoad && showLoadSkeleton) {
+    return <MobilePageSkeleton />
+  }
+  if (showInitialLoad) {
+    return null
   }
 
   return (

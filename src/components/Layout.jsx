@@ -1,33 +1,28 @@
-import { useEffect, useRef, useState } from 'react'
-import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
-import {
-  BarChart3,
-  CalendarDays,
-  CalendarOff,
-  LayoutGrid,
-  ListChecks,
-  LogOut,
-  Megaphone,
-  Menu as MenuIcon,
-  Bell,
-  Package,
-  Printer,
-  Settings,
-  ShoppingCart,
-  Sparkles,
-  Users,
-  UtensilsCrossed,
-  X,
-} from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { LogOut, Menu as MenuIcon, Settings, X } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import { useBottomNavPreferences } from '../contexts/BottomNavPreferencesContext'
 import { PushNotificationProvider } from '../contexts/PushNotificationContext'
 import { BottomNav } from './BottomNav'
+import { MobileTabCache } from './mobile/MobileTabCache'
+import { getBottomNavTabs, isBottomNavRoute } from '../config/bottomNavTabs'
+import {
+  ALL_NAV_PATHS,
+  buildAuthSnapshot,
+  getHomeTabPath,
+  getSidebarSections,
+  resolveTabsFromIds,
+} from '../config/appNavRegistry'
+import { useMediaQuery } from '../hooks/useMediaQuery'
 import { getRoleLabel, getUserInitials } from '../utils/userDisplay'
 import { listActiveNotices } from '../services/noticeService'
 
 export function Layout() {
+  const authFromContext = useAuth()
   const {
     profile,
+    logout,
     isMaharaj,
     canAccessVoteDashboard,
     canPlanMenus,
@@ -38,9 +33,75 @@ export function Layout() {
     canViewNoticeAnalytics,
     canManagePush,
     canViewStocks,
-    logout,
-  } = useAuth()
+  } = authFromContext
+
+  const auth = useMemo(
+    () =>
+      buildAuthSnapshot({
+        isMaharaj,
+        canAccessVoteDashboard,
+        canPlanMenus,
+        canEditMenuCatalog,
+        canManageUsers,
+        canManageSeva,
+        canManageNotices,
+        canViewNoticeAnalytics,
+        canManagePush,
+        canViewStocks,
+      }),
+    [
+      isMaharaj,
+      canAccessVoteDashboard,
+      canPlanMenus,
+      canEditMenuCatalog,
+      canManageUsers,
+      canManageSeva,
+      canManageNotices,
+      canViewNoticeAnalytics,
+      canManagePush,
+      canViewStocks,
+    ],
+  )
+
+  const { isCustomizable, tabIds } = useBottomNavPreferences()
   const location = useLocation()
+  const navigate = useNavigate()
+  const isMobileLayout = useMediaQuery('(max-width: 899px)')
+  const homeTabPath = useMemo(() => getHomeTabPath(auth), [auth])
+  const prevTabIdsRef = useRef(tabIds)
+
+  const bottomNavTabs = useMemo(
+    () => getBottomNavTabs(auth, { isCustomizable, tabIds }),
+    [auth, isCustomizable, tabIds],
+  )
+
+  const showMobileTabCache =
+    isMobileLayout && isBottomNavRoute(bottomNavTabs, location.pathname)
+
+  useEffect(() => {
+    const prevTabIds = prevTabIdsRef.current
+    if (prevTabIds === tabIds) return
+    prevTabIdsRef.current = tabIds
+
+    if (!isMobileLayout || !isCustomizable) return
+    if (!ALL_NAV_PATHS.includes(location.pathname)) return
+    if (isBottomNavRoute(bottomNavTabs, location.pathname)) return
+
+    const prevPaths = resolveTabsFromIds(prevTabIds, auth).map((tab) => tab.path)
+    if (prevPaths.includes(location.pathname)) {
+      navigate(homeTabPath, { replace: true })
+    }
+  }, [
+    tabIds,
+    bottomNavTabs,
+    auth,
+    isMobileLayout,
+    isCustomizable,
+    location.pathname,
+    homeTabPath,
+    navigate,
+  ])
+
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const scrimRef = useRef(null)
 
@@ -81,49 +142,10 @@ export function Layout() {
   const roleLabel = getRoleLabel(profile)
   const initials = getUserInitials(profile?.displayName, profile?.email)
 
-  const mainLinks = [
-    !isMaharaj && { to: '/', end: true, label: 'My Meals', icon: UtensilsCrossed },
-    !isMaharaj && { to: '/seva', label: 'Room Seva', icon: Sparkles },
-    { to: '/leaves', label: 'Leave calendar', icon: CalendarOff },
-    canViewStocks && { to: '/stocks', label: 'Stocks', icon: Package },
-    canViewStocks && { to: '/shopping', label: 'Shopping', icon: ShoppingCart },
-    canAccessVoteDashboard && {
-      to: '/admin/votes',
-      label: 'Vote Dashboard',
-      icon: BarChart3,
-    },
-    { to: '/settings', label: 'Settings', icon: Settings },
-  ].filter(Boolean)
-
-  const manageLinks = [
-    canPlanMenus && {
-      to: '/admin/planning',
-      label: 'Menu Planning',
-      icon: CalendarDays,
-    },
-    canEditMenuCatalog && {
-      to: '/admin/catalog',
-      label: 'Menu Editing',
-      icon: ListChecks,
-    },
-    canManageUsers && { to: '/admin/users', label: 'Users', icon: Users },
-    (canManageNotices || canViewNoticeAnalytics) && {
-      to: '/admin/notices',
-      label: 'Notices',
-      icon: Megaphone,
-    },
-    canManagePush && {
-      to: '/admin/push',
-      label: 'Push notifications',
-      icon: Bell,
-    },
-    canManageSeva && { to: '/admin/seva', label: 'Seva Admin', icon: LayoutGrid },
-    canManageSeva && {
-      to: '/admin/seva-printable',
-      label: 'Room Seva Printable',
-      icon: Printer,
-    },
-  ].filter(Boolean)
+  const { main: mainLinks, manage: manageLinks } = useMemo(
+    () => getSidebarSections(auth),
+    [auth],
+  )
 
   const renderLink = ({ to, end, label, icon: Icon }) => (
     <NavLink
@@ -210,7 +232,7 @@ export function Layout() {
             >
               <MenuIcon size={22} />
             </button>
-            <Link to="/" className="topbar-brand">
+            <Link to={homeTabPath} className="topbar-brand">
               <span className="brand-mark brand-mark-sm">RM</span>
               <span>Room Management</span>
             </Link>
@@ -227,7 +249,14 @@ export function Layout() {
           </header>
 
           <main className="app-main">
-            <Outlet />
+            {showMobileTabCache ? (
+              <MobileTabCache
+                activePath={location.pathname}
+                tabs={bottomNavTabs}
+              />
+            ) : (
+              <Outlet />
+            )}
           </main>
 
           <div id="mobile-action-portal" className="mobile-action-portal" />

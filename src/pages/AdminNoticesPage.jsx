@@ -11,6 +11,7 @@ import { NoticeBanner } from '../components/NoticeBanner'
 import { MobilePageHeader } from '../components/mobile'
 import { Modal } from '../components/ui/Modal'
 import { useMediaQuery } from '../hooks/useMediaQuery'
+import { useSaveMutation } from '../hooks/useSaveMutation'
 import {
   ALL_ROLES,
   ROLE_LABELS,
@@ -239,7 +240,7 @@ export function AdminNoticesPage() {
   const [pastList, setPastList] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [saving, setSaving] = useState(false)
+  const { busy: saving, run: runSave } = useSaveMutation()
 
   const [formOpen, setFormOpen] = useState(false)
   const [editingId, setEditingId] = useState(null)
@@ -382,9 +383,9 @@ export function AdminNoticesPage() {
   const handleSave = async (e) => {
     e.preventDefault()
     if (!canManageNotices || !user) return
-    setSaving(true)
     setError('')
-    try {
+    const editingAtStart = editingId
+    const { ok, result, error: err, stale } = await runSave(async () => {
       const payload = {
         title: form.title,
         message: form.message,
@@ -395,53 +396,53 @@ export function AdminNoticesPage() {
         audienceUserIds: form.audienceUserIds,
         pages: form.pages,
       }
-      if (editingId) {
-        await updateNotice(editingId, payload, user.uid)
-      } else {
-        const created = await createNotice(payload, user.uid)
-        try {
-          const pushRes = await sendNoticePush(created)
-          // Soft success: notice is saved even if nobody has tokens yet
-          if (pushRes?.tokenCount === 0) {
-            console.warn('Notice saved; no devices registered for push audience')
-          }
-        } catch (pushErr) {
-          console.error(pushErr)
-          setError(
-            `Notice saved, but push failed: ${pushErr.message || 'unknown error'}`,
-          )
-          setFormOpen(false)
-          setEditingId(null)
-          setForm(EMPTY_FORM)
-          await reload()
-          return
+      if (editingAtStart) {
+        await updateNotice(editingAtStart, payload, user.uid)
+        return { pushSoftError: null }
+      }
+      const created = await createNotice(payload, user.uid)
+      try {
+        const pushRes = await sendNoticePush(created)
+        if (pushRes?.tokenCount === 0) {
+          console.warn('Notice saved; no devices registered for push audience')
+        }
+        return { pushSoftError: null }
+      } catch (pushErr) {
+        console.error(pushErr)
+        return {
+          pushSoftError: `Notice saved, but push failed: ${pushErr.message || 'unknown error'}`,
         }
       }
-      setFormOpen(false)
-      setEditingId(null)
-      setForm(EMPTY_FORM)
-      await reload()
-    } catch (err) {
-      setError(err.message || 'Could not save notice.')
-    } finally {
-      setSaving(false)
+    })
+    if (!ok) {
+      if (!stale) setError(err.message || 'Could not save notice.')
+      return
     }
+    if (stale) return
+    if (result?.pushSoftError) {
+      setError(result.pushSoftError)
+    }
+    setFormOpen(false)
+    setEditingId(null)
+    setForm(EMPTY_FORM)
+    await reload()
   }
 
   const handleEnd = async (notice) => {
     if (!canManageNotices || !user) return
     if (!window.confirm(`End notice “${notice.title}” now?`)) return
-    setSaving(true)
     setError('')
-    try {
-      await endNotice(notice.id, user.uid)
-      if (selectedId === notice.id) setSelectedId(null)
-      await reload()
-    } catch (err) {
-      setError(err.message || 'Could not end notice.')
-    } finally {
-      setSaving(false)
+    const noticeId = notice.id
+    const { ok, error: err, stale } = await runSave(() =>
+      endNotice(noticeId, user.uid),
+    )
+    if (!ok) {
+      if (!stale) setError(err.message || 'Could not end notice.')
+      return
     }
+    if (stale) return
+    if (selectedId === noticeId) setSelectedId(null)
+    await reload()
   }
 
   const list = tab === 'active' ? activeList : pastList

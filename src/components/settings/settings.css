@@ -129,6 +129,117 @@
   background: var(--surface-muted);
 }
 
+.bottom-nav-settings-counter {
+  margin: -0.35rem 0 0.85rem;
+  font-size: 0.82rem;
+}
+
+.bottom-nav-settings-group {
+  margin-bottom: 1rem;
+}
+
+.bottom-nav-settings-group:last-of-type {
+  margin-bottom: 0.5rem;
+}
+
+.bottom-nav-settings-group-title {
+  margin: 0 0 0.5rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+
+.bottom-nav-settings-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.bottom-nav-settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-muted);
+}
+
+.bottom-nav-settings-row.is-unselected {
+  opacity: 0.72;
+}
+
+.bottom-nav-settings-row-main {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.bottom-nav-settings-icon {
+  display: inline-flex;
+  color: var(--primary);
+  flex-shrink: 0;
+}
+
+.bottom-nav-settings-label {
+  font-size: 0.92rem;
+  font-weight: 650;
+}
+
+.bottom-nav-settings-badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  padding: 0.12rem 0.4rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.bottom-nav-settings-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+.bottom-nav-settings-reorder {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.1rem;
+}
+
+.bottom-nav-settings-toggle {
+  display: inline-flex;
+  align-items: center;
+}
+
+.bottom-nav-settings-switch {
+  width: 2.5rem;
+  height: 1.45rem;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+
+.bottom-nav-settings-switch:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.bottom-nav-settings-reset {
+  width: 100%;
+  min-height: var(--touch-min, 2.75rem);
+}
+
 @media (max-width: 640px) {
   .settings-appearance-seg {
     width: 100%;

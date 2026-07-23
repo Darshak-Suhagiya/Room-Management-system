@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
-import { UtensilsCrossed } from 'lucide-react'
 import { useToast } from '../contexts/ToastContext'
 import { useMenuCatalog } from '../hooks/useMenuCatalog'
+import { useMediaQuery } from '../hooks/useMediaQuery'
+import { useSaveMutation } from '../hooks/useSaveMutation'
 import { VOTE_TYPES, VOTE_TYPE_LABELS, defaultVoteTypeForCategory } from '../config/voteTypes'
 import {
   addCategory,
@@ -12,7 +13,7 @@ import {
   updateMenuItem,
 } from '../services/catalogService'
 import { PlanningViewGroupsEditor } from '../components/PlanningViewGroupsEditor'
-import { MobilePageHeader } from '../components/mobile'
+import { CatalogMobileView } from '../components/catalog/mobile'
 
 function VoteTypeSegmented({ value, onChange }) {
   return (
@@ -57,7 +58,7 @@ function ItemRow({ item, onSave, onDelete, onError }) {
   const [expanded, setExpanded] = useState(
     Boolean((item.notes ?? '').trim() || (item.recipe ?? '').trim()),
   )
-  const [saving, setSaving] = useState(false)
+  const { busy: saving, run } = useSaveMutation()
 
   useEffect(() => {
     setEn(item.en)
@@ -102,20 +103,16 @@ function ItemRow({ item, onSave, onDelete, onError }) {
               onError?.({ message: 'Gujarati and English names are required.' })
               return
             }
-            setSaving(true)
-            try {
-              await onSave(item.id, {
+            const { ok, error, stale } = await run(() =>
+              onSave(item.id, {
                 en: en.trim(),
                 gu: gu.trim(),
                 voteType,
                 notes: notes.trim(),
                 recipe: recipe.trim(),
-              })
-            } catch (err) {
-              onError?.(err)
-            } finally {
-              setSaving(false)
-            }
+              }),
+            )
+            if (!ok && !stale) onError?.(error)
           }}
         >
           {saving ? '…' : 'Save'}
@@ -423,6 +420,7 @@ function AddCategoryForm({ notify, handleError }) {
 export function AdminMenuCatalogPage() {
   const { catalog, loading, seeding, error } = useMenuCatalog({ autoSeed: true })
   const toast = useToast()
+  const isMobile = useMediaQuery('(max-width: 899px)')
 
   const notify = (text) => toast.success(text)
   const handleError = (err) => toast.error(err.message ?? 'Invalid value.')
@@ -452,6 +450,41 @@ export function AdminMenuCatalogPage() {
       </div>
     ) : null
 
+  if (isMobile) {
+    return (
+      <div className="page admin-page admin-catalog-page">
+        <CatalogMobileView
+          catalog={catalog}
+          seedBanner={seedBanner}
+          seeding={seeding}
+          error={error}
+          onSaveItem={async (id, data) => {
+            await updateMenuItem(id, data)
+            notify('Item updated.')
+          }}
+          onDeleteItem={async (id) => {
+            await deleteMenuItem(id)
+            notify('Item removed.')
+          }}
+          onAddCategory={async (data) => {
+            await addCategory(data)
+            notify('Category added.')
+          }}
+          onDeleteCategory={async (id) => {
+            await deleteCategory(id)
+            notify('Category removed.')
+          }}
+          onAddItem={async (data) => {
+            await addMenuItem(data)
+            notify('Item added.')
+          }}
+          onGroupsSaved={notify}
+          onError={handleError}
+        />
+      </div>
+    )
+  }
+
   const categorySections = catalog.categories.map((cat) => (
     <CatalogCategorySection
       key={cat.id}
@@ -459,17 +492,6 @@ export function AdminMenuCatalogPage() {
       catalog={catalog}
       notify={notify}
       handleError={handleError}
-    />
-  ))
-
-  const mobileCategorySections = catalog.categories.map((cat) => (
-    <CatalogCategorySection
-      key={cat.id}
-      cat={cat}
-      catalog={catalog}
-      notify={notify}
-      handleError={handleError}
-      accordion
     />
   ))
 
@@ -489,23 +511,6 @@ export function AdminMenuCatalogPage() {
         {seedBanner}
         <AddCategoryForm notify={notify} handleError={handleError} />
         {categorySections}
-      </div>
-
-      <div className="layout-mobile admin-catalog-mobile">
-        <MobilePageHeader
-          icon={UtensilsCrossed}
-          title="Menu editing"
-          description="Dishes, vote types, and Maharaj-only notes."
-        />
-
-        {seeding && <p className="muted">Importing default menu list…</p>}
-        {error && <p className="form-error">{error}</p>}
-        {seedBanner}
-        <AddCategoryForm notify={notify} handleError={handleError} />
-
-        <div className="catalog-accordion-list mobile-section-gap">
-          {mobileCategorySections}
-        </div>
       </div>
     </div>
   )

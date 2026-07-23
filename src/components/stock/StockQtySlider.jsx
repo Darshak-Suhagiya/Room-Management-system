@@ -39,6 +39,7 @@ export function StockQtySlider({
   label,
   showThreshold = true,
   snapOnRelease = true,
+  variant = 'desktop',
 }) {
   const { min, mid, max } = stockSliderBounds(needPerIteration, unit)
   const unitLabel = STOCK_UNIT_LABELS[unit] || unit
@@ -48,6 +49,7 @@ export function StockQtySlider({
   const clamped = Math.min(max, Math.max(min, num))
   const atNeed = mid > 0 && Math.abs(clamped - mid) < step * 0.5
   const midPct = max > min ? ((mid - min) / (max - min)) * 100 : 50
+  const isMobile = variant === 'mobile'
 
   // Only mark the need stop — avoids cluttered 0/max marks colliding with the handle.
   const marks = useMemo(() => {
@@ -96,7 +98,14 @@ export function StockQtySlider({
 
   return (
     <div
-      className={`stock-qty-slider ${disabled ? 'is-disabled' : ''} ${atNeed ? 'at-need' : ''}`}
+      className={[
+        'stock-qty-slider',
+        disabled ? 'is-disabled' : '',
+        atNeed ? 'at-need' : '',
+        isMobile ? 'is-mobile' : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
     >
       {(label || showThreshold) && (
         <div className="stock-qty-slider-meta">

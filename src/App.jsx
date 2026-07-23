@@ -1,18 +1,46 @@
 import { lazy, Suspense } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
+import { BottomNavPreferencesProvider } from './contexts/BottomNavPreferencesContext'
+import { MenuCatalogProvider } from './contexts/MenuCatalogContext'
 import { ThemeProvider } from './contexts/ThemeContext'
 import { ToastProvider } from './contexts/ToastContext'
 import { Layout } from './components/Layout'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { LoginPage } from './pages/LoginPage'
 import { SetupPage } from './pages/SetupPage'
-import { HomePage } from './pages/HomePage'
-import { SettingsPage } from './pages/SettingsPage'
 import { AccountPendingPage } from './pages/AccountPendingPage'
 import { VerifyEmailPage } from './pages/VerifyEmailPage'
 import { AuthActionPage } from './pages/AuthActionPage'
 import { AuthQueryRedirect } from './components/AuthQueryRedirect'
+
+const HomePage = lazy(() =>
+  import('./pages/HomePage').then((m) => ({ default: m.HomePage })),
+)
+const SettingsPage = lazy(() =>
+  import('./pages/SettingsPage').then((m) => ({ default: m.SettingsPage })),
+)
+const SevaOverviewPage = lazy(() =>
+  import('./pages/SevaOverviewPage').then((m) => ({
+    default: m.SevaOverviewPage,
+  })),
+)
+const LeaveCalendarPage = lazy(() =>
+  import('./pages/LeaveCalendarPage').then((m) => ({
+    default: m.LeaveCalendarPage,
+  })),
+)
+const StocksPage = lazy(() =>
+  import('./pages/StocksPage').then((m) => ({ default: m.StocksPage })),
+)
+const ShoppingPage = lazy(() =>
+  import('./pages/ShoppingPage').then((m) => ({ default: m.ShoppingPage })),
+)
+const AdminVotesDashboardPage = lazy(() =>
+  import('./pages/AdminVotesDashboardPage').then((m) => ({
+    default: m.AdminVotesDashboardPage,
+  })),
+)
 
 const AdminMenuPlanningPage = lazy(() =>
   import('./pages/AdminMenuPlanningPage').then((m) => ({
@@ -24,21 +52,11 @@ const AdminMenuCatalogPage = lazy(() =>
     default: m.AdminMenuCatalogPage,
   })),
 )
-const AdminVotesDashboardPage = lazy(() =>
-  import('./pages/AdminVotesDashboardPage').then((m) => ({
-    default: m.AdminVotesDashboardPage,
-  })),
-)
 const AdminUsersPage = lazy(() =>
   import('./pages/AdminUsersPage').then((m) => ({ default: m.AdminUsersPage })),
 )
 const AdminSevaPage = lazy(() =>
   import('./pages/AdminSevaPage').then((m) => ({ default: m.AdminSevaPage })),
-)
-const SevaOverviewPage = lazy(() =>
-  import('./pages/SevaOverviewPage').then((m) => ({
-    default: m.SevaOverviewPage,
-  })),
 )
 const SevaPrintablePage = lazy(() =>
   import('./pages/SevaPrintablePage').then((m) => ({
@@ -53,11 +71,6 @@ const MenuAnalyticsPage = lazy(() =>
     default: m.MenuAnalyticsPage,
   })),
 )
-const LeaveCalendarPage = lazy(() =>
-  import('./pages/LeaveCalendarPage').then((m) => ({
-    default: m.LeaveCalendarPage,
-  })),
-)
 const AdminNoticesPage = lazy(() =>
   import('./pages/AdminNoticesPage').then((m) => ({
     default: m.AdminNoticesPage,
@@ -65,12 +78,6 @@ const AdminNoticesPage = lazy(() =>
 )
 const AdminPushPage = lazy(() =>
   import('./pages/AdminPushPage').then((m) => ({ default: m.AdminPushPage })),
-)
-const StocksPage = lazy(() =>
-  import('./pages/StocksPage').then((m) => ({ default: m.StocksPage })),
-)
-const ShoppingPage = lazy(() =>
-  import('./pages/ShoppingPage').then((m) => ({ default: m.ShoppingPage })),
 )
 
 function RouteFallback() {
@@ -81,6 +88,8 @@ function App() {
   return (
     <ThemeProvider>
     <AuthProvider>
+      <BottomNavPreferencesProvider>
+      <MenuCatalogProvider autoSeed>
       <ToastProvider>
       <BrowserRouter
         basename={
@@ -206,6 +215,8 @@ function App() {
         </Suspense>
       </BrowserRouter>
       </ToastProvider>
+      </MenuCatalogProvider>
+      </BottomNavPreferencesProvider>
     </AuthProvider>
     </ThemeProvider>
   )

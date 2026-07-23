@@ -8,6 +8,7 @@ import {
 } from '../../../utils/menuReviewUtils'
 import { saveMealItemReview } from '../../../services/participationService'
 import { useToast } from '../../../contexts/ToastContext'
+import { useSaveMutation } from '../../../hooks/useSaveMutation'
 import { OthersItemReviews } from '../../MealItemReview'
 import { MobileRatingChips } from './MobileRatingChips'
 import { MobileReviewNoteField } from './MobileReviewNoteField'
@@ -39,10 +40,10 @@ export function MealFeedbackDishRow({
   currentUserId,
 }) {
   const toast = useToast()
+  const { busy: saving, run } = useSaveMutation()
   const windowOpen = isReviewWindowOpen(dateId)
   const [rating, setRating] = useState(() => normalizeReviewRating(review?.rating))
   const [text, setText] = useState(() => review?.text ?? '')
-  const [saving, setSaving] = useState(false)
   const [baseline, setBaseline] = useState(() => ({
     rating: normalizeReviewRating(review?.rating),
     text: review?.text ?? '',
@@ -54,9 +55,8 @@ export function MealFeedbackDishRow({
 
   const persist = async (nextRating, nextText) => {
     if (!windowOpen || !canEdit) return
-    setSaving(true)
-    try {
-      await saveMealItemReview({
+    const { ok, error, stale } = await run(() =>
+      saveMealItemReview({
         userId,
         dateId,
         slot,
@@ -64,15 +64,17 @@ export function MealFeedbackDishRow({
         rating: nextRating,
         text: nextText,
         displayName,
-      })
-      setBaseline({ rating: nextRating, text: nextText })
-    } catch (err) {
-      toast.error(err.message)
-      setRating(baseline.rating)
-      setText(baseline.text)
-    } finally {
-      setSaving(false)
+      }),
+    )
+    if (!ok) {
+      if (!stale) {
+        toast.error(error.message)
+        setRating(baseline.rating)
+        setText(baseline.text)
+      }
+      return
     }
+    if (!stale) setBaseline({ rating: nextRating, text: nextText })
   }
 
   const handleRatingChange = (nextRating) => {

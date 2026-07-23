@@ -9,7 +9,8 @@ import { SevaGroupLegend } from '../components/seva/SevaGroupLegend'
 import { SevaLoadOverview } from '../components/seva/SevaLoadOverview'
 import { NoticeBannerSlot } from '../components/NoticeBannerSlot'
 import { PageHeader } from '../components/ui/PageHeader'
-import { MobilePageHeader } from '../components/mobile'
+import { MobilePageHeader, MobilePageSkeleton } from '../components/mobile'
+import { useDelayedLoading } from '../hooks/useDelayedLoading'
 import { NOTICE_PAGES } from '../config/constants'
 import { getPersonById } from '../utils/sevaLoadUtils'
 import {
@@ -61,8 +62,10 @@ export function SevaOverviewPage() {
     return <Navigate to="/admin/votes" replace />
   }
 
+  const showLoadSkeleton = useDelayedLoading(loading || !config)
+
   if (loading || !config) {
-    return <p className="page-loading">Loading…</p>
+    return showLoadSkeleton ? <MobilePageSkeleton /> : null
   }
 
   return (
