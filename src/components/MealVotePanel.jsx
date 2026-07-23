@@ -11,11 +11,23 @@ import {
 } from '../utils/menuVoteUtils'
 import { groupPlannedByCategory } from '../utils/groupMenuByCategory'
 import { isPastDate } from '../utils/mealDateUtils'
+import { getItemReview, collectSlotItemReviews } from '../utils/menuReviewUtils'
 import { parseQuantityInput } from '../utils/voteQuantityUtils'
 import { MenuSlotNote } from './MenuSlotNote'
+import { MobileMealVoteView } from './meals/mobile/MobileMealVoteView'
+import {
+  MealFeedbackEntryRow,
+  MealFeedbackSheet,
+  getFeedbackProgress,
+} from './meals/mobile'
+import {
+  MealItemReviewEditor,
+  OthersItemReviews,
+} from './MealItemReview'
 import {
   saveMealParticipation,
   subscribeMealParticipation,
+  subscribeParticipationsForSlot,
 } from '../services/participationService'
 import { useToast } from '../contexts/ToastContext'
 import {
@@ -106,6 +118,11 @@ export function MealVotePanel({
   locked = false,
   refreshing = false,
   onRefresh,
+  displayName = '',
+  canReview = true,
+  showOthersFeedback = false,
+  onToggleOthersFeedback,
+  mobile = false,
 }) {
   const slotInfo = MEAL_SLOTS[slot]
   const SlotIcon = slot === 'morning' ? IconSun : IconMoon
@@ -126,6 +143,7 @@ export function MealVotePanel({
       : null
 
   const [participation, setParticipation] = useState(null)
+  const [slotParticipations, setSlotParticipations] = useState([])
   const [notEating, setNotEating] = useState(false)
   const [votes, setVotes] = useState({})
   const [editing, setEditing] = useState(false)
@@ -134,6 +152,7 @@ export function MealVotePanel({
   const [hydrated, setHydrated] = useState(false)
   const [missingIds, setMissingIds] = useState([])
   const [invalidIds, setInvalidIds] = useState([])
+  const [feedbackSheetOpen, setFeedbackSheetOpen] = useState(false)
   const toast = useToast()
 
   useEffect(() => {
@@ -147,9 +166,26 @@ export function MealVotePanel({
     })
   }, [userId, dateId, slot])
 
+  useEffect(() => {
+    // Load everyone else's reviews whenever reviews are allowed — no vote required to read.
+    if (!canReview) {
+      setSlotParticipations([])
+      return undefined
+    }
+    return subscribeParticipationsForSlot(dateId, slot, setSlotParticipations)
+  }, [dateId, slot, canReview])
+
+  const othersParticipations = canReview ? slotParticipations : []
+
   const isComplete =
     hydrated && hasMealVoteComplete(participation, plannedItems)
   const showForm = !readOnly && (!isComplete || editing)
+  // Leave your own review only after a complete "eating" vote (while not editing votes)
+  const canLeaveOwnReview =
+    canReview && isComplete && !notEating && !showForm
+  // Anyone with review access can browse feedback (toggle optional for clutter)
+  const showFeedbackSection = canReview && hydrated
+  const showOthersInSection = showFeedbackSection && showOthersFeedback
 
   useEffect(() => {
     setEditing(false)
@@ -228,6 +264,163 @@ export function MealVotePanel({
     : isComplete
       ? 'vote-status-done'
       : 'vote-status-pending'
+
+  const renderFeedbackSection = () => {
+    if (!showFeedbackSection || plannedItems.length === 0) return null
+
+    if (mobile) {
+      const { ratedCount, totalCount } = getFeedbackProgress(
+        plannedItems,
+        participation,
+      )
+      const canOpenSheet = canLeaveOwnReview || showOthersFeedback
+
+      return (
+        <>
+          <MealFeedbackEntryRow
+            ratedCount={ratedCount}
+            totalCount={canLeaveOwnReview ? totalCount : 0}
+            onOpen={() => setFeedbackSheetOpen(true)}
+            disabled={!canOpenSheet}
+            hint={
+              !canOpenSheet ? 'Vote first to leave feedback' : undefined
+            }
+          />
+          <MealFeedbackSheet
+            open={feedbackSheetOpen}
+            onClose={() => setFeedbackSheetOpen(false)}
+            slotLabel={slotInfo.labelEn}
+            canReview={canReview}
+            canLeaveOwnReview={canLeaveOwnReview}
+            showOthersFeedback={showOthersFeedback}
+            onToggleOthersFeedback={onToggleOthersFeedback}
+            plannedItems={plannedItems}
+            participation={participation}
+            othersParticipations={othersParticipations}
+            userId={userId}
+            dateId={dateId}
+            slot={slot}
+            displayName={displayName}
+          />
+        </>
+      )
+    }
+
+    return (
+      <section className="meal-feedback-section" aria-label="Reviews and feedback">
+        <div className="meal-feedback-separator" aria-hidden />
+        <header className="meal-feedback-head">
+          <h4 className="meal-feedback-title">Reviews &amp; feedback</h4>
+          <p className="muted meal-feedback-sub">
+            {canLeaveOwnReview
+              ? 'Rate dishes you ate, and read what others shared.'
+              : showOthersInSection
+                ? 'Everyone’s feedback for this meal — vote first if you want to leave your own.'
+                : 'Turn on “Show everyone’s feedback” in Quick links to read reviews.'}
+          </p>
+        </header>
+        <ul className="meal-feedback-list">
+          {plannedItems.map((item) => {
+            const ownReview = getItemReview(participation?.reviews, item.id)
+            const others = collectSlotItemReviews(othersParticipations, item.id)
+            return (
+              <li key={item.id} className="meal-feedback-item">
+                <div className="meal-feedback-item-name">{item.gu}</div>
+                {canLeaveOwnReview ? (
+                  <MealItemReviewEditor
+                    key={`${item.id}-${ownReview?.updatedAt ?? 'new'}`}
+                    userId={userId}
+                    dateId={dateId}
+                    slot={slot}
+                    itemId={item.id}
+                    displayName={displayName}
+                    review={ownReview}
+                    mobile={mobile}
+                  />
+                ) : null}
+                {showOthersInSection ? (
+                  <div className="review-others-wrap">
+                    <span className="review-others-label">Everyone’s feedback</span>
+                    <OthersItemReviews reviews={others} currentUserId={userId} />
+                  </div>
+                ) : null}
+              </li>
+            )
+          })}
+        </ul>
+      </section>
+    )
+  }
+
+  const renderVoteActions = (sticky = false) => (
+    <div className={`vote-actions ${sticky ? 'vote-actions-sticky' : ''}`}>
+      <button
+        type="button"
+        className={`btn btn-primary btn-sm btn-save slot-btn-${slot}`}
+        onClick={handleSave}
+        disabled={saving}
+      >
+        <IconSave size={16} />
+        {saving ? 'Saving…' : 'Save'}
+      </button>
+      {isComplete && (
+        <button
+          type="button"
+          className="btn btn-ghost btn-sm"
+          onClick={() => {
+            setNotEating(Boolean(participation?.notEating))
+            setVotes(participation?.votes ?? {})
+            setEditing(false)
+            setMissingIds([])
+          }}
+          disabled={saving}
+        >
+          Cancel
+        </button>
+      )}
+      {message && <span className="vote-msg">{message}</span>}
+    </div>
+  )
+
+  if (mobile) {
+    return (
+      <MobileMealVoteView
+        slot={slot}
+        slotLabel={slotInfo.labelEn}
+        slotNote={slotNote}
+        grouped={grouped}
+        hydrated={hydrated}
+        isComplete={isComplete}
+        showForm={showForm}
+        readOnly={readOnly}
+        locked={locked}
+        past={past}
+        blockReason={blockReason}
+        notEating={notEating}
+        votes={votes}
+        missingIds={missingIds}
+        invalidIds={invalidIds}
+        saving={saving}
+        message={message}
+        refreshing={refreshing}
+        onRefresh={onRefresh}
+        onNotEatingChange={(next) => {
+          setNotEating(next)
+          setMissingIds([])
+        }}
+        onUpdateVote={updateVote}
+        onSave={handleSave}
+        onCancelEdit={() => {
+          setNotEating(Boolean(participation?.notEating))
+          setVotes(participation?.votes ?? {})
+          setEditing(false)
+          setMissingIds([])
+        }}
+        onStartEdit={() => setEditing(true)}
+        renderFeedbackSection={renderFeedbackSection}
+      />
+    )
+  }
 
   return (
     <article
@@ -343,33 +536,7 @@ export function MealVotePanel({
             />
           )}
 
-          <div className="vote-actions">
-            <button
-              type="button"
-              className={`btn btn-primary btn-sm btn-save slot-btn-${slot}`}
-              onClick={handleSave}
-              disabled={saving}
-            >
-              <IconSave size={16} />
-              {saving ? 'Saving…' : 'Save'}
-            </button>
-            {isComplete && (
-              <button
-                type="button"
-                className="btn btn-ghost btn-sm"
-                onClick={() => {
-                  setNotEating(Boolean(participation?.notEating))
-                  setVotes(participation?.votes ?? {})
-                  setEditing(false)
-                  setMissingIds([])
-                }}
-                disabled={saving}
-              >
-                Cancel
-              </button>
-            )}
-            {message && <span className="vote-msg">{message}</span>}
-          </div>
+          {renderVoteActions(false)}
         </>
       ) : (
         <>
@@ -396,6 +563,8 @@ export function MealVotePanel({
           )}
         </>
       )}
+
+      {renderFeedbackSection()}
     </article>
   )
 }

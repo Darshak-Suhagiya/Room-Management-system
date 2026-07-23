@@ -10,8 +10,15 @@ import {
 import { db, isFirebaseConfigured } from '../lib/firebase'
 import { emptyMealSlot } from '../config/menuItems'
 import { COLLECTIONS } from '../config/constants'
-import { deleteParticipationsForSlot } from './participationService'
+import {
+  deleteParticipationsForSlot,
+  getParticipationsForSlot,
+} from './participationService'
 import { didSlotMenuChange } from '../utils/menuSlotCompare'
+import {
+  applyPlanStockUsage,
+  normalizeStockUsage,
+} from './stockService'
 
 function normalizeSlot(slot, categoryIds) {
   const base = emptyMealSlot(categoryIds)
@@ -67,7 +74,10 @@ function parseMenuDoc(snap, categoryIds) {
       : null,
     morningNote: data.morningNote ?? '',
     eveningNote: data.eveningNote ?? '',
+    morningMaharajNote: data.morningMaharajNote ?? '',
+    eveningMaharajNote: data.eveningMaharajNote ?? '',
     totalOverrides: normalizeTotalOverrides(data.totalOverrides),
+    stockUsage: normalizeStockUsage(data.stockUsage),
     updatedAt: data.updatedAt,
     updatedBy: data.updatedBy,
   }
@@ -105,7 +115,17 @@ export async function getAllPlannedMenus(categoryIds = []) {
 
 export async function saveMenu(
   dateId,
-  { hasMorning, hasEvening, morning, evening, morningNote, eveningNote },
+  {
+    hasMorning,
+    hasEvening,
+    morning,
+    evening,
+    morningNote,
+    eveningNote,
+    morningMaharajNote,
+    eveningMaharajNote,
+    stockUsage: stockUsageInput,
+  },
   userId,
   categoryIds,
 ) {
@@ -123,6 +143,12 @@ export async function saveMenu(
     ? parseMenuDoc(existingSnap, categoryIds)
     : null
 
+  const previousUsage = existingMenu?.stockUsage || { morning: {}, evening: {} }
+  const nextUsage = normalizeStockUsage({
+    morning: hasMorning ? stockUsageInput?.morning || {} : {},
+    evening: hasEvening ? stockUsageInput?.evening || {} : {},
+  })
+
   const newData = {
     hasMorning,
     hasEvening,
@@ -130,13 +156,20 @@ export async function saveMenu(
     evening,
     morningNote,
     eveningNote,
+    morningMaharajNote,
+    eveningMaharajNote,
   }
 
   const clearedSlots = []
+  const previousVoters = { morning: [], evening: [] }
   const slotsToCheck = ['morning', 'evening']
 
   for (const slot of slotsToCheck) {
     if (didSlotMenuChange(existingMenu, newData, slot, categoryIds)) {
+      const parts = await getParticipationsForSlot(dateId, slot)
+      previousVoters[slot] = [
+        ...new Set(parts.map((p) => p.userId).filter(Boolean)),
+      ]
       await deleteParticipationsForSlot(dateId, slot)
       clearedSlots.push(slot)
     }
@@ -155,6 +188,7 @@ export async function saveMenu(
     hasMorning: !!hasMorning,
     hasEvening: !!hasEvening,
     totalOverrides,
+    stockUsage: nextUsage,
     updatedAt: new Date().toISOString(),
     updatedBy: userId,
   }
@@ -163,24 +197,37 @@ export async function saveMenu(
     payload.morning = normalizeSlot(morning, categoryIds)
     const note = (morningNote ?? '').trim()
     payload.morningNote = note || deleteField()
+    const cookNote = (morningMaharajNote ?? '').trim()
+    payload.morningMaharajNote = cookNote || deleteField()
   } else {
     payload.morning = deleteField()
     payload.morningNote = deleteField()
+    payload.morningMaharajNote = deleteField()
   }
 
   if (hasEvening) {
     payload.evening = normalizeSlot(evening, categoryIds)
     const note = (eveningNote ?? '').trim()
     payload.eveningNote = note || deleteField()
+    const cookNote = (eveningMaharajNote ?? '').trim()
+    payload.eveningMaharajNote = cookNote || deleteField()
   } else {
     payload.evening = deleteField()
     payload.eveningNote = deleteField()
+    payload.eveningMaharajNote = deleteField()
   }
+
+  await applyPlanStockUsage({
+    dateId,
+    previousUsage,
+    nextUsage,
+    userId,
+  })
 
   await setDoc(ref, payload, { merge: true })
 
   const saved = await getMenuByDate(dateId, categoryIds)
-  return { menu: saved, clearedSlots }
+  return { menu: saved, clearedSlots, previousVoters }
 }
 
 /** Admin: set or clear adjusted total for a number-vote item (null clears). */

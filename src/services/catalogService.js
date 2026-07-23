@@ -1,6 +1,7 @@
 import {
   collection,
   deleteDoc,
+  deleteField,
   doc,
   getDocs,
   onSnapshot,
@@ -153,7 +154,14 @@ export async function deleteCategory(categoryId) {
   await deleteDoc(doc(db, COLLECTIONS.MENU_CATEGORIES, categoryId))
 }
 
-export async function addMenuItem({ categoryId, en, gu, voteType }) {
+export async function addMenuItem({
+  categoryId,
+  en,
+  gu,
+  voteType,
+  notes = '',
+  recipe = '',
+}) {
   const id = slugify(en) || `item-${Date.now()}`
   const catalog = await fetchCatalog()
   const inCategory = catalog.items.filter((i) => i.categoryId === categoryId)
@@ -162,6 +170,8 @@ export async function addMenuItem({ categoryId, en, gu, voteType }) {
     en,
     gu,
     voteType: voteType ?? defaultVoteTypeForCategory(categoryId),
+    notes: (notes ?? '').trim(),
+    recipe: (recipe ?? '').trim(),
     order: inCategory.length + 1,
   })
   return id
@@ -173,4 +183,68 @@ export async function updateMenuItem(itemId, data) {
 
 export async function deleteMenuItem(itemId) {
   await deleteDoc(doc(db, COLLECTIONS.MENU_ITEMS, itemId))
+}
+
+/**
+ * Save optional planning view-groups for a category (Menu Planning UI only).
+ * groups: [{ id, label, order }]
+ * assignments: { [itemId]: groupId | null }
+ * If groups is empty, clears planningGroupId on all items in the category.
+ */
+export async function saveCategoryPlanningGroups(
+  categoryId,
+  groups,
+  assignments,
+) {
+  if (!isFirebaseConfigured || !db) {
+    throw new Error('Firebase is not configured')
+  }
+
+  const catalog = await fetchCatalog()
+  const categoryItems = catalog.items.filter((i) => i.categoryId === categoryId)
+  const normalized = (groups ?? [])
+    .map((g, index) => ({
+      id: String(g.id ?? `grp-${index + 1}`),
+      label: String(g.label ?? '').trim(),
+      order: typeof g.order === 'number' ? g.order : index,
+    }))
+    .filter((g) => g.label)
+
+  if (normalized.length > 0) {
+    const groupIds = new Set(normalized.map((g) => g.id))
+    const missing = []
+    for (const item of categoryItems) {
+      const gid = assignments?.[item.id]
+      if (!gid || !groupIds.has(gid)) {
+        missing.push(item.gu || item.en || item.id)
+      }
+    }
+    if (missing.length > 0) {
+      throw new Error(
+        `Assign every item to a group. Missing: ${missing.slice(0, 8).join(', ')}${missing.length > 8 ? '…' : ''}`,
+      )
+    }
+  }
+
+  const batch = writeBatch(db)
+  batch.set(
+    doc(db, COLLECTIONS.MENU_CATEGORIES, categoryId),
+    { planningGroups: normalized },
+    { merge: true },
+  )
+
+  for (const item of categoryItems) {
+    const gid =
+      normalized.length === 0 ? null : (assignments?.[item.id] ?? null)
+    batch.set(
+      doc(db, COLLECTIONS.MENU_ITEMS, item.id),
+      {
+        planningGroupId:
+          gid == null || gid === '' ? deleteField() : gid,
+      },
+      { merge: true },
+    )
+  }
+
+  await batch.commit()
 }

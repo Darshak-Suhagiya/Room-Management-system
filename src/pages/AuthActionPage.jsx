@@ -212,7 +212,7 @@ function AuthActionCard({
   children,
 }) {
   return (
-    <div className="auth-page">
+    <div className="auth-page pt-safe pb-safe">
       <div className="auth-card account-status-card">
         <h1>{title}</h1>
         {subtitle && <p className="subtitle">{subtitle}</p>}

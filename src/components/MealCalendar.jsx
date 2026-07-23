@@ -21,6 +21,7 @@ function monthFromDateId(dateId, fallbackId) {
 /**
  * Month-grid day picker. Marks planned dates, highlights today + selected.
  * Only planned dates are selectable (unless allowAllDates).
+ * Pass viewMonth + onViewMonthChange for controlled month (leave calendar).
  */
 export function MealCalendar({
   plannedDates,
@@ -29,13 +30,25 @@ export function MealCalendar({
   onSelect,
   allowAllDates = false,
   dateStatus,
+  viewMonth,
+  onViewMonthChange,
+  legend,
+  showDotWhenEmpty = false,
 }) {
-  const [view, setView] = useState(() => monthFromDateId(selectedDate, today))
+  const controlled = viewMonth != null && typeof onViewMonthChange === 'function'
+  const [internalView, setInternalView] = useState(() =>
+    monthFromDateId(selectedDate, today),
+  )
 
-  // Keep the visible month on the selected/current day (including async defaults)
+  const view = controlled ? viewMonth : internalView
+  const setView = controlled
+    ? onViewMonthChange
+    : setInternalView
+
   useEffect(() => {
-    setView(monthFromDateId(selectedDate, today))
-  }, [selectedDate, today])
+    if (controlled) return
+    setInternalView(monthFromDateId(selectedDate, today))
+  }, [controlled, selectedDate, today])
 
   const monthLabel = useMemo(
     () =>
@@ -60,17 +73,34 @@ export function MealCalendar({
   }, [view])
 
   const goPrevMonth = () =>
-    setView((v) =>
-      v.month === 0
-        ? { year: v.year - 1, month: 11 }
-        : { year: v.year, month: v.month - 1 },
+    setView(
+      view.month === 0
+        ? { year: view.year - 1, month: 11 }
+        : { year: view.year, month: view.month - 1 },
     )
   const goNextMonth = () =>
-    setView((v) =>
-      v.month === 11
-        ? { year: v.year + 1, month: 0 }
-        : { year: v.year, month: v.month + 1 },
+    setView(
+      view.month === 11
+        ? { year: view.year + 1, month: 0 }
+        : { year: view.year, month: view.month + 1 },
     )
+
+  const defaultLegend = dateStatus ? (
+    <div className="cal-legend">
+      <span className="cal-legend-item">
+        <span className="cal-cell-dot cal-dot-voted" aria-hidden />
+        Voted
+      </span>
+      <span className="cal-legend-item">
+        <span className="cal-cell-dot cal-dot-partial" aria-hidden />
+        Partial
+      </span>
+      <span className="cal-legend-item">
+        <span className="cal-cell-dot cal-dot-none" aria-hidden />
+        Not voted
+      </span>
+    </div>
+  ) : null
 
   return (
     <div className={`meal-calendar rail-card${allowAllDates ? ' allow-all' : ''}`}>
@@ -110,15 +140,18 @@ export function MealCalendar({
             return <span key={`blank-${idx}`} className="cal-cell is-blank" />
           }
           const id = formatDateId(date)
-          const hasMenu = plannedDates.has(id)
+          const hasMenu = plannedDates?.has(id)
+          const status = dateStatus?.[id]
           const selectable = allowAllDates || hasMenu
           const isSelected = id === selectedDate
           const isToday = id === today
+          const showDot = Boolean(status) || (hasMenu && !showDotWhenEmpty) || (hasMenu && showDotWhenEmpty)
           const cls = [
             'cal-cell',
-            hasMenu ? 'has-menu' : 'is-empty',
+            hasMenu || status ? 'has-menu' : 'is-empty',
             isSelected ? 'is-selected' : '',
             isToday ? 'is-today' : '',
+            status ? `has-leave-${status}` : '',
           ]
             .filter(Boolean)
             .join(' ')
@@ -131,12 +164,13 @@ export function MealCalendar({
               disabled={!selectable}
               onClick={() => selectable && onSelect(id)}
               aria-pressed={isSelected}
+              aria-label={`${date.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}${isToday ? ', today' : ''}${hasMenu ? ', has menu' : ''}`}
             >
               <span className="cal-cell-num">{date.getDate()}</span>
-              {hasMenu && (
+              {showDot && (
                 <span
                   className={`cal-cell-dot${
-                    dateStatus?.[id] ? ` cal-dot-${dateStatus[id]}` : ''
+                    status ? ` cal-dot-${status}` : ''
                   }`}
                   aria-hidden
                 />
@@ -146,22 +180,7 @@ export function MealCalendar({
         })}
       </div>
 
-      {dateStatus && (
-        <div className="cal-legend">
-          <span className="cal-legend-item">
-            <span className="cal-cell-dot cal-dot-voted" aria-hidden />
-            Voted
-          </span>
-          <span className="cal-legend-item">
-            <span className="cal-cell-dot cal-dot-partial" aria-hidden />
-            Partial
-          </span>
-          <span className="cal-legend-item">
-            <span className="cal-cell-dot cal-dot-none" aria-hidden />
-            Not voted
-          </span>
-        </div>
-      )}
+      {legend !== undefined ? legend : defaultLegend}
     </div>
   )
 }

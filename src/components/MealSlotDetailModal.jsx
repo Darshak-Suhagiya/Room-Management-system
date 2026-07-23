@@ -4,22 +4,39 @@ import { VOTE_TYPES } from '../config/voteTypes'
 import { formatQuantity, parseOverrideTotal } from '../utils/voteQuantityUtils'
 import { groupPlannedByCategory } from '../utils/groupMenuByCategory'
 import { MenuSlotNote } from './MenuSlotNote'
+import { Modal } from './ui/Modal'
 
-function PersonList({ title, people, variant }) {
+function NameChips({ people, variant = '' }) {
   if (!people?.length) return null
   return (
-    <div className={`modal-person-list ${variant ?? ''}`}>
-      <strong>{title}</strong>
-      <ul>
-        {people.map((p) => (
-          <li key={p.userId}>{p.name}</li>
-        ))}
-      </ul>
+    <div className={`slot-detail-chips ${variant}`}>
+      {people.map((p) => (
+        <span key={p.userId} className="slot-detail-chip">
+          {p.name}
+        </span>
+      ))}
     </div>
   )
 }
 
-function TotalCountEditor({ stat, onSaveOverride, saving, onInvalid }) {
+function AttendanceTile({ title, people, tone }) {
+  const count = people?.length ?? 0
+  return (
+    <div className={`slot-detail-attend-tile tone-${tone}`}>
+      <div className="slot-detail-attend-head">
+        <span className="slot-detail-attend-title">{title}</span>
+        <span className="slot-detail-attend-count">{count}</span>
+      </div>
+      {count > 0 ? (
+        <NameChips people={people} />
+      ) : (
+        <span className="muted slot-detail-attend-empty">None</span>
+      )}
+    </div>
+  )
+}
+
+function CompactTotalEditor({ stat, onSaveOverride, saving, onInvalid }) {
   const isInteger = stat.voteType === VOTE_TYPES.INTEGER
   const votedBase = isInteger ? stat.votedSum : stat.votedYesCount
   const display = isInteger ? stat.displayTotal : stat.displayYes
@@ -29,36 +46,25 @@ function TotalCountEditor({ stat, onSaveOverride, saving, onInvalid }) {
   const [inputError, setInputError] = useState(false)
 
   return (
-    <div className="integer-total-editor">
-      <p className="modal-item-summary">
-        {isInteger ? 'Sum from votes' : 'Yes votes'}: <strong>{votedBase}</strong>
-        {stat.hasOverride && (
-          <>
-            {' '}
-            · Adjusted total: <strong>{display}</strong>
-          </>
-        )}
-      </p>
-      <div className="integer-total-editor-row">
-        <label>
-          {isInteger ? 'Total count' : 'Total yes'}
-          <input
-            type="number"
-            min={0}
-            step={isInteger ? 0.5 : 1}
-            inputMode={isInteger ? 'decimal' : 'numeric'}
-            className={`vote-inline-input ${inputError ? 'vote-input-error' : ''}`}
-            value={value}
-            disabled={saving}
-            onChange={(e) => {
-              setValue(e.target.value)
-              setInputError(false)
-            }}
-          />
-        </label>
+    <div className="slot-detail-adjust">
+      <div className="slot-detail-adjust-row">
+        <input
+          type="number"
+          min={0}
+          step={isInteger ? 0.5 : 1}
+          inputMode={isInteger ? 'decimal' : 'numeric'}
+          aria-label={isInteger ? 'Total count' : 'Total yes'}
+          className={`vote-inline-input ${inputError ? 'vote-input-error' : ''}`}
+          value={value}
+          disabled={saving}
+          onChange={(e) => {
+            setValue(e.target.value)
+            setInputError(false)
+          }}
+        />
         <button
           type="button"
-          className="btn btn-primary btn-sm"
+          className="btn btn-primary btn-sm slot-detail-set-btn"
           disabled={saving}
           onClick={() => {
             const parsed = parseOverrideTotal(value, { integer: isInteger })
@@ -71,108 +77,104 @@ function TotalCountEditor({ stat, onSaveOverride, saving, onInvalid }) {
             onSaveOverride(stat.item.id, parsed.value)
           }}
         >
-          {saving ? '…' : 'Set total'}
+          {saving ? '…' : 'Set'}
         </button>
-        {stat.hasOverride && (
-          <button
-            type="button"
-            className="btn btn-ghost btn-sm"
-            disabled={saving}
-            onClick={() => onSaveOverride(stat.item.id, null)}
-          >
-            Use vote count
-          </button>
-        )}
       </div>
+      {stat.hasOverride && (
+        <button
+          type="button"
+          className="btn btn-ghost btn-sm"
+          disabled={saving}
+          onClick={() => onSaveOverride(stat.item.id, null)}
+        >
+          Use vote count
+        </button>
+      )}
     </div>
   )
 }
 
-function ItemDetailSection({
-  stat,
-  canAdjustTotals,
-  showVoteBreakdown,
-  onSaveOverride,
-  overrideSavingId,
-  onInvalid,
-}) {
-  const { item } = stat
-  const saving = overrideSavingId === item.id
-  const canOverride =
-    stat.voteType === VOTE_TYPES.INTEGER ||
-    stat.voteType === VOTE_TYPES.YES_NO
+function WhoCell({ stat }) {
+  if (stat.voteType === VOTE_TYPES.INTEGER) {
+    const voted = stat.integerVotes.map((v) => ({
+      userId: v.userId,
+      name: `${v.name} — ${formatQuantity(v.value)}`,
+    }))
+    return (
+      <div className="slot-detail-who">
+        {voted.length > 0 && (
+          <div className="slot-detail-who-group">
+            <span className="slot-detail-who-label yes">Voted</span>
+            <NameChips people={voted} variant="yes" />
+          </div>
+        )}
+        {stat.notVoted?.length > 0 && (
+          <div className="slot-detail-who-group">
+            <span className="slot-detail-who-label muted">Not voted</span>
+            <NameChips people={stat.notVoted} variant="muted" />
+          </div>
+        )}
+        {voted.length === 0 && !stat.notVoted?.length && (
+          <span className="muted">—</span>
+        )}
+      </div>
+    )
+  }
 
   return (
-    <section className="modal-item-section">
-      <h3 className="modal-item-title">{item.gu}</h3>
-      {stat.voteType === VOTE_TYPES.INTEGER ? (
-        <>
-          {canAdjustTotals && onSaveOverride ? (
-            <TotalCountEditor
-              stat={stat}
-              onSaveOverride={onSaveOverride}
-              saving={saving}
-              onInvalid={onInvalid}
-            />
-          ) : (
-            <p className="modal-item-summary">
-              Total: {formatQuantity(stat.displayTotal)}
-              {canAdjustTotals && stat.hasOverride && (
-                <span className="total-adjusted-badge"> (adjusted)</span>
-              )}
-              {showVoteBreakdown &&
-                stat.hasOverride &&
-                stat.votedSum !== stat.displayTotal && (
-                <span className="muted">
-                  {' '}
-                  · votes summed to {formatQuantity(stat.votedSum)}
-                </span>
-              )}
-            </p>
-          )}
-          <PersonList
-            title="Voted"
-            people={stat.integerVotes.map((v) => ({
-              userId: v.userId,
-              name: `${v.name} — ${formatQuantity(v.value)}`,
-            }))}
-            variant="yes"
-          />
-          <PersonList title="Not voted" people={stat.notVoted} variant="muted" />
-        </>
-      ) : (
-        <>
-          {canAdjustTotals && onSaveOverride && canOverride ? (
-            <TotalCountEditor
-              stat={stat}
-              onSaveOverride={onSaveOverride}
-              saving={saving}
-              onInvalid={onInvalid}
-            />
-          ) : (
-            <p className="modal-item-summary">
-              Total: <strong>{stat.displayYes}</strong>
-              {showVoteBreakdown &&
-                stat.hasOverride &&
-                stat.votedYesCount !== stat.displayYes && (
-                <span className="muted"> · {stat.votedYesCount} yes votes</span>
-              )}
-            </p>
-          )}
-          <PersonList title="Yes" people={stat.yes} variant="yes" />
-          <PersonList title="No" people={stat.no} variant="no" />
-          <PersonList title="Not voted" people={stat.notVoted} variant="muted" />
-        </>
+    <div className="slot-detail-who">
+      {stat.yes?.length > 0 && (
+        <div className="slot-detail-who-group">
+          <span className="slot-detail-who-label yes">Yes</span>
+          <NameChips people={stat.yes} variant="yes" />
+        </div>
       )}
-    </section>
+      {stat.no?.length > 0 && (
+        <div className="slot-detail-who-group">
+          <span className="slot-detail-who-label no">No</span>
+          <NameChips people={stat.no} variant="no" />
+        </div>
+      )}
+      {stat.notVoted?.length > 0 && (
+        <div className="slot-detail-who-group">
+          <span className="slot-detail-who-label muted">Not voted</span>
+          <NameChips people={stat.notVoted} variant="muted" />
+        </div>
+      )}
+      {!stat.yes?.length && !stat.no?.length && !stat.notVoted?.length && (
+        <span className="muted">—</span>
+      )}
+    </div>
   )
+}
+
+function ItemTotalCell({ stat }) {
+  const isInteger = stat.voteType === VOTE_TYPES.INTEGER
+  const display = isInteger ? formatQuantity(stat.displayTotal) : stat.displayYes
+
+  return (
+    <div className="slot-detail-total-cell">
+      <strong>{display}</strong>
+      {stat.hasOverride && (
+        <span className="total-adjusted-badge"> adjusted</span>
+      )}
+    </div>
+  )
+}
+
+function VotesCell({ stat, showVoteBreakdown }) {
+  if (!showVoteBreakdown) return <span className="muted">—</span>
+  const isInteger = stat.voteType === VOTE_TYPES.INTEGER
+  const raw = isInteger ? formatQuantity(stat.votedSum) : stat.votedYesCount
+  return <span className="slot-detail-votes-cell">{raw}</span>
 }
 
 export function MealSlotDetailModal({
   stats,
   mealLabel,
   dateLabel,
-  slotNote,
+  everyoneNote,
+  cookNote,
   slot,
   canAdjustTotals = false,
   showVoteBreakdown = true,
@@ -195,94 +197,138 @@ export function MealSlotDetailModal({
     stats.itemStats.map((s) => [s.item.id, s]),
   )
 
-  return (
-    <div
-      className="modal-overlay"
-      role="presentation"
-      onClick={onClose}
-      onKeyDown={(e) => e.key === 'Escape' && onClose()}
-    >
-      <div
-        className="modal-dialog modal-dialog-wide"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="meal-slot-modal-title"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <header className="modal-header">
-          <div>
-            <h2 id="meal-slot-modal-title">{mealLabel}</h2>
-            <p className="modal-subtitle">{dateLabel}</p>
-            {slotNote?.trim() && (
-              <MenuSlotNote
-                note={slotNote}
-                slot={slot}
-                className="menu-slot-note-in-modal"
-              />
-            )}
-          </div>
-          <button
-            type="button"
-            className="modal-close"
-            onClick={onClose}
-            aria-label="Close"
-          >
-            ×
-          </button>
-        </header>
+  const showAdjustCol = canAdjustTotals && Boolean(onSaveOverride)
+  const colCount = 3 + (showVoteBreakdown ? 1 : 0) + (showAdjustCol ? 1 : 0)
 
-        <div className="modal-body">
-          {canAdjustTotals && (
+  return (
+    <Modal
+      open={Boolean(stats)}
+      onClose={onClose}
+      title={mealLabel}
+      subtitle={dateLabel}
+      wide
+      fullScreenMobile
+      className="slot-detail-dialog"
+    >
+      {(everyoneNote?.trim() || cookNote?.trim()) && (
+        <div className="slot-detail-modal-notes">
+          {everyoneNote?.trim() && (
+            <MenuSlotNote
+              note={everyoneNote}
+              slot={slot}
+              label="Notice"
+              className="menu-slot-note-in-modal"
+            />
+          )}
+          {cookNote?.trim() && (
+            <MenuSlotNote
+              note={cookNote}
+              slot={slot}
+              label="Cook note"
+              className="menu-slot-note-in-modal"
+            />
+          )}
+        </div>
+      )}
+
+      <div className="slot-detail-body">
+          <div className="slot-detail-attendance">
+            <AttendanceTile
+              title="Not eating"
+              people={stats.mealSummary.notEating}
+              tone="danger"
+            />
+            <AttendanceTile
+              title="Not voted"
+              people={stats.mealSummary.notVotedMeal}
+              tone="muted"
+            />
+            <AttendanceTile
+              title="Voted"
+              people={stats.mealSummary.votedMeal}
+              tone="success"
+            />
+          </div>
+
+          {showAdjustCol && (
             <p className="muted modal-admin-hint">
               Adjust totals when guest count differs from votes — number items
               (half steps OK) or yes counts for yes/no dishes.
             </p>
           )}
-          <section className="modal-meal-summary">
-            <h3 className="modal-section-heading">Summary</h3>
-            <PersonList
-              title="Not eating"
-              people={stats.mealSummary.notEating}
-              variant="no"
-            />
-            <PersonList
-              title="Not voted"
-              people={stats.mealSummary.notVotedMeal}
-              variant="muted"
-            />
-            <PersonList
-              title="Voted"
-              people={stats.mealSummary.votedMeal}
-              variant="yes"
-            />
-          </section>
 
-          <h3 className="modal-section-heading">Each item</h3>
           {grouped.map(({ category, items }, catIndex) => (
             <div
               key={category.id}
-              className={`modal-category-block ${catIndex > 0 ? 'has-separator' : ''}`}
+              className={`slot-detail-category ${catIndex > 0 ? 'has-separator' : ''}`}
             >
-              <h4 className="menu-category-title">{category.labelGu}</h4>
-              {items.map((item) => {
-                const stat = statByItemId[item.id]
-                if (!stat) return null
-                return (
-                  <ItemDetailSection
-                    key={item.id}
-                    stat={stat}
-                    canAdjustTotals={canAdjustTotals}
-                    showVoteBreakdown={showVoteBreakdown}
-                    onSaveOverride={onSaveOverride}
-                    overrideSavingId={overrideSavingId}
-                    onInvalid={handleInvalid}
-                  />
-                )
-              })}
+              <h3 className="menu-category-title">{category.labelGu}</h3>
+              <div className="slot-detail-table-wrap">
+                <table className="slot-detail-table">
+                  <thead>
+                    <tr>
+                      <th>Item</th>
+                      <th>Total</th>
+                      {showVoteBreakdown && <th>Votes</th>}
+                      {showAdjustCol && <th>Adjust</th>}
+                      <th>Who</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {items.map((item) => {
+                      const stat = statByItemId[item.id]
+                      if (!stat) return null
+                      const canOverride =
+                        stat.voteType === VOTE_TYPES.INTEGER ||
+                        stat.voteType === VOTE_TYPES.YES_NO
+                      return (
+                        <tr key={item.id}>
+                          <td className="slot-detail-item-name">{item.gu}</td>
+                          <td data-label="Total">
+                            <ItemTotalCell stat={stat} />
+                          </td>
+                          {showVoteBreakdown && (
+                            <td data-label="Votes">
+                              <VotesCell
+                                stat={stat}
+                                showVoteBreakdown={showVoteBreakdown}
+                              />
+                            </td>
+                          )}
+                          {showAdjustCol && (
+                            <td data-label="Adjust">
+                              {canOverride ? (
+                                <CompactTotalEditor
+                                  key={`${item.id}-${stat.hasOverride}-${stat.displayTotal}-${stat.displayYes}`}
+                                  stat={stat}
+                                  onSaveOverride={onSaveOverride}
+                                  saving={overrideSavingId === item.id}
+                                  onInvalid={handleInvalid}
+                                />
+                              ) : (
+                                <span className="muted">—</span>
+                              )}
+                            </td>
+                          )}
+                          <td data-label="Who">
+                            <WhoCell stat={stat} />
+                          </td>
+                        </tr>
+                      )
+                    })}
+                    {items.every((item) => !statByItemId[item.id]) && (
+                      <tr>
+                        <td colSpan={colCount} className="muted">
+                          No item stats.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           ))}
         </div>
-      </div>
-    </div>
+    </Modal>
   )
 }

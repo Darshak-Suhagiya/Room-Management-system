@@ -41,6 +41,7 @@ export function SevaWeeklySection({
           </div>
         )}
       </div>
+      <div className="seva-table-scroll">
       <table className="seva-table seva-weekly-table">
         <thead>
           <tr>
@@ -115,6 +116,7 @@ export function SevaWeeklySection({
           })}
         </tbody>
       </table>
+      </div>
       {editable && (
         <button
           type="button"

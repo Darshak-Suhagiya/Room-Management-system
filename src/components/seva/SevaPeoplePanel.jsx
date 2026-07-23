@@ -11,7 +11,8 @@ export function SevaPeoplePanel({
 }) {
   return (
     <section className="seva-section seva-people-panel seva-no-print">
-      <h3 className="seva-section-title">Members (drag or click a cell to assign)</h3>
+      <h3 className="seva-section-title">Members (tap + Add on mobile, drag on desktop)</h3>
+      <div className="seva-table-scroll">
       <table className="seva-table seva-people-table">
         <thead>
           <tr>
@@ -84,6 +85,7 @@ export function SevaPeoplePanel({
           ))}
         </tbody>
       </table>
+      </div>
       {editable && (
         <button
           type="button"

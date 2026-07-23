@@ -23,7 +23,7 @@ export function VerifyEmailPage() {
 
   if (loading) {
     return (
-      <div className="auth-page">
+      <div className="auth-page pt-safe pb-safe">
         <p className="page-loading">Loading…</p>
       </div>
     )
@@ -86,7 +86,7 @@ export function VerifyEmailPage() {
   }
 
   return (
-    <div className="auth-page">
+    <div className="auth-page pt-safe pb-safe">
       <div className="auth-card account-status-card">
         <h1>Verify your email</h1>
         <p className="subtitle">

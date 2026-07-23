@@ -1,10 +1,27 @@
 {
   "indexes": [
     {
-      "collectionGroup": "menus",
+      "collectionGroup": "leaveEntries",
       "queryScope": "COLLECTION",
       "fields": [
+        { "fieldPath": "personId", "order": "ASCENDING" },
         { "fieldPath": "date", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "pushJobs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "sendAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "mealParticipation",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "date", "order": "ASCENDING" },
+        { "fieldPath": "slot", "order": "ASCENDING" }
       ]
     }
   ],

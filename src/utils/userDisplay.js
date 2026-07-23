@@ -1,3 +1,5 @@
+import { ROLE_LABELS } from '../config/rolePermissions'
+
 export function getUserInitials(displayName, email) {
   const source = (displayName || email || 'U').trim()
   const parts = source.split(/\s+/).filter(Boolean)
@@ -7,9 +9,7 @@ export function getUserInitials(displayName, email) {
   return source.slice(0, 2).toUpperCase()
 }
 
-export function getRoleLabel(profile, { isAdmin, isMaharaj }) {
-  if (isAdmin) return 'Admin'
-  if (isMaharaj) return 'Maharaj'
-  if (profile?.role === 'resident') return 'Member'
-  return null
+export function getRoleLabel(profile) {
+  if (!profile?.role) return null
+  return ROLE_LABELS[profile.role] ?? null
 }

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { LayoutGrid, Monitor } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { SevaPersonColorProvider } from '../contexts/SevaPersonColorContext'
 import { SevaGroupDefinitions } from '../components/seva/SevaGroupDefinitions'
@@ -7,7 +8,10 @@ import { SevaWeeklySection } from '../components/seva/SevaWeeklySection'
 import { SevaLoadTable } from '../components/seva/SevaLoadTable'
 import { SevaPeoplePanel } from '../components/seva/SevaPeoplePanel'
 import { SevaPrefillPanel } from '../components/seva/SevaPrefillPanel'
+import { SevaAdminMobileSchedule } from '../components/seva/SevaAdminMobileSchedule'
+import { MobilePageHeader } from '../components/mobile'
 import { useSevaRoom } from '../hooks/useSevaRoom'
+import { getTodayWeekDayId } from '../utils/sevaDayUtils'
 import { listAllUsers } from '../services/userService'
 import {
   addDailyGroup,
@@ -32,13 +36,14 @@ import {
 } from '../utils/sevaMutations'
 
 export function AdminSevaPage() {
-  const { isAdmin } = useAuth()
+  const { canManageSeva } = useAuth()
   const { config, loading, saving, dirty, error, patchDraft, save, discardChanges } =
     useSevaRoom()
   const [users, setUsers] = useState([])
   const [newGroupCode, setNewGroupCode] = useState('')
   const [newGroupDesc, setNewGroupDesc] = useState('')
   const [saveMsg, setSaveMsg] = useState('')
+  const [selectedDayId, setSelectedDayId] = useState(getTodayWeekDayId())
 
   useEffect(() => {
     listAllUsers().then(setUsers).catch(() => setUsers([]))
@@ -58,50 +63,90 @@ export function AdminSevaPage() {
     return <p className="page-loading">Loading…</p>
   }
 
-  if (!isAdmin) {
-    return <p className="form-error">Admin access required.</p>
+  if (!canManageSeva) {
+    return <p className="form-error">Admin or Room leader access required.</p>
   }
 
   return (
     <SevaPersonColorProvider people={config.people}>
     <div className="page admin-page seva-page">
-      <header className="page-header seva-no-print">
-        <div>
-          <h2>Room seva</h2>
-          <p>
-            Make changes, then save. Drag names or click an empty cell to assign.
-          </p>
-        </div>
-        <div className="seva-toolbar">
-          <button
-            type="button"
-            className="btn btn-primary"
-            disabled={!dirty || saving}
-            onClick={handleSave}
-          >
-            {saving ? 'Saving…' : 'Save'}
-          </button>
-          {dirty && (
+      <div className="layout-desktop">
+        <header className="page-header seva-no-print">
+          <div>
+            <h2>Room seva</h2>
+            <p>
+              Make changes, then save. Tap + Add on mobile or drag names on desktop to assign.
+            </p>
+          </div>
+          <div className="seva-toolbar">
             <button
               type="button"
-              className="btn btn-ghost"
-              disabled={saving}
-              onClick={discardChanges}
+              className="btn btn-primary"
+              disabled={!dirty || saving}
+              onClick={handleSave}
             >
-              Discard
+              {saving ? 'Saving…' : 'Save'}
             </button>
-          )}
-          <button
-            type="button"
-            className="btn btn-secondary"
-            onClick={() => window.print()}
-          >
-            Print (A4)
-          </button>
-          {dirty && <span className="seva-dirty-badge">Unsaved changes</span>}
-          {saveMsg && <span className="seva-saved-msg">{saveMsg}</span>}
+            {dirty && (
+              <button
+                type="button"
+                className="btn btn-ghost"
+                disabled={saving}
+                onClick={discardChanges}
+              >
+                Discard
+              </button>
+            )}
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => window.print()}
+            >
+              Print (A4)
+            </button>
+            {dirty && <span className="seva-dirty-badge">Unsaved changes</span>}
+            {saveMsg && <span className="seva-saved-msg">{saveMsg}</span>}
+          </div>
+        </header>
+      </div>
+
+      <div className="layout-mobile mobile-section-gap">
+        <MobilePageHeader
+          icon={LayoutGrid}
+          title="Room seva"
+          description="Tap + Add to assign. Save when done."
+          action={
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              disabled={!dirty || saving}
+              onClick={handleSave}
+            >
+              {saving ? '…' : 'Save'}
+            </button>
+          }
+        />
+        {(dirty || saveMsg) && (
+          <div className="seva-mobile-status">
+            {dirty && <span className="seva-dirty-badge">Unsaved changes</span>}
+            {saveMsg && <span className="seva-saved-msg">{saveMsg}</span>}
+            {dirty && (
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                disabled={saving}
+                onClick={discardChanges}
+              >
+                Discard
+              </button>
+            )}
+          </div>
+        )}
+        <div className="seva-desktop-banner" role="note">
+          <Monitor size={18} aria-hidden />
+          <span>Full schedule &amp; print layout are best on desktop.</span>
         </div>
-      </header>
+      </div>
 
       {error && <p className="form-error seva-no-print">{error}</p>}
 
@@ -113,7 +158,54 @@ export function AdminSevaPage() {
         onPrefillResult={(nextConfig) => patchDraft(() => nextConfig)}
       />
 
-      <div className="seva-print-sheet seva-print-one-page" id="seva-print-area">
+      <div className="layout-mobile mobile-section-gap">
+        <SevaAdminMobileSchedule
+          config={config}
+          selectedDayId={selectedDayId}
+          todayId={getTodayWeekDayId()}
+          onSelectDay={setSelectedDayId}
+          onSelectPerson={(dayId, groupId, idx, personId) =>
+            patchDraft((c) =>
+              assignDailySlot(c, dayId, groupId, idx, personId, '', null),
+            )
+          }
+          onClearSlot={(dayId, groupId, idx) =>
+            patchDraft((c) => clearDailySlot(c, dayId, groupId, idx))
+          }
+          onEditSlotNote={(dayId, groupId, idx, note) =>
+            patchDraft((c) => updateDailySlotNote(c, dayId, groupId, idx, note))
+          }
+        />
+        <SevaWeeklySection
+          config={config}
+          editable
+          onAssignSlot={(taskId, colIdx, personId, from) =>
+            patchDraft((c) =>
+              assignWeeklySlot(c, taskId, colIdx, personId, from),
+            )
+          }
+          onSelectPerson={(taskId, colIdx, personId) =>
+            patchDraft((c) =>
+              assignWeeklySlot(c, taskId, colIdx, personId, null),
+            )
+          }
+          onClearSlot={(taskId, colIdx) =>
+            patchDraft((c) => clearWeeklySlot(c, taskId, colIdx))
+          }
+          onEditTaskTitle={(taskId, title) =>
+            patchDraft((c) => editWeeklyTaskTitle(c, taskId, title))
+          }
+          onAddTask={() => patchDraft((c) => addWeeklyTask(c))}
+          onRemoveTask={(taskId) =>
+            patchDraft((c) => removeWeeklyTask(c, taskId))
+          }
+          onAddColumn={() => patchDraft((c) => addWeeklyColumn(c))}
+          onRemoveColumn={() => patchDraft((c) => removeWeeklyColumn(c))}
+        />
+        <SevaLoadTable config={config} />
+      </div>
+
+      <div className="layout-desktop seva-print-sheet seva-print-one-page" id="seva-print-area">
         <h1 className="seva-title">{config.title}</h1>
 
         <SevaGroupDefinitions

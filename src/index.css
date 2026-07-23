@@ -1,5 +1,14 @@
+@import "tailwindcss";
+@import './styles/tailwind-theme.css';
 @import './styles/tokens.css';
+@import './styles/themes/teal-slate.css';
+@import './styles/themes/ocean-azure.css';
+@import './styles/themes/evergreen.css';
+@import './styles/themes/amber-dusk.css';
+@import './styles/themes/indigo-mist.css';
+@import './styles/themes/clay-rose.css';
 @import './styles/teal-slate-ui.css';
+@import './App.css';
 
 :root {
   font-family: var(--font-sans);
@@ -20,14 +29,34 @@
 
 body {
   margin: 0;
-  min-height: 100vh;
+  min-height: 100dvh;
   background: var(--bg);
-  background-attachment: fixed;
   color: var(--text);
 }
 
+body.sidebar-open {
+  overflow: hidden;
+}
+
+/* When authenticated Layout is mounted — lock document scroll (PWA chrome) */
+html.app-shell-active,
+html.app-shell-active body {
+  height: 100%;
+  overflow: hidden;
+}
+
+html.app-shell-active body {
+  height: 100dvh;
+}
+
+html.app-shell-active #root {
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+}
+
 #root {
-  min-height: 100vh;
+  min-height: 100dvh;
 }
 
 h1,
@@ -73,8 +102,9 @@ textarea {
   color: inherit;
 }
 
-.muted {
-  color: var(--muted);
+svg.lucide {
+  display: block;
+  flex-shrink: 0;
 }
 
 .page-loading {
@@ -82,4 +112,27 @@ textarea {
   place-items: center;
   min-height: 40vh;
   color: var(--muted);
+}
+
+/* Safe-area utilities for notched devices / PWA standalone */
+.pt-safe {
+  padding-top: calc(0.5rem + env(safe-area-inset-top, 0px));
+}
+
+.pb-safe {
+  padding-bottom: calc(0.5rem + env(safe-area-inset-bottom, 0px));
+}
+
+.pl-safe {
+  padding-left: env(safe-area-inset-left, 0px);
+}
+
+.pr-safe {
+  padding-right: env(safe-area-inset-right, 0px);
+}
+
+/* Touch-friendly minimum target */
+.touch-target {
+  min-height: 2.75rem;
+  min-width: 2.75rem;
 }
