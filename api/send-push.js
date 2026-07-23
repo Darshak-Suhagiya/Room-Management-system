@@ -105,22 +105,28 @@ function getPlannedMenuItems(menu, slotKey, catalog) {
 function formatMenuDigestBody(menu, slotKey, catalog, fallbackBody) {
   const planned = getPlannedMenuItems(menu, slotKey, catalog)
   if (!planned.length) {
-    return fallbackBody || `No ${slotKey} menu planned for today.`
+    return (
+      fallbackBody ||
+      (slotKey === 'evening'
+        ? 'સાંજનું મેનુ આયોજિત નથી.'
+        : 'સવારનું મેનુ આયોજિત નથી.')
+    )
   }
   const byCat = new Map()
   for (const item of planned) {
-    const label =
-      catalog.categories.find((c) => c.id === item.categoryId)?.labelEn ||
-      item.categoryId
+    const cat = catalog.categories.find((c) => c.id === item.categoryId)
+    const label = cat?.labelGu || cat?.labelEn || item.categoryId
     if (!byCat.has(label)) byCat.set(label, [])
-    byCat.get(label).push(item.labelEn || item.labelGu || item.id)
+    byCat
+      .get(label)
+      .push(item.gu || item.labelGu || item.en || item.labelEn || item.id)
   }
   const lines = []
   for (const [cat, names] of byCat) {
     lines.push(`${cat}: ${names.join(', ')}`)
   }
   const note = slotKey === 'morning' ? menu.morningNote : menu.eveningNote
-  if (note) lines.push(`Note: ${note}`)
+  if (note) lines.push(`નોંધ: ${note}`)
   return lines.join('\n')
 }
 
@@ -136,8 +142,9 @@ async function resolveAudience(db, audience, catalog) {
   const users = await listApprovedUsers(db)
 
   if (type === 'users') {
-    const ids = new Set(audience.userIds || [])
-    return users.filter((u) => ids.has(u.id)).map((u) => u.id)
+    // Explicit targets — do not drop IDs that fail the approved-list filter
+    // (avoids false "No users matched" for shopping assign / targeted alerts).
+    return [...new Set((audience.userIds || []).filter(Boolean))]
   }
   if (type === 'roles') {
     const roles = new Set(audience.roles || [])
@@ -344,6 +351,19 @@ export default async function handler(req, res) {
     }
 
     if (!tokens.length) {
+      // Transactional notifies (e.g. shopping assign) can soft-fail when the
+      // assignee has not enabled push yet.
+      if (body.softFailNoTokens) {
+        return res.status(200).json({
+          ok: true,
+          successCount: 0,
+          failureCount: 0,
+          recipientUserCount: userIds.length,
+          tokenCount: 0,
+          warning:
+            'User has no FCM device token yet. Ask them to enable notifications.',
+        })
+      }
       return res.status(400).json({
         error: `Found ${userIds.length} user(s) but none have an FCM device token. Ask them to open My Meals / Room Seva and tap Enable (or Register this device) on the Vercel app URL.`,
         recipientUserCount: userIds.length,

@@ -131,15 +131,21 @@ function getPlannedMenuItems(menu, slotKey, catalog) {
 function formatMenuDigestBody(menu, slotKey, catalog, fallbackBody) {
   const planned = getPlannedMenuItems(menu, slotKey, catalog)
   if (!planned.length) {
-    return fallbackBody || `No ${slotKey} menu planned for today.`
+    return (
+      fallbackBody ||
+      (slotKey === 'evening'
+        ? 'સાંજનું મેનુ આયોજિત નથી.'
+        : 'સવારનું મેનુ આયોજિત નથી.')
+    )
   }
   const byCat = new Map()
   for (const item of planned) {
-    const label =
-      catalog.categories.find((c) => c.id === item.categoryId)?.labelEn ||
-      item.categoryId
+    const cat = catalog.categories.find((c) => c.id === item.categoryId)
+    const label = cat?.labelGu || cat?.labelEn || item.categoryId
     if (!byCat.has(label)) byCat.set(label, [])
-    byCat.get(label).push(item.labelEn || item.labelGu || item.id)
+    byCat
+      .get(label)
+      .push(item.gu || item.labelGu || item.en || item.labelEn || item.id)
   }
   const lines = []
   for (const [cat, names] of byCat) {
@@ -147,7 +153,7 @@ function formatMenuDigestBody(menu, slotKey, catalog, fallbackBody) {
   }
   const note =
     slotKey === 'morning' ? menu.morningNote : menu.eveningNote
-  if (note) lines.push(`Note: ${note}`)
+  if (note) lines.push(`નોંધ: ${note}`)
   return lines.join('\n')
 }
 
@@ -163,8 +169,7 @@ async function resolveAudience(audience, catalog) {
   const users = await listApprovedUsers()
 
   if (type === 'users') {
-    const ids = new Set(audience.userIds || [])
-    return users.filter((u) => ids.has(u.id)).map((u) => u.id)
+    return [...new Set((audience.userIds || []).filter(Boolean))]
   }
 
   if (type === 'roles') {
@@ -365,15 +370,15 @@ async function getDefaultSettings() {
     return {
       morningEnabled: false,
       morningTime: '07:30',
-      morningTitle: 'Morning menu',
+      morningTitle: 'સવારનું મેનુ',
       morningAudienceType: 'all',
       morningNotVotedSlot: 'morning',
       eveningEnabled: false,
       eveningTime: '17:30',
-      eveningTitle: 'Evening menu',
+      eveningTitle: 'સાંજનું મેનુ',
       eveningAudienceType: 'all',
       eveningNotVotedSlot: 'evening',
-      fallbackBody: 'Please check today’s menu and vote.',
+      fallbackBody: 'આજનું મેનુ જોઈને વોટ કરો.',
     }
   }
   return snap.data()
@@ -391,7 +396,7 @@ async function processDailyDigests() {
     {
       enabled: settings.morningEnabled,
       time: settings.morningTime || '07:30',
-      title: settings.morningTitle || 'Morning menu',
+      title: settings.morningTitle || 'સવારનું મેનુ',
       mealSlot: 'morning',
       audienceType: settings.morningAudienceType || 'all',
       notVotedSlot: settings.morningNotVotedSlot || 'morning',
@@ -400,7 +405,7 @@ async function processDailyDigests() {
     {
       enabled: settings.eveningEnabled,
       time: settings.eveningTime || '17:30',
-      title: settings.eveningTitle || 'Evening menu',
+      title: settings.eveningTitle || 'સાંજનું મેનુ',
       mealSlot: 'evening',
       audienceType: settings.eveningAudienceType || 'all',
       notVotedSlot: settings.eveningNotVotedSlot || 'evening',

@@ -10,7 +10,10 @@ import {
 import { db, isFirebaseConfigured } from '../lib/firebase'
 import { emptyMealSlot } from '../config/menuItems'
 import { COLLECTIONS } from '../config/constants'
-import { deleteParticipationsForSlot } from './participationService'
+import {
+  deleteParticipationsForSlot,
+  getParticipationsForSlot,
+} from './participationService'
 import { didSlotMenuChange } from '../utils/menuSlotCompare'
 import {
   applyPlanStockUsage,
@@ -158,10 +161,15 @@ export async function saveMenu(
   }
 
   const clearedSlots = []
+  const previousVoters = { morning: [], evening: [] }
   const slotsToCheck = ['morning', 'evening']
 
   for (const slot of slotsToCheck) {
     if (didSlotMenuChange(existingMenu, newData, slot, categoryIds)) {
+      const parts = await getParticipationsForSlot(dateId, slot)
+      previousVoters[slot] = [
+        ...new Set(parts.map((p) => p.userId).filter(Boolean)),
+      ]
       await deleteParticipationsForSlot(dateId, slot)
       clearedSlots.push(slot)
     }
@@ -219,7 +227,7 @@ export async function saveMenu(
   await setDoc(ref, payload, { merge: true })
 
   const saved = await getMenuByDate(dateId, categoryIds)
-  return { menu: saved, clearedSlots }
+  return { menu: saved, clearedSlots, previousVoters }
 }
 
 /** Admin: set or clear adjusted total for a number-vote item (null clears). */

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   ArrowRight,
+  Ban,
   Check,
   Package,
   Plus,
@@ -10,6 +11,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useToast } from '../contexts/ToastContext'
+import { useMenuCatalog } from '../hooks/useMenuCatalog'
 import { MobilePageHeader, MobilePageSkeleton } from '../components/mobile'
 import { useDelayedLoading } from '../hooks/useDelayedLoading'
 import { useSaveMutation } from '../hooks/useSaveMutation'
@@ -19,12 +21,15 @@ import { ShoppingTicketPreview } from '../components/stock/ShoppingTicketPreview
 import {
   SHOPPING_TICKET_STATUS,
   STOCK_UNIT_LABELS,
+  PUSH_AUDIENCE_TYPES,
+  PUSH_JOB_KINDS,
 } from '../config/constants'
 import {
   canEditShoppingTicket,
   canManageStocks,
 } from '../config/rolePermissions'
 import { listApprovedUsers } from '../services/userService'
+import { sendPushNow } from '../services/pushAdminService'
 import {
   buildDeficitLines,
   cancelShoppingTicket,
@@ -32,7 +37,11 @@ import {
   createShoppingTicketWithLines,
   listItemsInGroups,
   listShoppingTickets,
+  markLineUnavailable,
+  uncheckTicketLine,
+  unmarkLineUnavailable,
   updateShoppingTicket,
+  makeShoppingLineFromItem,
 } from '../services/shoppingService'
 import {
   ensureDefaultStockGroups,
@@ -50,7 +59,16 @@ function statusPill(status) {
   return { label: 'Open', className: 'stock-pill stock-pill-open' }
 }
 
-function ShoppingLineEditor({ line, canEdit, open, busy, onCheck }) {
+function ShoppingLineEditor({
+  line,
+  canEdit,
+  open,
+  busy,
+  onCheck,
+  onUncheck,
+  onMarkUnavailable,
+  onUnmarkUnavailable,
+}) {
   const [qty, setQty] = useState(() =>
     Number(formatStockQty(line.qty, line.unit)) || 0,
   )
@@ -59,21 +77,53 @@ function ShoppingLineEditor({ line, canEdit, open, busy, onCheck }) {
     setQty(Number(formatStockQty(line.qty, line.unit)) || 0)
   }, [line.qty, line.itemId, line.unit])
 
-  if (line.checked || !open || !canEdit) {
+  if (line.checked) {
+    return (
+      <div className="shopping-line-done-block">
+        <p className="shopping-line-done">
+          <Check size={14} aria-hidden /> Bought{' '}
+          {formatStockQty(line.qty, line.unit)}{' '}
+          {STOCK_UNIT_LABELS[line.unit] || line.unit}
+        </p>
+        {canEdit && open && onUncheck && (
+          <button
+            type="button"
+            className="btn btn-sm btn-ghost"
+            disabled={busy}
+            onClick={() => onUncheck(line.itemId)}
+          >
+            Not bought
+          </button>
+        )}
+      </div>
+    )
+  }
+
+  if (line.unavailable) {
+    return (
+      <div className="shopping-line-done-block">
+        <p className="shopping-line-done muted">
+          <Ban size={14} aria-hidden /> Not available in market
+        </p>
+        {canEdit && open && onUnmarkUnavailable && (
+          <button
+            type="button"
+            className="btn btn-sm btn-ghost"
+            disabled={busy}
+            onClick={() => onUnmarkUnavailable(line.itemId)}
+          >
+            Undo
+          </button>
+        )}
+      </div>
+    )
+  }
+
+  if (!open || !canEdit) {
     return (
       <p className="shopping-line-done">
-        {line.checked ? (
-          <>
-            <Check size={14} aria-hidden /> Filled{' '}
-            {formatStockQty(line.qty, line.unit)}{' '}
-            {STOCK_UNIT_LABELS[line.unit] || line.unit}
-          </>
-        ) : (
-          <>
-            {formatStockQty(line.qty, line.unit)}{' '}
-            {STOCK_UNIT_LABELS[line.unit] || line.unit}
-          </>
-        )}
+        {formatStockQty(line.qty, line.unit)}{' '}
+        {STOCK_UNIT_LABELS[line.unit] || line.unit}
       </p>
     )
   }
@@ -88,14 +138,26 @@ function ShoppingLineEditor({ line, canEdit, open, busy, onCheck }) {
         disabled={busy}
         label="Buy amount"
       />
-      <button
-        type="button"
-        className="btn btn-sm btn-primary"
-        disabled={busy}
-        onClick={() => onCheck(line.itemId, qty)}
-      >
-        <Check size={16} /> Bought — fill stock
-      </button>
+      <div className="shopping-line-actions">
+        <button
+          type="button"
+          className="btn btn-sm btn-primary"
+          disabled={busy}
+          onClick={() => onCheck(line.itemId, qty)}
+        >
+          <Check size={16} /> Bought — fill stock
+        </button>
+        {onMarkUnavailable && (
+          <button
+            type="button"
+            className="btn btn-sm btn-secondary"
+            disabled={busy}
+            onClick={() => onMarkUnavailable(line.itemId)}
+          >
+            <Ban size={16} /> Not available
+          </button>
+        )}
+      </div>
     </div>
   )
 }
@@ -107,13 +169,17 @@ function TicketCard({
   profile,
   userId,
   onTicketUpdated,
+  onToggleAssignee,
+  onUncheckLine,
+  onMarkUnavailable,
+  onUnmarkUnavailable,
 }) {
   const toast = useToast()
   const checkSave = useSaveMutation()
   const [showAssignees, setShowAssignees] = useState(false)
   const canManage = canManageStocks(profile)
   const canEdit = canEditShoppingTicket(profile, ticket)
-  const open = ticket.status === SHOPPING_TICKET_STATUS.OPEN
+  const isTicketOpen = ticket.status === SHOPPING_TICKET_STATUS.OPEN
   const pill = statusPill(ticket.status)
   const busy = checkSave.busy
 
@@ -122,13 +188,15 @@ function TicketCard({
     .join(', ')
 
   const checkedCount = ticket.lines.filter((l) => l.checked).length
+  const unavailableCount = ticket.lines.filter((l) => l.unavailable && !l.checked)
+    .length
   const progressPct =
     ticket.lines.length > 0
       ? Math.round((checkedCount / ticket.lines.length) * 100)
       : 0
 
   const checkLine = async (itemId, qty) => {
-    if (!canEdit || !open) return
+    if (!canEdit || ticket.status === SHOPPING_TICKET_STATUS.CANCELLED) return
     const { ok, result, error, stale } = await checkSave.run(() =>
       checkTicketLine(ticket.id, itemId, userId, qty),
     )
@@ -140,17 +208,45 @@ function TicketCard({
     onTicketUpdated?.(result)
   }
 
-  const toggleAssignee = async (uid) => {
-    if (!canManage) return
-    const next = ticket.assigneeIds.includes(uid)
-      ? ticket.assigneeIds.filter((x) => x !== uid)
-      : [...ticket.assigneeIds, uid]
-    try {
-      await updateShoppingTicket(ticket.id, { assigneeIds: next })
-      onTicketUpdated?.({ ...ticket, assigneeIds: next })
-    } catch (err) {
-      toast.error(err.message)
+  const uncheckLine = async (itemId) => {
+    if (!canEdit || !onUncheckLine) return
+    const { ok, result, error, stale } = await checkSave.run(() =>
+      onUncheckLine(ticket, itemId),
+    )
+    if (!ok) {
+      if (!stale) toast.error(error?.message || 'Could not uncheck')
+      return
     }
+    if (result) onTicketUpdated?.(result)
+  }
+
+  const markUnavailable = async (itemId) => {
+    if (!canEdit || !onMarkUnavailable) return
+    const { ok, result, error, stale } = await checkSave.run(() =>
+      onMarkUnavailable(ticket, itemId),
+    )
+    if (!ok) {
+      if (!stale) toast.error(error?.message || 'Could not mark unavailable')
+      return
+    }
+    if (result) onTicketUpdated?.(result)
+  }
+
+  const unmarkUnavailable = async (itemId) => {
+    if (!canEdit || !onUnmarkUnavailable) return
+    const { ok, result, error, stale } = await checkSave.run(() =>
+      onUnmarkUnavailable(ticket, itemId),
+    )
+    if (!ok) {
+      if (!stale) toast.error(error?.message || 'Could not undo')
+      return
+    }
+    if (result) onTicketUpdated?.(result)
+  }
+
+  const toggleAssignee = async (uid) => {
+    if (!canManage || !onToggleAssignee) return
+    await onToggleAssignee(ticket.id, uid)
   }
 
   const assigneeNames = ticket.assigneeIds
@@ -178,7 +274,7 @@ function TicketCard({
               ? ` · ${assigneeNames.join(', ')}`
               : ''}
           </p>
-          {open && ticket.lines.length > 0 && (
+          {isTicketOpen && ticket.lines.length > 0 && (
             <div className="shopping-progress">
               <div className="shopping-progress-track">
                 <div
@@ -188,12 +284,13 @@ function TicketCard({
               </div>
               <span className="muted">
                 {checkedCount}/{ticket.lines.length} bought
+                {unavailableCount > 0 ? ` · ${unavailableCount} unavailable` : ''}
               </span>
             </div>
           )}
         </div>
         <div className="shopping-ticket-head-actions">
-          {canManage && open && (
+          {canManage && isTicketOpen && (
             <button
               type="button"
               className="btn btn-sm btn-secondary"
@@ -202,7 +299,7 @@ function TicketCard({
               <Users size={14} aria-hidden /> Assign
             </button>
           )}
-          {canManage && open && (
+          {canManage && isTicketOpen && (
             <button
               type="button"
               className="btn btn-sm btn-ghost"
@@ -222,7 +319,7 @@ function TicketCard({
         </div>
       </header>
 
-      {canManage && open && showAssignees && (
+      {canManage && isTicketOpen && showAssignees && (
         <div className="shopping-assignees">
           <p className="field-stack-label">Shoppers</p>
           <div className="push-user-picker">
@@ -244,10 +341,12 @@ function TicketCard({
         {ticket.lines.map((line) => (
           <li
             key={line.itemId}
-            className={`shopping-line ${line.checked ? 'is-checked' : ''}`}
+            className={`shopping-line${line.checked ? ' is-checked' : ''}${line.unavailable ? ' is-unavailable' : ''}`}
           >
             <div className="shopping-line-title">
-              <strong>{line.name}</strong>
+              <strong className={line.unavailable ? 'is-struck' : undefined}>
+                {line.name}
+              </strong>
               <div className="shopping-meta-chips" aria-label="Line details">
                 <span className="shopping-meta-chip">
                   In stock {formatStockQty(line.currentQty, line.unit)}{' '}
@@ -264,9 +363,12 @@ function TicketCard({
             <ShoppingLineEditor
               line={line}
               canEdit={canEdit}
-              open={open}
+              open={ticket.status !== SHOPPING_TICKET_STATUS.CANCELLED}
               busy={busy}
               onCheck={checkLine}
+              onUncheck={uncheckLine}
+              onMarkUnavailable={markUnavailable}
+              onUnmarkUnavailable={unmarkUnavailable}
             />
           </li>
         ))}
@@ -389,6 +491,7 @@ function ShoppingCreateWizard({
 export function ShoppingPage() {
   const { user, profile } = useAuth()
   const toast = useToast()
+  const { catalog } = useMenuCatalog()
   const [groups, setGroups] = useState([])
   const [tickets, setTickets] = useState([])
   const [users, setUsers] = useState([])
@@ -434,6 +537,9 @@ export function ShoppingPage() {
       return next
     })
   }, [])
+
+  const ticketsRef = useRef(tickets)
+  ticketsRef.current = tickets
 
   useEffect(() => {
     reload()
@@ -528,16 +634,116 @@ export function ShoppingPage() {
     }
   }
 
-  const handleToggleAssignee = async (ticket, uid) => {
-    if (!ticket) return
-    const next = ticket.assigneeIds.includes(uid)
+  const handleUncheckLine = async (ticket, itemId) => {
+    if (!ticket) return null
+    try {
+      const updated = await uncheckTicketLine(ticket.id, itemId, user?.uid)
+      toast.success('Marked not bought — stock reversed')
+      patchTicket(updated)
+      return updated
+    } catch (err) {
+      toast.error(err.message)
+      throw err
+    }
+  }
+
+  const handleMarkUnavailable = async (ticket, itemId) => {
+    if (!ticket) return null
+    try {
+      const updated = await markLineUnavailable(ticket.id, itemId, user?.uid)
+      toast.success('Marked not available')
+      patchTicket(updated)
+      return updated
+    } catch (err) {
+      toast.error(err.message)
+      throw err
+    }
+  }
+
+  const handleUnmarkUnavailable = async (ticket, itemId) => {
+    if (!ticket) return null
+    try {
+      const updated = await unmarkLineUnavailable(ticket.id, itemId)
+      toast.success('Back on shopping list')
+      patchTicket(updated)
+      return updated
+    } catch (err) {
+      toast.error(err.message)
+      throw err
+    }
+  }
+
+  const handleToggleAssignee = async (ticketId, uid) => {
+    const ticket = ticketsRef.current.find((t) => t.id === ticketId)
+    if (!ticket) return null
+    const had = ticket.assigneeIds.includes(uid)
+    const next = had
       ? ticket.assigneeIds.filter((x) => x !== uid)
       : [...ticket.assigneeIds, uid]
     try {
       await updateShoppingTicket(ticket.id, { assigneeIds: next })
-      patchTicket({ ...ticket, assigneeIds: next })
+      const updated = { ...ticket, assigneeIds: next }
+      patchTicket(updated)
+      if (!had) {
+        try {
+          const groupNames = ticket.groupIds
+            .map((id) => groups.find((g) => g.id === id)?.name || id)
+            .join(', ')
+          const pushRes = await sendPushNow({
+            title: 'ખરીદી ટિકિટ સોંપાઈ',
+            body: `તમને ખરીદી માટે સોંપવામાં આવ્યા છો: ${groupNames || 'ખરીદી યાદી'}.`,
+            kind: PUSH_JOB_KINDS.CUSTOM,
+            audience: {
+              type: PUSH_AUDIENCE_TYPES.USERS,
+              userIds: [uid],
+            },
+            softFailNoTokens: true,
+          })
+          if (pushRes?.warning || pushRes?.tokenCount === 0) {
+            toast.error(
+              'Assigned. They need to enable notifications to receive a push.',
+            )
+          }
+        } catch (pushErr) {
+          console.error(pushErr)
+          toast.error(
+            pushErr.message
+              ? `Assigned, but push failed: ${pushErr.message}`
+              : 'Assigned, but push notification failed.',
+          )
+        }
+      }
+      return updated
     } catch (err) {
       toast.error(err.message)
+      return null
+    }
+  }
+
+  const handleAddTicketLine = async (ticket, item) => {
+    if (!ticket || !item) return null
+    if (ticket.lines.some((l) => l.itemId === item.id)) {
+      toast.error('Item already on this ticket.')
+      return ticket
+    }
+    const line = makeShoppingLineFromItem(item)
+    const lines = [...ticket.lines, line]
+    try {
+      await updateShoppingTicket(ticket.id, {
+        lines,
+        status: SHOPPING_TICKET_STATUS.OPEN,
+      })
+      const updated = {
+        ...ticket,
+        lines,
+        status: SHOPPING_TICKET_STATUS.OPEN,
+      }
+      patchTicket(updated)
+      toast.success('Item added')
+      return updated
+    } catch (err) {
+      toast.error(err.message)
+      throw err
     }
   }
 
@@ -565,6 +771,7 @@ export function ShoppingPage() {
     groupIds: selectedGroups,
     initialLines: previewLines,
     availableItems: previewItems,
+    catalog,
     onBack: () => setCreateStep('select'),
     onCreate: confirmCreate,
     creating,
@@ -593,6 +800,10 @@ export function ShoppingPage() {
             profile={profile}
             userId={user?.uid}
             onTicketUpdated={patchTicket}
+            onToggleAssignee={handleToggleAssignee}
+            onUncheckLine={handleUncheckLine}
+            onMarkUnavailable={handleMarkUnavailable}
+            onUnmarkUnavailable={handleUnmarkUnavailable}
           />
         ))}
       </div>
@@ -648,8 +859,14 @@ export function ShoppingPage() {
             onBackPreview={() => setCreateStep('select')}
             onCreateTicket={confirmCreate}
             onCheckLine={handleCheckLine}
+            onUncheckLine={handleUncheckLine}
+            onMarkUnavailable={handleMarkUnavailable}
+            onUnmarkUnavailable={handleUnmarkUnavailable}
             onToggleAssignee={handleToggleAssignee}
+            onAddTicketLine={handleAddTicketLine}
             onCancelTicket={handleCancelTicket}
+            catalog={catalog}
+            availableItems={previewItems}
           />
         </div>
       </div>
@@ -715,8 +932,14 @@ export function ShoppingPage() {
           onBackPreview={() => setCreateStep('select')}
           onCreateTicket={confirmCreate}
           onCheckLine={handleCheckLine}
+          onUncheckLine={handleUncheckLine}
+          onMarkUnavailable={handleMarkUnavailable}
+          onUnmarkUnavailable={handleUnmarkUnavailable}
           onToggleAssignee={handleToggleAssignee}
+          onAddTicketLine={handleAddTicketLine}
           onCancelTicket={handleCancelTicket}
+          catalog={catalog}
+          availableItems={previewItems}
         />
       </div>
     </div>

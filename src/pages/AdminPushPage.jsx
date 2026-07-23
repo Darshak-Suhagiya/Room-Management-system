@@ -12,7 +12,7 @@ import {
 import { listApprovedUsers } from '../services/userService'
 import { getMenuByDate } from '../services/menuService'
 import { fetchCatalog } from '../services/catalogService'
-import { formatDateId } from '../utils/mealDateUtils'
+import { formatDateId, getTomorrowDateId } from '../utils/mealDateUtils'
 import {
   buildDailyAudience,
   DEFAULT_PUSH_SETTINGS,
@@ -51,6 +51,7 @@ export function AdminPushPage() {
   const [loading, setLoading] = useState(true)
 
   const todayId = useMemo(() => formatDateId(new Date()), [])
+  const tomorrowId = useMemo(() => getTomorrowDateId(), [])
 
   const reload = useCallback(async () => {
     setLoading(true)
@@ -85,7 +86,9 @@ export function AdminPushPage() {
       }
       try {
         const dateId =
-          tab === 'compose' ? compose.menuDateId || todayId : todayId
+          tab === 'compose'
+            ? compose.menuDateId || todayId
+            : tomorrowId
         const slot = tab === 'compose' ? compose.mealSlot : 'morning'
         const menu = await getMenuByDate(
           dateId,
@@ -109,6 +112,7 @@ export function AdminPushPage() {
     compose.menuDateId,
     compose.mealSlot,
     todayId,
+    tomorrowId,
     settings.fallbackBody,
   ])
 
@@ -132,19 +136,20 @@ export function AdminPushPage() {
     setError('')
     setSuccess('')
     try {
+      const menuDateId = slot === 'morning' ? tomorrowId : todayId
       const title =
         slot === 'morning'
-          ? settings.morningTitle || 'Morning menu'
-          : settings.eveningTitle || 'Evening menu'
+          ? settings.morningTitle || 'સવારનું મેનુ'
+          : settings.eveningTitle || 'સાંજનું મેનુ'
       const audience = buildDailyAudience(settings, slot)
       if (audience.type === PUSH_AUDIENCE_TYPES.NOT_VOTED) {
-        audience.voteDateId = todayId
+        audience.voteDateId = menuDateId
       }
       const res = await sendPushNow({
         title,
         body: '',
         kind: PUSH_JOB_KINDS.MENU_DIGEST,
-        menuDateId: todayId,
+        menuDateId,
         mealSlot: slot,
         audience,
       })
@@ -319,7 +324,7 @@ export function AdminPushPage() {
       {tab === 'quick' && (
         <div className="rail-card push-form">
           <p className="muted">
-            Save defaults, then tap Send for today’s morning or evening menu digest.
+            Save defaults, then tap Send for tomorrow’s morning or today’s evening menu digest.
           </p>
           <form onSubmit={saveDaily}>
             <h2>Morning defaults</h2>
@@ -473,7 +478,7 @@ export function AdminPushPage() {
               onClick={() => sendDigestNow('morning')}
             >
               <Sunrise size={16} aria-hidden />
-              Send morning digest now
+              Send tomorrow morning now
             </button>
             <button
               type="button"
@@ -482,12 +487,12 @@ export function AdminPushPage() {
               onClick={() => sendDigestNow('evening')}
             >
               <Sunset size={16} aria-hidden />
-              Send evening digest now
+              Send today’s evening now
             </button>
           </div>
 
           <div className="push-preview">
-            <strong>Today morning preview</strong>
+            <strong>Tomorrow morning preview</strong>
             <pre>{menuPreview || '—'}</pre>
           </div>
         </div>

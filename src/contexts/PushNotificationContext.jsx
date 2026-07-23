@@ -6,7 +6,9 @@ import {
   useMemo,
   useState,
 } from 'react'
+import { onMessage } from 'firebase/messaging'
 import { useAuth } from './AuthContext'
+import { getFirebaseMessaging } from '../lib/firebase'
 import {
   isIosDevice,
   isStandaloneDisplay,
@@ -14,6 +16,8 @@ import {
   removeCurrentPushToken,
   requestPermissionAndSaveToken,
 } from '../services/pushTokenService'
+
+const PUSH_ICON = '/icon-192.png'
 
 /**
  * @typedef {'checking' | 'enabled' | 'prompt' | 'iosInstall' | 'unsupported' | 'denied'} PushStatus
@@ -103,6 +107,48 @@ export function PushNotificationProvider({ children }) {
       cancelled = true
     }
   }, [isApproved, userId, finishChecking])
+
+  // Foreground FCM: browser does not auto-show notification payloads while focused.
+  useEffect(() => {
+    if (!isApproved || !userId) return undefined
+    if (typeof Notification === 'undefined') return undefined
+    if (Notification.permission !== 'granted') return undefined
+
+    let unsubscribe = () => {}
+    let cancelled = false
+
+    ;(async () => {
+      try {
+        const messaging = await getFirebaseMessaging()
+        if (!messaging || cancelled) return
+        unsubscribe = onMessage(messaging, (payload) => {
+          try {
+            const title =
+              payload.notification?.title ||
+              payload.data?.title ||
+              'Notification'
+            const body =
+              payload.notification?.body || payload.data?.body || ''
+            // eslint-disable-next-line no-new
+            new Notification(title, {
+              body,
+              icon: PUSH_ICON,
+              data: payload.data || {},
+            })
+          } catch (err) {
+            console.error('foreground notification', err)
+          }
+        })
+      } catch (err) {
+        console.error('subscribe foreground push', err)
+      }
+    })()
+
+    return () => {
+      cancelled = true
+      unsubscribe()
+    }
+  }, [isApproved, userId, permission, tokenReady])
 
   const onEnable = useCallback(async () => {
     if (!userId) return

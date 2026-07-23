@@ -57,10 +57,19 @@ export function makeShoppingLineFromItem(item, qtyOverride = null) {
     currentQty: qty,
     suggestedQty: suggested,
     qty: Math.max(0, buyQty),
+    menuItemIds: Array.isArray(item.menuItemIds) ? item.menuItemIds : [],
     checked: false,
     checkedAt: null,
     checkedBy: null,
+    filledQty: null,
+    unavailable: false,
+    unavailableAt: null,
+    unavailableBy: null,
   }
+}
+
+function isLineResolved(line) {
+  return Boolean(line.checked || line.unavailable)
 }
 
 export function buildDeficitLinesFromItems(items, groupIds) {
@@ -208,16 +217,136 @@ export async function checkTicketLine(ticketId, itemId, userId, qtyOverride = nu
       ? {
           ...l,
           qty: fillQty,
+          filledQty: fillQty,
           checked: true,
           checkedAt: nowIso(),
           checkedBy: userId || null,
+          unavailable: false,
+          unavailableAt: null,
+          unavailableBy: null,
         }
       : l,
   )
-  const allDone = lines.every((l) => l.checked)
+  const allDone = lines.every(isLineResolved)
   await updateShoppingTicket(ticketId, {
     lines,
     status: allDone ? SHOPPING_TICKET_STATUS.DONE : SHOPPING_TICKET_STATUS.OPEN,
+  })
+  return getShoppingTicket(ticketId)
+}
+
+/**
+ * Uncheck a bought line and reverse the stock fill that was applied.
+ */
+export async function uncheckTicketLine(ticketId, itemId, userId) {
+  const ticket = await getShoppingTicket(ticketId)
+  if (!ticket) throw new Error('Ticket not found')
+  if (
+    ticket.status !== SHOPPING_TICKET_STATUS.OPEN &&
+    ticket.status !== SHOPPING_TICKET_STATUS.DONE
+  ) {
+    throw new Error('Ticket is closed')
+  }
+  const line = ticket.lines.find((l) => l.itemId === itemId)
+  if (!line) throw new Error('Line not found')
+  if (!line.checked) return ticket
+
+  const reverseQty = Math.max(
+    0,
+    Number(line.filledQty != null ? line.filledQty : line.qty) || 0,
+  )
+
+  if (reverseQty > 0) {
+    await applyStockDelta(itemId, -reverseQty, {
+      reason: STOCK_MOVEMENT_REASONS.SHOPPING,
+      userId,
+      refType: 'shoppingTicket',
+      refId: ticketId,
+      note: `Shopping uncheck: ${line.name || itemId}`,
+    })
+  }
+
+  const lines = ticket.lines.map((l) =>
+    l.itemId === itemId
+      ? {
+          ...l,
+          checked: false,
+          checkedAt: null,
+          checkedBy: null,
+          filledQty: null,
+        }
+      : l,
+  )
+
+  await updateShoppingTicket(ticketId, {
+    lines,
+    status: SHOPPING_TICKET_STATUS.OPEN,
+  })
+  return getShoppingTicket(ticketId)
+}
+
+/**
+ * Mark a pending line as not available in the market (no stock fill).
+ */
+export async function markLineUnavailable(ticketId, itemId, userId) {
+  const ticket = await getShoppingTicket(ticketId)
+  if (!ticket) throw new Error('Ticket not found')
+  if (ticket.status !== SHOPPING_TICKET_STATUS.OPEN) {
+    throw new Error('Ticket is closed')
+  }
+  const line = ticket.lines.find((l) => l.itemId === itemId)
+  if (!line) throw new Error('Line not found')
+  if (line.checked) throw new Error('Uncheck the line before marking unavailable')
+  if (line.unavailable) return ticket
+
+  const lines = ticket.lines.map((l) =>
+    l.itemId === itemId
+      ? {
+          ...l,
+          unavailable: true,
+          unavailableAt: nowIso(),
+          unavailableBy: userId || null,
+        }
+      : l,
+  )
+  const allDone = lines.every(isLineResolved)
+  await updateShoppingTicket(ticketId, {
+    lines,
+    status: allDone ? SHOPPING_TICKET_STATUS.DONE : SHOPPING_TICKET_STATUS.OPEN,
+  })
+  return getShoppingTicket(ticketId)
+}
+
+/**
+ * Undo "not available" and return the line to pending.
+ */
+export async function unmarkLineUnavailable(ticketId, itemId) {
+  const ticket = await getShoppingTicket(ticketId)
+  if (!ticket) throw new Error('Ticket not found')
+  if (
+    ticket.status !== SHOPPING_TICKET_STATUS.OPEN &&
+    ticket.status !== SHOPPING_TICKET_STATUS.DONE
+  ) {
+    throw new Error('Ticket is closed')
+  }
+  const line = ticket.lines.find((l) => l.itemId === itemId)
+  if (!line) throw new Error('Line not found')
+  if (!line.unavailable) return ticket
+
+  const lines = ticket.lines.map((l) =>
+    l.itemId === itemId
+      ? {
+          ...l,
+          unavailable: false,
+          unavailableAt: null,
+          unavailableBy: null,
+        }
+      : l,
+  )
+
+  await updateShoppingTicket(ticketId, {
+    lines,
+    status: SHOPPING_TICKET_STATUS.OPEN,
   })
   return getShoppingTicket(ticketId)
 }

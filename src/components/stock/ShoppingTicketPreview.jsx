@@ -7,10 +7,12 @@ import {
   Trash2,
 } from 'lucide-react'
 import { MobileActionBar } from '../ui/MobileActionBar'
+import { AdminSearchField } from '../admin/mobile'
 import { StockQtySlider } from './StockQtySlider'
 import { STOCK_UNIT_LABELS } from '../../config/constants'
 import { formatStockQty } from '../../services/stockService'
 import { makeShoppingLineFromItem } from '../../services/shoppingService'
+import { matchStockItemSearch } from '../../utils/stockSearch'
 
 function MetaChips({ line, groupName }) {
   const unitLabel = STOCK_UNIT_LABELS[line.unit] || line.unit
@@ -69,6 +71,7 @@ export function ShoppingTicketPreview({
   groupIds,
   initialLines,
   availableItems,
+  catalog,
   onBack,
   onCreate,
   creating,
@@ -76,6 +79,7 @@ export function ShoppingTicketPreview({
 }) {
   const [lines, setLines] = useState(initialLines)
   const [showAddPicker, setShowAddPicker] = useState(false)
+  const [addQuery, setAddQuery] = useState('')
 
   const groupNameById = useMemo(() => {
     const map = {}
@@ -83,14 +87,23 @@ export function ShoppingTicketPreview({
     return map
   }, [groups])
 
+  const catalogById = useMemo(() => {
+    const map = new Map()
+    for (const item of catalog?.items || []) map.set(item.id, item)
+    return map
+  }, [catalog])
+
   const selectedIds = useMemo(
     () => new Set(lines.map((l) => l.itemId)),
     [lines],
   )
 
   const addableItems = useMemo(
-    () => availableItems.filter((i) => !selectedIds.has(i.id)),
-    [availableItems, selectedIds],
+    () =>
+      availableItems
+        .filter((i) => !selectedIds.has(i.id))
+        .filter((i) => matchStockItemSearch(i, addQuery, catalogById)),
+    [availableItems, selectedIds, addQuery, catalogById],
   )
 
   const groupLabels = groupIds
@@ -177,9 +190,18 @@ export function ShoppingTicketPreview({
             {showAddPicker ? 'Hide items' : 'Add item from groups'}
           </button>
           {showAddPicker && (
-            <div className="shopping-preview-picker">
+            <div className="shopping-preview-picker mobile-section-gap">
+              <AdminSearchField
+                value={addQuery}
+                onChange={setAddQuery}
+                placeholder="Search English / Gujarati…"
+              />
               {addableItems.length === 0 ? (
-                <p className="muted">All items from these groups are already listed.</p>
+                <p className="muted">
+                  {addQuery.trim()
+                    ? 'No matching items.'
+                    : 'All items from these groups are already listed.'}
+                </p>
               ) : (
                 <div className="push-user-picker">
                   {addableItems.map((item) => (

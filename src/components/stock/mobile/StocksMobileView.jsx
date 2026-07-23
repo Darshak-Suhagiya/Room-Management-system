@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Package, Plus, ShoppingCart } from 'lucide-react'
 import { MobilePageHeader } from '../../mobile'
@@ -7,10 +7,12 @@ import {
   AdminConfirmSheet,
   AdminEmptyPanel,
   AdminItemRowCard,
+  AdminSearchField,
 } from '../../admin/mobile'
 import { STOCK_UNIT_LABELS } from '../../../config/constants'
 import { formatStockQty } from '../../../services/stockService'
 import { useSaveMutation } from '../../../hooks/useSaveMutation'
+import { matchStockItemSearch } from '../../../utils/stockSearch'
 import { StockItemSheet } from './StockItemSheet'
 import { StockGroupSheet } from './StockGroupSheet'
 import { StockAddItemSheet } from './StockAddItemSheet'
@@ -52,7 +54,22 @@ export function StocksMobileView({
   const [groupSheetOpen, setGroupSheetOpen] = useState(false)
   const [addItemOpen, setAddItemOpen] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(null)
+  const [searchQuery, setSearchQuery] = useState('')
   const deleteSave = useSaveMutation()
+
+  const catalogById = useMemo(() => {
+    const map = new Map()
+    for (const item of catalog?.items || []) map.set(item.id, item)
+    return map
+  }, [catalog])
+
+  const filteredGroupItems = useMemo(
+    () =>
+      groupItems.filter((item) =>
+        matchStockItemSearch(item, searchQuery, catalogById),
+      ),
+    [groupItems, searchQuery, catalogById],
+  )
 
   const stripItems = groups.map((g) => ({
     id: g.id,
@@ -60,7 +77,7 @@ export function StocksMobileView({
     count: items.filter((i) => i.groupId === g.id).length,
   }))
 
-  const lowCount = groupItems.filter((i) => stockLevelClass(i) !== 'is-ok').length
+  const lowCount = filteredGroupItems.filter((i) => stockLevelClass(i) !== 'is-ok').length
 
   const headerAction = manageStocks ? (
     <button
@@ -108,19 +125,33 @@ export function StocksMobileView({
       ) : (
         <>
           <div className="admin-mobile-stocks-summary muted">
-            {groupItems.length} item{groupItems.length === 1 ? '' : 's'}
+            {filteredGroupItems.length} item{filteredGroupItems.length === 1 ? '' : 's'}
             {lowCount > 0 ? ` · ${lowCount} below need` : ''}
             {activeGroup.linkToMenu ? ' · Menu-linked' : ''}
           </div>
 
+          <AdminSearchField
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder="Search English / Gujarati…"
+          />
+
           <div className="admin-mobile-stocks-list">
-            {groupItems.length === 0 ? (
+            {filteredGroupItems.length === 0 ? (
               <AdminEmptyPanel
-                title="No items in this group"
-                hint={canEdit ? 'Tap Add item to create one.' : undefined}
+                title={
+                  searchQuery.trim()
+                    ? 'No matching items'
+                    : 'No items in this group'
+                }
+                hint={
+                  !searchQuery.trim() && canEdit
+                    ? 'Tap Add item to create one.'
+                    : undefined
+                }
               />
             ) : (
-              groupItems.map((item) => {
+              filteredGroupItems.map((item) => {
                 const badge = levelBadge(item)
                 return (
                   <AdminItemRowCard

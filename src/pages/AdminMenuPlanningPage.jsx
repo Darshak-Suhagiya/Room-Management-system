@@ -23,6 +23,14 @@ import {
   saveMenu,
 } from '../services/menuService'
 import { getAllParticipations } from '../services/participationService'
+import {
+  formatMenuDigestBody,
+  sendPushNow,
+} from '../services/pushAdminService'
+import {
+  PUSH_AUDIENCE_TYPES,
+  PUSH_JOB_KINDS,
+} from '../config/constants'
 import { formatDisplayDateGu, getPlannedDateIds } from '../utils/mealDateUtils'
 import {
   buildCookCounts,
@@ -170,6 +178,45 @@ export function AdminMenuPlanningPage() {
             .join(' and ')} votes and adjusted totals were cleared because the menu changed.`
         : 'Menu plan saved.',
     )
+
+    // Notify prior voters (collected before votes were cleared) — soft-fail.
+    if (result.clearedSlots?.length && catalog) {
+      for (const slot of result.clearedSlots) {
+        const userIds = result.previousVoters?.[slot] || []
+        if (!userIds.length) continue
+        const slotLabel = slot === 'evening' ? 'સાંજ' : 'સવાર'
+        const digest = formatMenuDigestBody(
+          result.menu,
+          slot,
+          catalog,
+          '',
+        )
+        const body = [
+          `મેનુ અપડેટ થયું છે. કૃપા કરીને ફરી વોટ કરો.`,
+          digest,
+        ]
+          .filter(Boolean)
+          .join('\n')
+        try {
+          await sendPushNow({
+            title: `${slotLabel}નું મેનુ અપડેટ`,
+            body,
+            kind: PUSH_JOB_KINDS.CUSTOM,
+            audience: {
+              type: PUSH_AUDIENCE_TYPES.USERS,
+              userIds,
+            },
+            softFailNoTokens: true,
+          })
+        } catch (pushErr) {
+          console.error('menu update push', pushErr)
+          toast.error(
+            `Menu saved, but ${slot} update notification failed.`,
+          )
+        }
+      }
+    }
+
     if (stale || selectedDateRef.current !== dateAtSave) {
       loadHistory().catch(() => {})
       return

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Package, Plus } from 'lucide-react'
 import { MobilePageHeader } from '../../mobile'
@@ -51,6 +51,7 @@ export function ShoppingMobileView({
   previewItems,
   previewLoading,
   creating,
+  catalog,
   onStartCreate,
   onCancelCreate,
   onToggleGroup,
@@ -58,10 +59,33 @@ export function ShoppingMobileView({
   onBackPreview,
   onCreateTicket,
   onCheckLine,
+  onUncheckLine,
+  onMarkUnavailable,
+  onUnmarkUnavailable,
   onToggleAssignee,
+  onAddTicketLine,
   onCancelTicket,
 }) {
   const [activeTicket, setActiveTicket] = useState(null)
+
+  useEffect(() => {
+    setActiveTicket((cur) => {
+      if (!cur?.id) return cur
+      const fresh =
+        visibleTickets.find((t) => t.id === cur.id) ||
+        openTickets.find((t) => t.id === cur.id) ||
+        closedTickets.find((t) => t.id === cur.id)
+      if (!fresh) return cur
+      if (
+        fresh.status === cur.status &&
+        fresh.assigneeIds === cur.assigneeIds &&
+        fresh.lines === cur.lines
+      ) {
+        return cur
+      }
+      return fresh
+    })
+  }, [visibleTickets, openTickets, closedTickets])
 
   const headerAction = manage ? (
     <button type="button" className="btn btn-primary btn-sm" onClick={onStartCreate}>
@@ -102,6 +126,7 @@ export function ShoppingMobileView({
           groupIds={selectedGroups}
           initialLines={previewLines}
           availableItems={previewItems}
+          catalog={catalog}
           onBack={onBackPreview}
           onCreate={onCreateTicket}
           creating={creating}
@@ -152,6 +177,7 @@ export function ShoppingMobileView({
         users={users}
         userId={userId}
         canManage={manage}
+        catalog={catalog}
         onClose={() => setActiveTicket(null)}
         onCheckLine={async (itemId, qty) => {
           const ticketId = activeTicket?.id
@@ -161,7 +187,42 @@ export function ShoppingMobileView({
             cur?.id === ticketId && cur?.id === updated.id ? updated : cur,
           )
         }}
-        onToggleAssignee={(uid) => onToggleAssignee?.(activeTicket, uid)}
+        onUncheckLine={async (itemId) => {
+          const ticketId = activeTicket?.id
+          const updated = await onUncheckLine?.(activeTicket, itemId)
+          if (!updated) return
+          setActiveTicket((cur) =>
+            cur?.id === ticketId && cur?.id === updated.id ? updated : cur,
+          )
+        }}
+        onMarkUnavailable={async (itemId) => {
+          const ticketId = activeTicket?.id
+          const updated = await onMarkUnavailable?.(activeTicket, itemId)
+          if (!updated) return
+          setActiveTicket((cur) =>
+            cur?.id === ticketId && cur?.id === updated.id ? updated : cur,
+          )
+        }}
+        onUnmarkUnavailable={async (itemId) => {
+          const ticketId = activeTicket?.id
+          const updated = await onUnmarkUnavailable?.(activeTicket, itemId)
+          if (!updated) return
+          setActiveTicket((cur) =>
+            cur?.id === ticketId && cur?.id === updated.id ? updated : cur,
+          )
+        }}
+        onToggleAssignee={async (uid) => {
+          const ticketId = activeTicket?.id
+          if (!ticketId) return
+          const updated = await onToggleAssignee?.(ticketId, uid)
+          if (updated) setActiveTicket(updated)
+        }}
+        onAddTicketLine={async (item) => {
+          const ticketId = activeTicket?.id
+          const updated = await onAddTicketLine?.(activeTicket, item)
+          if (updated && updated.id === ticketId) setActiveTicket(updated)
+          return updated
+        }}
         onCancelTicket={onCancelTicket}
       />
     </div>

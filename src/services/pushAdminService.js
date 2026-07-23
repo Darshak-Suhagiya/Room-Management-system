@@ -12,34 +12,54 @@ export { PUSH_JOB_KINDS }
 export const DEFAULT_PUSH_SETTINGS = {
   morningEnabled: false,
   morningTime: '07:30',
-  morningTitle: 'Morning menu',
+  morningTitle: 'સવારનું મેનુ',
   morningAudienceType: PUSH_AUDIENCE_TYPES.ALL,
   morningNotVotedSlot: 'morning',
   eveningEnabled: false,
   eveningTime: '17:30',
-  eveningTitle: 'Evening menu',
+  eveningTitle: 'સાંજનું મેનુ',
   eveningAudienceType: PUSH_AUDIENCE_TYPES.ALL,
   eveningNotVotedSlot: 'evening',
-  fallbackBody: 'Please check today’s menu and vote.',
+  fallbackBody: 'આજનું મેનુ જોઈને વોટ કરો.',
+}
+
+function itemDigestLabel(item) {
+  return item.gu || item.labelGu || item.en || item.labelEn || item.id
+}
+
+function categoryDigestLabel(item, catalog) {
+  if (item.categoryLabelGu) return item.categoryLabelGu
+  const cat = catalog?.categories?.find((c) => c.id === item.categoryId)
+  return (
+    cat?.labelGu ||
+    item.categoryLabelEn ||
+    cat?.labelEn ||
+    item.categoryId
+  )
 }
 
 export function formatMenuDigestBody(menu, slotKey, catalog, fallbackBody = '') {
   const planned = getPlannedMenuItems(menu, slotKey, catalog)
   if (!planned.length) {
-    return fallbackBody || `No ${slotKey} menu planned.`
+    return (
+      fallbackBody ||
+      (slotKey === 'evening'
+        ? 'સાંજનું મેનુ આયોજિત નથી.'
+        : 'સવારનું મેનુ આયોજિત નથી.')
+    )
   }
   const byCat = new Map()
   for (const item of planned) {
-    const label = item.categoryLabelEn || item.categoryId
+    const label = categoryDigestLabel(item, catalog)
     if (!byCat.has(label)) byCat.set(label, [])
-    byCat.get(label).push(item.labelEn || item.labelGu || item.id)
+    byCat.get(label).push(itemDigestLabel(item))
   }
   const lines = []
   for (const [cat, names] of byCat) {
     lines.push(`${cat}: ${names.join(', ')}`)
   }
   const note = slotKey === 'morning' ? menu?.morningNote : menu?.eveningNote
-  if (note) lines.push(`Note: ${note}`)
+  if (note) lines.push(`નોંધ: ${note}`)
   return lines.join('\n')
 }
 

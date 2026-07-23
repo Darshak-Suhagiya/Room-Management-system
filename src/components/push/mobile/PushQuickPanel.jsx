@@ -19,7 +19,7 @@ export function PushQuickPanel({
   return (
     <div className="push-mobile-panel admin-mobile-page-with-bar mobile-section-gap">
       <p className="muted push-mobile-lead">
-        Save defaults, then send today’s morning or evening menu digest.
+        Save defaults, then send tomorrow’s morning or today’s evening menu digest.
       </p>
 
       <section className="rail-card push-mobile-slot-card">
@@ -94,7 +94,7 @@ export function PushQuickPanel({
           onClick={onSendMorning}
         >
           <Sunrise size={16} aria-hidden />
-          Send morning now
+          Send tomorrow morning now
         </button>
       </section>
 
@@ -170,7 +170,7 @@ export function PushQuickPanel({
           onClick={onSendEvening}
         >
           <Sunset size={16} aria-hidden />
-          Send evening now
+          Send today’s evening now
         </button>
       </section>
 
@@ -187,7 +187,7 @@ export function PushQuickPanel({
           />
         </label>
         <div className="push-preview">
-          <strong>Today morning preview</strong>
+          <strong>Tomorrow morning preview</strong>
           <pre>{menuPreview || '—'}</pre>
         </div>
       </section>

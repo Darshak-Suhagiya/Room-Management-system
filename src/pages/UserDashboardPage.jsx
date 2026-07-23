@@ -15,7 +15,8 @@ import { useDelayedLoading } from '../hooks/useDelayedLoading'
 import { MobilePageSkeleton } from '../components/mobile/MobilePageSkeleton'
 import { NOTICE_PAGES } from '../config/constants'
 import { useMenuCatalog } from '../hooks/useMenuCatalog'
-import { getAllPlannedMenus } from '../services/menuService'
+import { useMobileTabPanelActive } from '../contexts/MobileTabPanelContext'
+import { getAllPlannedMenus, getMenuByDate } from '../services/menuService'
 import { subscribeVoteLock } from '../services/voteLockService'
 import { subscribeUserParticipations } from '../services/participationService'
 import { getPlannedMenuItems, hasMealVoteComplete } from '../utils/menuVoteUtils'
@@ -199,6 +200,8 @@ export function UserDashboardPage() {
   const categoryKey = categoryIds.join(',')
   const today = formatDateId(new Date())
   const isMobileLayout = useMediaQuery('(max-width: 899px)')
+  const isTabActive = useMobileTabPanelActive()
+  const wasTabActiveRef = useRef(isTabActive)
   const displayName =
     profile?.displayName || user?.displayName || user?.email?.split('@')[0] || 'Member'
 
@@ -237,6 +240,34 @@ export function UserDashboardPage() {
       cancelled = true
     }
   }, [catalogLoading, loadMenus])
+
+  // Refresh today's morning+evening menu when returning to the Meals tab
+  // (panel stays mounted in MobileTabCache).
+  useEffect(() => {
+    const becameActive = isTabActive && !wasTabActiveRef.current
+    wasTabActiveRef.current = isTabActive
+    if (!becameActive || catalogLoading) return
+
+    let cancelled = false
+    getMenuByDate(today, categoryIds)
+      .then((menu) => {
+        if (cancelled) return
+        setMenus((prev) => {
+          const without = prev.filter((m) => m.date !== today)
+          if (!menu || (!menu.hasMorning && !menu.hasEvening)) {
+            return sortMenusByDateDesc(without)
+          }
+          return sortMenusByDateDesc([...without, menu])
+        })
+      })
+      .catch(() => {
+        /* soft-fail: keep existing menus */
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [isTabActive, catalogLoading, today, categoryKey])
 
   const sortedMenus = useMemo(
     () => menus.filter((m) => m.hasMorning || m.hasEvening),
