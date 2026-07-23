@@ -197,8 +197,10 @@ export function NoticeBanner({
                 className="btn btn-sm notice-mark-read-btn"
                 onClick={handleMarkRead}
                 disabled={readingId != null}
+                aria-label="Mark as read"
               >
-                Mark as read
+                <span className="notice-mark-read-full">Mark as read</span>
+                <span className="notice-mark-read-short">Read</span>
               </button>
             )}
           </div>

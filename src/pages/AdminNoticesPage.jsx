@@ -8,8 +8,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { NoticeBanner } from '../components/NoticeBanner'
-import { MobilePageHeader } from '../components/mobile'
-import { Modal } from '../components/ui/Modal'
+import { NoticesMobileView } from '../components/notices/mobile'
 import { useMediaQuery } from '../hooks/useMediaQuery'
 import { useSaveMutation } from '../hooks/useSaveMutation'
 import {
@@ -462,7 +461,7 @@ export function AdminNoticesPage() {
     : null
 
   const tabBar = (
-    <div className="notices-tabs layout-desktop" role="tablist">
+    <div className="notices-tabs" role="tablist">
       <button
         type="button"
         role="tab"
@@ -480,35 +479,6 @@ export function AdminNoticesPage() {
         role="tab"
         aria-selected={tab === 'past'}
         className={`notices-tab${tab === 'past' ? ' is-active' : ''}`}
-        onClick={() => {
-          setTab('past')
-          setSelectedId(null)
-        }}
-      >
-        Past ({pastList.length})
-      </button>
-    </div>
-  )
-
-  const mobileTabBar = (
-    <div className="mobile-segmented layout-mobile" role="tablist" aria-label="Notice tabs">
-      <button
-        type="button"
-        role="tab"
-        aria-selected={tab === 'active'}
-        className={`mobile-segmented-btn${tab === 'active' ? ' is-active' : ''}`}
-        onClick={() => {
-          setTab('active')
-          setSelectedId(null)
-        }}
-      >
-        Active ({activeList.length})
-      </button>
-      <button
-        type="button"
-        role="tab"
-        aria-selected={tab === 'past'}
-        className={`mobile-segmented-btn${tab === 'past' ? ' is-active' : ''}`}
         onClick={() => {
           setTab('past')
           setSelectedId(null)
@@ -694,62 +664,75 @@ export function AdminNoticesPage() {
     return <p className="form-error">You do not have access to notices.</p>
   }
 
+  if (isMobile) {
+    return (
+      <NoticesMobileView
+        canManageNotices={canManageNotices}
+        canViewNoticeAnalytics={canViewNoticeAnalytics}
+        tab={tab}
+        onTabChange={(next) => {
+          setTab(next)
+          setSelectedId(null)
+        }}
+        activeCount={activeList.length}
+        pastCount={pastList.length}
+        list={list}
+        loading={loading}
+        error={error}
+        saving={saving}
+        formOpen={formOpen}
+        editingId={editingId}
+        form={form}
+        setForm={setForm}
+        people={people}
+        previewNotices={previewNotices}
+        selectedNotice={selectedNotice}
+        stats={stats}
+        receiptsLoading={receiptsLoading}
+        audienceSummary={audienceSummary}
+        onOpenCreate={openCreate}
+        onCloseForm={() => setFormOpen(false)}
+        onSave={handleSave}
+        onTogglePage={togglePage}
+        onToggleRole={toggleRole}
+        onToggleUser={toggleUser}
+        onSelectNotice={setSelectedId}
+        onClearSelected={() => setSelectedId(null)}
+        onEdit={openEdit}
+        onEnd={handleEnd}
+      />
+    )
+  }
+
   return (
     <div className="page admin-page notices-admin-page">
-      <div className="layout-desktop">
-        <header className="page-header page-header-icon page-header-with-actions">
-          <span className="page-header-icon-wrap" aria-hidden>
-            <Megaphone size={22} />
-          </span>
-          <div>
-            <h2>Notices</h2>
-            <p>
-              Sticky notices on My Meals and Room Seva
-              {canManageNotices
-                ? ' — create, end, and track who has read them.'
-                : ' — view analytics for active and past notices.'}
-            </p>
-          </div>
-          {canManageNotices && (
-            <button type="button" className="btn btn-primary" onClick={openCreate}>
-              <Plus size={18} />
-              New notice
-            </button>
-          )}
-        </header>
-      </div>
-
-      <div className="layout-mobile">
-        <MobilePageHeader
-          icon={Megaphone}
-          title="Notices"
-          description={
-            canManageNotices
-              ? 'Create, end, and track read receipts.'
-              : 'View analytics for notices.'
-          }
-          action={
-            canManageNotices ? (
-              <button
-                type="button"
-                className="btn btn-primary btn-sm"
-                onClick={openCreate}
-              >
-                <Plus size={16} />
-                New
-              </button>
-            ) : null
-          }
-        />
-      </div>
+      <header className="page-header page-header-icon page-header-with-actions">
+        <span className="page-header-icon-wrap" aria-hidden>
+          <Megaphone size={22} />
+        </span>
+        <div>
+          <h2>Notices</h2>
+          <p>
+            Sticky notices on My Meals and Room Seva
+            {canManageNotices
+              ? ' — create, end, and track who has read them.'
+              : ' — view analytics for active and past notices.'}
+          </p>
+        </div>
+        {canManageNotices && (
+          <button type="button" className="btn btn-primary" onClick={openCreate}>
+            <Plus size={18} />
+            New notice
+          </button>
+        )}
+      </header>
 
       {error && <p className="form-error">{error}</p>}
 
       {tabBar}
-      {mobileTabBar}
       {composeForm}
 
-      <div className="layout-desktop notices-layout">
+      <div className="notices-layout">
         <section className="notices-list-col">
           <NoticeList
             list={list}
@@ -768,25 +751,6 @@ export function AdminNoticesPage() {
           )}
         </aside>
       </div>
-
-      <div className="layout-mobile">
-        <NoticeList
-          list={list}
-          tab={tab}
-          loading={loading}
-          selectedId={selectedId}
-          onSelect={setSelectedId}
-        />
-      </div>
-
-      <Modal
-        open={isMobile && Boolean(selectedNotice)}
-        onClose={() => setSelectedId(null)}
-        title={selectedNotice?.title ?? 'Notice'}
-        wide
-      >
-        {detailProps && <NoticeDetailPanel {...detailProps} />}
-      </Modal>
     </div>
   )
 }

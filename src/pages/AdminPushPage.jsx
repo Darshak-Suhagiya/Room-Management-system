@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Send, Sunrise, Sunset } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { PushUserPickerField } from '../components/push/PushUserPicker'
-import { MobilePageHeader } from '../components/mobile'
+import { PushMobileView } from '../components/push/mobile'
+import { useMediaQuery } from '../hooks/useMediaQuery'
 import { ALL_ROLES, ROLE_LABELS } from '../config/rolePermissions'
 import {
   PUSH_AUDIENCE_TYPES,
@@ -36,6 +37,7 @@ const EMPTY_COMPOSE = {
 
 export function AdminPushPage() {
   const { user, canManagePush } = useAuth()
+  const isMobile = useMediaQuery('(max-width: 899px)')
   const [tab, setTab] = useState('quick')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
@@ -84,10 +86,7 @@ export function AdminPushPage() {
       try {
         const dateId =
           tab === 'compose' ? compose.menuDateId || todayId : todayId
-        const slot =
-          tab === 'compose'
-            ? compose.mealSlot
-            : 'morning'
+        const slot = tab === 'compose' ? compose.mealSlot : 'morning'
         const menu = await getMenuByDate(
           dateId,
           catalog.categories.map((c) => c.id),
@@ -113,16 +112,8 @@ export function AdminPushPage() {
     settings.fallbackBody,
   ])
 
-  if (!canManagePush) {
-    return (
-      <div className="page">
-        <p className="form-error">You do not have access to push notifications.</p>
-      </div>
-    )
-  }
-
   const saveDaily = async (e) => {
-    e.preventDefault()
+    e?.preventDefault?.()
     setSaving(true)
     setError('')
     setSuccess('')
@@ -186,7 +177,7 @@ export function AdminPushPage() {
   }
 
   const submitCompose = async (e) => {
-    e.preventDefault()
+    e?.preventDefault?.()
     setSaving(true)
     setError('')
     setSuccess('')
@@ -248,42 +239,67 @@ export function AdminPushPage() {
     }))
   }
 
+  const changeTab = (next) => {
+    setTab(next)
+    setSuccess('')
+    setError('')
+  }
+
+  if (!canManagePush) {
+    return (
+      <div className="page">
+        <p className="form-error">You do not have access to push notifications.</p>
+      </div>
+    )
+  }
+
+  if (isMobile) {
+    return (
+      <PushMobileView
+        tab={tab}
+        onTabChange={changeTab}
+        error={error}
+        success={success}
+        loading={loading}
+        settings={settings}
+        setSettings={setSettings}
+        compose={compose}
+        setCompose={setCompose}
+        users={users}
+        saving={saving}
+        menuPreview={menuPreview}
+        onSaveDefaults={saveDaily}
+        onSendMorning={() => sendDigestNow('morning')}
+        onSendEvening={() => sendDigestNow('evening')}
+        onToggleRole={toggleRole}
+        onToggleUser={toggleUser}
+        onSubmitCompose={submitCompose}
+      />
+    )
+  }
+
   return (
     <div className="page admin-push-page">
-      <div className="layout-desktop">
-        <header className="page-header">
-          <div>
-            <h1>Push notifications</h1>
-            <p className="page-lead">
-              Send now only (via Vercel + Firebase Cloud Messaging). No auto schedule.
-            </p>
-          </div>
-        </header>
-      </div>
-
-      <div className="layout-mobile">
-        <MobilePageHeader
-          icon={Send}
-          title="Push"
-          description="Quick menu digests or custom sends."
-        />
-      </div>
+      <header className="page-header">
+        <div>
+          <h1>Push notifications</h1>
+          <p className="page-lead">
+            Send now only (via Vercel + Firebase Cloud Messaging). No auto schedule.
+          </p>
+        </div>
+      </header>
 
       {error && <p className="form-error">{error}</p>}
       {success && <p className="form-success">{success}</p>}
       {loading && <p className="muted">Loading…</p>}
 
-      <div className="notices-tabs layout-desktop" role="tablist" aria-label="Push sections">
+      <div className="notices-tabs" role="tablist" aria-label="Push sections">
         <button
           type="button"
           role="tab"
           aria-selected={tab === 'quick'}
           className={`notices-tab${tab === 'quick' ? ' is-active' : ''}`}
-          onClick={() => {
-            setTab('quick')
-            setSuccess('')
-            setError('')
-          }}
+          onClick={() => changeTab('quick')}
         >
           <Sunrise size={16} aria-hidden />
           Quick send
@@ -293,48 +309,15 @@ export function AdminPushPage() {
           role="tab"
           aria-selected={tab === 'compose'}
           className={`notices-tab${tab === 'compose' ? ' is-active' : ''}`}
-          onClick={() => {
-            setTab('compose')
-            setSuccess('')
-            setError('')
-          }}
+          onClick={() => changeTab('compose')}
         >
           <Send size={16} aria-hidden />
           Custom send
         </button>
       </div>
 
-      <div className="mobile-segmented layout-mobile push-mobile-tabs" role="tablist" aria-label="Push sections">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === 'quick'}
-          className={`mobile-segmented-btn${tab === 'quick' ? ' is-active' : ''}`}
-          onClick={() => {
-            setTab('quick')
-            setSuccess('')
-            setError('')
-          }}
-        >
-          Quick send
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === 'compose'}
-          className={`mobile-segmented-btn${tab === 'compose' ? ' is-active' : ''}`}
-          onClick={() => {
-            setTab('compose')
-            setSuccess('')
-            setError('')
-          }}
-        >
-          Custom send
-        </button>
-      </div>
-
       {tab === 'quick' && (
-        <div className="card push-form push-form-mobile-stack">
+        <div className="rail-card push-form">
           <p className="muted">
             Save defaults, then tap Send for today’s morning or evening menu digest.
           </p>
@@ -511,7 +494,7 @@ export function AdminPushPage() {
       )}
 
       {tab === 'compose' && (
-        <form className="card push-form push-form-mobile-stack" onSubmit={submitCompose}>
+        <form className="rail-card push-form" onSubmit={submitCompose}>
           <label>
             Title
             <input
