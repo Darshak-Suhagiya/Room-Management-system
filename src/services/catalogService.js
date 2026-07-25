@@ -128,6 +128,57 @@ export async function seedDefaultCatalog() {
   await batch.commit()
 }
 
+/** Delete all menu items, then write categories + items from the default seed. */
+export async function replaceCatalogFromSeed() {
+  if (!isFirebaseConfigured || !db) {
+    throw new Error('Firebase is not configured')
+  }
+
+  const itemSnap = await getDocs(collection(db, COLLECTIONS.MENU_ITEMS))
+  const ops = []
+
+  for (const d of itemSnap.docs) {
+    ops.push({ type: 'delete', ref: d.ref })
+  }
+
+  for (const cat of DEFAULT_CATEGORIES) {
+    ops.push({
+      type: 'set',
+      ref: doc(db, COLLECTIONS.MENU_CATEGORIES, cat.id),
+      data: {
+        labelEn: cat.labelEn,
+        labelGu: cat.labelGu,
+        order: cat.order,
+      },
+    })
+  }
+
+  DEFAULT_ITEMS.forEach((item, index) => {
+    ops.push({
+      type: 'set',
+      ref: doc(db, COLLECTIONS.MENU_ITEMS, item.id),
+      data: {
+        categoryId: item.categoryId,
+        en: item.en,
+        gu: item.gu,
+        voteType:
+          item.voteType ?? defaultVoteTypeForCategory(item.categoryId),
+        order: index,
+      },
+    })
+  })
+
+  const BATCH_LIMIT = 450
+  for (let i = 0; i < ops.length; i += BATCH_LIMIT) {
+    const batch = writeBatch(db)
+    for (const op of ops.slice(i, i + BATCH_LIMIT)) {
+      if (op.type === 'delete') batch.delete(op.ref)
+      else batch.set(op.ref, op.data)
+    }
+    await batch.commit()
+  }
+}
+
 export async function addCategory({ labelEn, labelGu }) {
   const id = slugify(labelEn) || `cat-${Date.now()}`
   const existing = await fetchCatalog()
