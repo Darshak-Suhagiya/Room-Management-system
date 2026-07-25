@@ -35,12 +35,16 @@ export const COLLECTIONS = {
 export const STOCK_UNITS = {
   G: 'g',
   KG: 'kg',
+  LIT: 'lit',
+  PKT: 'pkt',
   COUNT: 'count',
 }
 
 export const STOCK_UNIT_LABELS = {
   [STOCK_UNITS.G]: 'g',
   [STOCK_UNITS.KG]: 'kg',
+  [STOCK_UNITS.LIT]: 'lit',
+  [STOCK_UNITS.PKT]: 'pkt',
   [STOCK_UNITS.COUNT]: 'pcs',
 }
 
@@ -64,8 +68,16 @@ export const SHOPPING_TICKET_STATUS = {
 }
 
 export const DEFAULT_STOCK_GROUPS = [
-  { id: 'groceries', name: 'Groceries', linkToMenu: true, order: 0 },
-  { id: 'vegetables', name: 'Vegetables', linkToMenu: true, order: 1 },
+  { id: 'vaghar-masala', name: 'વઘારના મસાલા', linkToMenu: true, order: 0 },
+  { id: 'powder-masala', name: 'પાવડર મસાલા', linkToMenu: true, order: 1 },
+  { id: 'lot-aato', name: 'લોટ / આટો', linkToMenu: true, order: 2 },
+  { id: 'dal-kathol', name: 'દાળ / કઠોળ', linkToMenu: true, order: 3 },
+  { id: 'anaj-chokha', name: 'અનાજ / ચોખા', linkToMenu: true, order: 4 },
+  { id: 'suka-meva', name: 'સૂકા મેવા / બીજ', linkToMenu: true, order: 5 },
+  { id: 'dabba-packet', name: 'ડબ્બા / પેકેટ', linkToMenu: true, order: 6 },
+  { id: 'cha-coffee', name: 'ચા / કોફી / પીણાં', linkToMenu: true, order: 7 },
+  { id: 'room-safai', name: 'રૂમ સફાઈ', linkToMenu: false, order: 8 },
+  { id: 'vegetables', name: 'Vegetables', linkToMenu: true, order: 9 },
 ]
 
 export const PUSH_AUDIENCE_TYPES = {

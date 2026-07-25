@@ -18,6 +18,10 @@ import {
   STOCK_MOVEMENT_REASONS,
   STOCK_UNITS,
 } from '../config/constants'
+import {
+  DEFAULT_STOCK_SEED_GROUPS,
+  DEFAULT_STOCK_SEED_ITEMS,
+} from '../config/defaultStockSeed'
 
 function nowIso() {
   return new Date().toISOString()
@@ -56,10 +60,21 @@ function parseItem(snap) {
   }
 }
 
+export function isIntegerStockUnit(unit) {
+  return (
+    unit === STOCK_UNITS.COUNT ||
+    unit === STOCK_UNITS.G ||
+    unit === STOCK_UNITS.PKT
+  )
+}
+
 export function stockSliderBounds(needPerIteration, unit = STOCK_UNITS.KG) {
   const need = normalizeStockNumber(needPerIteration, unit)
-  const fallback =
-    unit === STOCK_UNITS.COUNT ? 10 : unit === STOCK_UNITS.G ? 1000 : 10
+  const fallback = isIntegerStockUnit(unit)
+    ? unit === STOCK_UNITS.G
+      ? 1000
+      : 10
+    : 10
   const mid = need > 0 ? need : fallback
   return { min: 0, mid, max: normalizeStockNumber(mid * 2, unit) }
 }
@@ -68,7 +83,7 @@ export function stockSliderBounds(needPerIteration, unit = STOCK_UNITS.KG) {
 export function normalizeStockNumber(qty, unit = STOCK_UNITS.KG) {
   const n = Number(qty)
   if (!Number.isFinite(n)) return 0
-  if (unit === STOCK_UNITS.COUNT || unit === STOCK_UNITS.G) {
+  if (isIntegerStockUnit(unit)) {
     return Math.round(n)
   }
   return Math.round(n * 100) / 100
@@ -76,7 +91,7 @@ export function normalizeStockNumber(qty, unit = STOCK_UNITS.KG) {
 
 export function formatStockQty(qty, unit) {
   const n = normalizeStockNumber(qty, unit)
-  if (unit === STOCK_UNITS.COUNT || unit === STOCK_UNITS.G) {
+  if (isIntegerStockUnit(unit)) {
     return String(n)
   }
   // Trim trailing zeros: 1.60 → 1.6, 5.00 → 5
@@ -105,6 +120,83 @@ export async function ensureDefaultStockGroups(userId) {
   }
   await batch.commit()
   return created
+}
+
+/**
+ * Replace stock groups + items from the default kitchen seed.
+ * Deletes all stockItems, removes obsolete groups (e.g. groceries),
+ * upserts seed groups, then writes seed items (quantity 0).
+ */
+export async function replaceStockCatalogFromSeed(userId = null) {
+  if (!isFirebaseConfigured || !db) {
+    throw new Error('Firebase is not configured')
+  }
+
+  const seedGroupIds = new Set(DEFAULT_STOCK_SEED_GROUPS.map((g) => g.id))
+  const [itemSnap, groupSnap] = await Promise.all([
+    getDocs(collection(db, COLLECTIONS.STOCK_ITEMS)),
+    getDocs(collection(db, COLLECTIONS.STOCK_GROUPS)),
+  ])
+
+  const ops = []
+  for (const d of itemSnap.docs) {
+    ops.push({ type: 'delete', ref: d.ref })
+  }
+  for (const d of groupSnap.docs) {
+    if (!seedGroupIds.has(d.id)) {
+      ops.push({ type: 'delete', ref: d.ref })
+    }
+  }
+
+  const now = nowIso()
+  for (const g of DEFAULT_STOCK_SEED_GROUPS) {
+    ops.push({
+      type: 'set',
+      ref: doc(db, COLLECTIONS.STOCK_GROUPS, g.id),
+      data: {
+        name: g.name,
+        linkToMenu: g.linkToMenu,
+        editorUserIds: [],
+        order: g.order,
+        createdAt: now,
+        createdBy: userId || null,
+      },
+      merge: true,
+    })
+  }
+
+  DEFAULT_STOCK_SEED_ITEMS.forEach((item, index) => {
+    const id = `seed-${item.groupId}-${index}`
+    ops.push({
+      type: 'set',
+      ref: doc(db, COLLECTIONS.STOCK_ITEMS, id),
+      data: {
+        groupId: item.groupId,
+        name: item.name,
+        unit: item.unit,
+        quantity: 0,
+        needPerIteration: Math.max(0, Number(item.needPerIteration) || 0),
+        iterationPeriod:
+          item.iterationPeriod || STOCK_ITERATION_PERIODS.MONTH,
+        lastFilledAt: null,
+        lastUsedAt: null,
+        menuItemIds: [],
+        updatedAt: now,
+        createdBy: userId || null,
+      },
+    })
+  })
+
+  const BATCH_LIMIT = 400
+  for (let i = 0; i < ops.length; i += BATCH_LIMIT) {
+    const batch = writeBatch(db)
+    for (const op of ops.slice(i, i + BATCH_LIMIT)) {
+      if (op.type === 'delete') batch.delete(op.ref)
+      else if (op.merge) batch.set(op.ref, op.data, { merge: true })
+      else batch.set(op.ref, op.data)
+    }
+    await batch.commit()
+  }
 }
 
 export async function listStockGroups() {

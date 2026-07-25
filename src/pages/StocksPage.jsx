@@ -363,6 +363,9 @@ export function StocksPage() {
   const [newItemName, setNewItemName] = useState('')
   const [newItemUnit, setNewItemUnit] = useState(STOCK_UNITS.KG)
   const [newItemNeed, setNewItemNeed] = useState(5)
+  const [newItemPeriod, setNewItemPeriod] = useState(
+    STOCK_ITERATION_PERIODS.MONTH,
+  )
   const [showEditors, setShowEditors] = useState(false)
   const [showAddGroup, setShowAddGroup] = useState(false)
   const initialLoadDone = useRef(false)
@@ -477,6 +480,7 @@ export function StocksPage() {
           name: newItemName,
           unit: newItemUnit,
           needPerIteration: newItemNeed,
+          iterationPeriod: newItemPeriod,
           quantity: 0,
         },
         user?.uid,
@@ -684,12 +688,30 @@ export function StocksPage() {
                   </select>
                 </label>
                 <label className="field-stack">
-                  <span className="field-stack-label">Need / week</span>
+                  <span className="field-stack-label">Period</span>
+                  <select
+                    className="app-input"
+                    value={newItemPeriod}
+                    onChange={(e) => setNewItemPeriod(e.target.value)}
+                  >
+                    <option value={STOCK_ITERATION_PERIODS.WEEK}>Week</option>
+                    <option value={STOCK_ITERATION_PERIODS.MONTH}>Month</option>
+                  </select>
+                </label>
+                <label className="field-stack">
+                  <span className="field-stack-label">
+                    Need / {newItemPeriod}
+                  </span>
                   <input
                     className="app-input"
                     type="number"
                     min={0}
-                    step={0.1}
+                    step={
+                      newItemUnit === STOCK_UNITS.KG ||
+                      newItemUnit === STOCK_UNITS.LIT
+                        ? 0.1
+                        : 1
+                    }
                     value={newItemNeed}
                     onChange={(e) =>
                       setNewItemNeed(Number(e.target.value) || 0)

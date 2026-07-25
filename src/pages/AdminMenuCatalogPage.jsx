@@ -9,7 +9,7 @@ import {
   addMenuItem,
   deleteCategory,
   deleteMenuItem,
-  seedDefaultCatalog,
+  replaceCatalogFromSeed,
   updateMenuItem,
 } from '../services/catalogService'
 import { PlanningViewGroupsEditor } from '../components/PlanningViewGroupsEditor'
@@ -438,8 +438,8 @@ export function AdminMenuCatalogPage() {
           className="btn btn-primary"
           onClick={async () => {
             try {
-              await seedDefaultCatalog()
-              notify('Default menu list imported.')
+              await replaceCatalogFromSeed()
+              notify('Menu list replaced with defaults.')
             } catch (err) {
               handleError(err)
             }

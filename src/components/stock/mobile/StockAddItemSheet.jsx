@@ -1,6 +1,10 @@
 import { useState } from 'react'
 import { Modal } from '../../ui/Modal'
-import { STOCK_UNIT_LABELS, STOCK_UNITS } from '../../../config/constants'
+import {
+  STOCK_ITERATION_PERIODS,
+  STOCK_UNIT_LABELS,
+  STOCK_UNITS,
+} from '../../../config/constants'
 import { createStockItem } from '../../../services/stockService'
 import { useToast } from '../../../contexts/ToastContext'
 import { useSaveMutation } from '../../../hooks/useSaveMutation'
@@ -11,6 +15,7 @@ export function StockAddItemSheet({ open, onClose, groupId, userId, onCreated })
   const [name, setName] = useState('')
   const [unit, setUnit] = useState(STOCK_UNITS.KG)
   const [need, setNeed] = useState(5)
+  const [period, setPeriod] = useState(STOCK_ITERATION_PERIODS.MONTH)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -22,6 +27,7 @@ export function StockAddItemSheet({ open, onClose, groupId, userId, onCreated })
           name,
           unit,
           needPerIteration: need,
+          iterationPeriod: period,
           quantity: 0,
         },
         userId,
@@ -73,12 +79,24 @@ export function StockAddItemSheet({ open, onClose, groupId, userId, onCreated })
           </select>
         </label>
         <label className="field-stack">
-          <span className="field-stack-label">Need per week</span>
+          <span className="field-stack-label">Period</span>
+          <select
+            className="app-input"
+            value={period}
+            onChange={(e) => setPeriod(e.target.value)}
+            disabled={busy}
+          >
+            <option value={STOCK_ITERATION_PERIODS.WEEK}>Week</option>
+            <option value={STOCK_ITERATION_PERIODS.MONTH}>Month</option>
+          </select>
+        </label>
+        <label className="field-stack">
+          <span className="field-stack-label">Need per {period}</span>
           <input
             className="app-input"
             type="number"
             min={0}
-            step={0.1}
+            step={unit === STOCK_UNITS.KG || unit === STOCK_UNITS.LIT ? 0.1 : 1}
             value={need}
             onChange={(e) => setNeed(Number(e.target.value) || 0)}
             disabled={busy}

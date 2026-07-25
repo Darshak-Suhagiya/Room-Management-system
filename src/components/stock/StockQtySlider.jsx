@@ -4,6 +4,7 @@ import 'rc-slider/assets/index.css'
 import { STOCK_UNIT_LABELS, STOCK_UNITS } from '../../config/constants'
 import {
   formatStockQty,
+  isIntegerStockUnit,
   normalizeStockNumber,
   stockSliderBounds,
 } from '../../services/stockService'
@@ -16,8 +17,7 @@ function roundForUnit(value, unit) {
 export function snapStockQty(value, needPerIteration, unit, max) {
   const { mid } = stockSliderBounds(needPerIteration, unit)
   if (mid <= 0) return roundForUnit(value, unit)
-  const step =
-    unit === STOCK_UNITS.COUNT || unit === STOCK_UNITS.G ? 1 : 0.1
+  const step = isIntegerStockUnit(unit) ? 1 : 0.1
   const tolerance = Math.max(step * 3, mid * 0.06, max * 0.03)
   if (Math.abs(value - mid) <= tolerance) {
     return roundForUnit(mid, unit)
@@ -43,8 +43,7 @@ export function StockQtySlider({
 }) {
   const { min, mid, max } = stockSliderBounds(needPerIteration, unit)
   const unitLabel = STOCK_UNIT_LABELS[unit] || unit
-  const step =
-    unit === STOCK_UNITS.COUNT || unit === STOCK_UNITS.G ? 1 : 0.05
+  const step = isIntegerStockUnit(unit) ? 1 : 0.05
   const num = roundForUnit(value, unit)
   const clamped = Math.min(max, Math.max(min, num))
   const atNeed = mid > 0 && Math.abs(clamped - mid) < step * 0.5
