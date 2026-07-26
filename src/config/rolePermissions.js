@@ -109,6 +109,11 @@ export function canManageSeva(profile) {
   return isAdminRole(profile) || isRoomLeaderRole(profile)
 }
 
+/** Create leave entries: approved users except Maharaj (view-only). */
+export function canCreateLeaves(profile) {
+  return Boolean(profile?.role) && !isMaharajRole(profile)
+}
+
 /** Update/delete Maharaj leave entries: admin, kitchen lead, or room lead. */
 export function canManageLeaves(profile) {
   return (
@@ -141,9 +146,9 @@ export function canViewNoticeAnalytics(profile) {
   )
 }
 
-/** Stocks + shopping pages: any profile with a role (approved users via route). */
+/** Stocks + shopping pages: any approved role except Maharaj. */
 export function canViewStocks(profile) {
-  return Boolean(profile?.role)
+  return Boolean(profile?.role) && !isMaharajRole(profile)
 }
 
 /** Create groups, manage editors, create/assign shopping tickets. */

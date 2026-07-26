@@ -412,7 +412,9 @@ export function MenuPlanningForm({
       </div>
 
       {!hasMorning && !hasEvening && (
-        <p className="muted">Select morning and/or evening for this date.</p>
+        <p className="muted">
+          Both slots are off. Save to clear the plan for this date.
+        </p>
       )}
 
       {hasMorning && showMorning && (
@@ -482,9 +484,9 @@ export function MenuPlanningForm({
           <button
             type="submit"
             className="btn btn-primary"
-            disabled={saving || (!hasMorning && !hasEvening)}
+            disabled={saving}
           >
-            {saving ? 'Saving…' : 'Save plan'}
+            {saving ? 'Saving…' : hasMorning || hasEvening ? 'Save plan' : 'Clear plan'}
           </button>
         </div>
       )}

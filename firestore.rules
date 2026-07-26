@@ -55,6 +55,10 @@ service cloud.firestore {
       return isAdmin() || isKitchenLeader() || isRoomLeader();
     }
 
+    function canCreateLeaves() {
+      return isApproved() && !isMaharaj();
+    }
+
     function canManageNotices() {
       return isAdmin() || isRoomLeader();
     }
@@ -172,7 +176,7 @@ service cloud.firestore {
 
     match /leaveEntries/{docId} {
       allow read: if isSignedIn();
-      allow create: if isApproved()
+      allow create: if canCreateLeaves()
         && request.resource.data.reason is string
         && request.resource.data.reason.size() > 0
         && request.resource.data.period in ['morning', 'evening', 'full']

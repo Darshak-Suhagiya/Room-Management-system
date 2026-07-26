@@ -367,7 +367,11 @@ export function AdminMenuPlanningPage() {
             className="btn btn-primary btn-block"
             disabled={saving}
           >
-            {saving ? 'Saving…' : 'Save plan'}
+            {saving
+              ? 'Saving…'
+              : draft?.hasMorning || draft?.hasEvening
+                ? 'Save plan'
+                : 'Clear plan'}
           </button>
         </MobileActionBar>
       </div>

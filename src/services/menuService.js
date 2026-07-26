@@ -133,10 +133,6 @@ export async function saveMenu(
     throw new Error('Firebase is not configured')
   }
 
-  if (!hasMorning && !hasEvening) {
-    throw new Error('Select at least morning or evening')
-  }
-
   const ref = doc(db, COLLECTIONS.MENUS, dateId)
   const existingSnap = await getDoc(ref)
   const existingMenu = existingSnap.exists()
