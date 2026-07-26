@@ -7,6 +7,7 @@ import { MEAL_SLOTS } from '../config/menuItems'
 import { useAuth } from '../contexts/AuthContext'
 import { useMenuCatalog } from '../hooks/useMenuCatalog'
 import { useMediaQuery } from '../hooks/useMediaQuery'
+import { useMobileTabPanelActive } from '../contexts/MobileTabPanelContext'
 import { MobilePageSkeleton } from '../components/mobile/MobilePageSkeleton'
 import { useDelayedLoading } from '../hooks/useDelayedLoading'
 import {
@@ -140,6 +141,9 @@ export function AdminVotesDashboardPage() {
   const todayRef = useRef(null)
   const scrolledRef = useRef(false)
   const didInitDateRef = useRef(false)
+  const isTabActive = useMobileTabPanelActive()
+  const wasTabActiveRef = useRef(isTabActive)
+  const categoryKey = categoryIds.join(',')
 
   const loadDashboard = useCallback(async () => {
     const [menuData, userList] = await Promise.all([
@@ -265,6 +269,65 @@ export function AdminVotesDashboardPage() {
       cancelled = true
     }
   }, [loading, loadFilterStats, filterSlotKeys, toast])
+
+  // Refresh selected date menu + vote stats when returning to the Votes tab
+  // (panel stays mounted in MobileTabCache).
+  useEffect(() => {
+    const becameActive = isTabActive && !wasTabActiveRef.current
+    wasTabActiveRef.current = isTabActive
+    if (!becameActive || catalogLoading || !customDate) return
+
+    let cancelled = false
+    ;(async () => {
+      try {
+        const freshMenu = await getMenuByDate(customDate, categoryIds)
+        if (cancelled) return
+        setMenus((prev) => upsertMenuInList(prev, freshMenu))
+
+        const menu = freshMenu
+        if (!menu || (!menu.hasMorning && !menu.hasEvening)) {
+          setStatsByKey((prev) => {
+            const next = { ...prev }
+            delete next[`${customDate}-morning`]
+            delete next[`${customDate}-evening`]
+            return next
+          })
+          return
+        }
+
+        const slots = MEAL_SLOTS.filter((slot) =>
+          slot === 'morning' ? menu.hasMorning : menu.hasEvening,
+        )
+        const next = {}
+        await Promise.all(
+          slots.map(async (slot) => {
+            const entry = {
+              key: `${customDate}-${slot}`,
+              date: customDate,
+              slot,
+              menu,
+            }
+            next[entry.key] = await loadSlotStats(entry, menu)
+          }),
+        )
+        if (cancelled) return
+        setStatsByKey((prev) => ({ ...prev, ...next }))
+      } catch {
+        /* soft-fail: keep existing data */
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [
+    isTabActive,
+    catalogLoading,
+    customDate,
+    categoryKey,
+    upsertMenuInList,
+    loadSlotStats,
+  ])
 
   useEffect(() => {
     setPage(0)

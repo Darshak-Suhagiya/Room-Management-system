@@ -10,9 +10,7 @@ export function validateMenuPlan({
   evening,
   categoryIds,
 }) {
-  if (!hasMorning && !hasEvening) {
-    return 'Select morning and/or evening for this date.'
-  }
+  // Both slots off is allowed — clears / unplans the date.
   if (hasMorning && !slotHasMenuItems(morning, categoryIds)) {
     return 'Morning is enabled but no menu items are selected.'
   }

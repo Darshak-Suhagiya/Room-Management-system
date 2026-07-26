@@ -120,7 +120,9 @@ export function PlanningMobileForm({
       />
 
       {!form.hasMorning && !form.hasEvening && (
-        <p className="muted">Enable morning and/or evening to plan this date.</p>
+        <p className="muted">
+          Both slots are off. Save to clear the plan for this date.
+        </p>
       )}
 
       {!slotEnabled && (form.hasMorning || form.hasEvening) && (

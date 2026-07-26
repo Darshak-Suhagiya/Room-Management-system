@@ -82,6 +82,8 @@ function LeaveDayPanel({
   setEditing,
   dayLeaves,
   canManageLeaves,
+  canCreateLeaves,
+  isApproved,
   saving,
   canCreateOnDay,
   period,
@@ -168,6 +170,12 @@ function LeaveDayPanel({
       {dayLeaves.length > 0 && !canManageLeaves && (
         <p className="muted leave-readonly-hint">
           Only an admin, kitchen leader, or room leader can change or delete leave.
+        </p>
+      )}
+
+      {dayLeaves.length === 0 && isApproved && !canCreateLeaves && (
+        <p className="muted leave-readonly-hint">
+          You can view leave here. Only other roles can record new leave.
         </p>
       )}
 
@@ -267,7 +275,7 @@ function renderLeaveDayChip(item) {
 }
 
 export function LeaveCalendarPage() {
-  const { user, profile, canManageLeaves, isApproved } = useAuth()
+  const { user, profile, canManageLeaves, canCreateLeaves, isApproved } = useAuth()
   const [maharajs, setMaharajs] = useState([])
   const [leaves, setLeaves] = useState([])
   const [loading, setLoading] = useState(true)
@@ -400,11 +408,12 @@ export function LeaveCalendarPage() {
     }
   }
 
-  const canCreateOnDay = isApproved && dayLeaves.length === 0
+  const canCreateOnDay =
+    isApproved && canCreateLeaves && dayLeaves.length === 0
 
   const handleCreate = async (e) => {
     e.preventDefault()
-    if (!selectedMaharaj || !user) return
+    if (!canCreateLeaves || !selectedMaharaj || !user) return
     setError('')
     const { ok, error: err, stale } = await runSave(() =>
       createLeave({
@@ -540,6 +549,8 @@ export function LeaveCalendarPage() {
     setEditing,
     dayLeaves,
     canManageLeaves,
+    canCreateLeaves,
+    isApproved,
     saving,
     canCreateOnDay,
     period,
