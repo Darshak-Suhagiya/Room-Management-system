@@ -101,6 +101,38 @@ export const PUSH_JOB_STATUS = {
   CANCELLED: 'cancelled',
 }
 
+export const PUSH_SOURCES = {
+  MANUAL_QUICK: 'manual_quick',
+  MANUAL_COMPOSE: 'manual_compose',
+  NOTICE: 'notice',
+  SHOPPING: 'shopping',
+  MENU_UPDATE: 'menu_update',
+  SYSTEM: 'system',
+}
+
+export const PUSH_SOURCE_LABELS = {
+  [PUSH_SOURCES.MANUAL_QUICK]: 'Quick send',
+  [PUSH_SOURCES.MANUAL_COMPOSE]: 'Custom send',
+  [PUSH_SOURCES.NOTICE]: 'Notice',
+  [PUSH_SOURCES.SHOPPING]: 'Shopping assign',
+  [PUSH_SOURCES.MENU_UPDATE]: 'Menu update',
+  [PUSH_SOURCES.SYSTEM]: 'Automatic',
+}
+
+export const PUSH_RECIPIENT_STATUS = {
+  SUCCESS: 'success',
+  PARTIAL: 'partial',
+  FAILED: 'failed',
+  NO_TOKENS: 'no_tokens',
+}
+
+export const PUSH_RECIPIENT_STATUS_LABELS = {
+  [PUSH_RECIPIENT_STATUS.SUCCESS]: 'Success',
+  [PUSH_RECIPIENT_STATUS.PARTIAL]: 'Partial',
+  [PUSH_RECIPIENT_STATUS.FAILED]: 'Failed',
+  [PUSH_RECIPIENT_STATUS.NO_TOKENS]: 'No tokens',
+}
+
 export const NOTICE_TONES = {
   INFO: 'info',
   WARNING: 'warning',
