@@ -4,6 +4,10 @@ import { LogOut, Menu as MenuIcon, Settings, X } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useBottomNavPreferences } from '../contexts/BottomNavPreferencesContext'
 import { PushNotificationProvider } from '../contexts/PushNotificationContext'
+import { NotificationInboxProvider } from '../contexts/NotificationInboxContext'
+import { NotificationBell } from './notifications/NotificationBell'
+import { NotificationInboxPanel } from './notifications/NotificationInboxPanel'
+import { NotificationInboxSheet } from './notifications/NotificationInboxSheet'
 import { BottomNav } from './BottomNav'
 import { MobileTabCache } from './mobile/MobileTabCache'
 import { getBottomNavTabs, isBottomNavRoute } from '../config/bottomNavTabs'
@@ -161,6 +165,7 @@ export function Layout() {
 
   return (
     <PushNotificationProvider>
+      <NotificationInboxProvider>
       <div className="app-layout">
         <aside className={`sidebar ${sidebarOpen ? 'is-open' : ''}`}>
           <div className="sidebar-brand">
@@ -237,6 +242,10 @@ export function Layout() {
               <span>Room Management</span>
             </Link>
             <div className="topbar-actions">
+              <div className="topbar-notif-anchor">
+                <NotificationBell />
+                {!isMobileLayout && <NotificationInboxPanel />}
+              </div>
               <Link
                 to="/settings"
                 className="topbar-settings-btn touch-target inline-flex items-center justify-center"
@@ -247,6 +256,8 @@ export function Layout() {
               </Link>
             </div>
           </header>
+
+          {isMobileLayout && <NotificationInboxSheet />}
 
           <main className="app-main">
             {showMobileTabCache ? (
@@ -264,6 +275,7 @@ export function Layout() {
           <BottomNav />
         </div>
       </div>
+      </NotificationInboxProvider>
     </PushNotificationProvider>
   )
 }
