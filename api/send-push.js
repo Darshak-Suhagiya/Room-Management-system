@@ -426,7 +426,7 @@ function resolveRelated(source, kind, menuDateId) {
 }
 
 async function fanOutUserNotifications(db, pushLogId, recipients, payload) {
-  if (!pushLogId || !recipients?.length) return
+  if (!recipients?.length) return
   const { relatedType, relatedId } = resolveRelated(
     payload.source,
     payload.kind,
@@ -445,7 +445,7 @@ async function fanOutUserNotifications(db, pushLogId, recipients, payload) {
           .collection('notifications')
           .doc()
         batch.set(ref, {
-          pushLogId,
+          pushLogId: pushLogId ?? null,
           title: payload.title,
           body: payload.body,
           kind: payload.kind,

@@ -9,6 +9,7 @@ export function NotificationInboxSheet() {
     notifications,
     expandedId,
     busy,
+    inboxError,
     markRead,
     clearAll,
   } = useNotificationInbox()
@@ -26,6 +27,7 @@ export function NotificationInboxSheet() {
         notifications={notifications}
         expandedId={expandedId}
         busy={busy}
+        error={inboxError}
         onSelect={markRead}
         onClearAll={clearAll}
         showTitle={false}

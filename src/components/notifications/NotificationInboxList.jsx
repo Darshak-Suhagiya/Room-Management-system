@@ -21,6 +21,7 @@ export function NotificationInboxList({
   notifications,
   expandedId,
   busy,
+  error,
   onSelect,
   onClearAll,
   showTitle = true,
@@ -43,8 +44,12 @@ export function NotificationInboxList({
         </button>
       </div>
 
+      {error && <p className="form-error notif-inbox-error">{error}</p>}
+
       {notifications.length === 0 ? (
-        <p className="muted notif-inbox-empty">No notifications yet.</p>
+        <p className="muted notif-inbox-empty">
+          {error ? 'Could not load notifications.' : 'No notifications yet.'}
+        </p>
       ) : (
         <ul className="notif-inbox-list">
           {notifications.map((item) => {

@@ -17,10 +17,11 @@ import {
 const NotificationInboxContext = createContext(null)
 
 export function NotificationInboxProvider({ children }) {
-  const { profile } = useAuth()
-  const userId = profile?.id ?? null
+  const { profile, user } = useAuth()
+  const userId = user?.uid ?? profile?.id ?? null
   const [notifications, setNotifications] = useState([])
   const [unreadCount, setUnreadCount] = useState(0)
+  const [inboxError, setInboxError] = useState('')
   const [inboxOpen, setInboxOpen] = useState(false)
   const [expandedId, setExpandedId] = useState(null)
   const [busy, setBusy] = useState(false)
@@ -29,11 +30,13 @@ export function NotificationInboxProvider({ children }) {
     if (!userId) {
       setNotifications([])
       setUnreadCount(0)
+      setInboxError('')
       return undefined
     }
-    return subscribeNotifications(userId, ({ notifications: items, unreadCount: count }) => {
+    return subscribeNotifications(userId, ({ notifications: items, unreadCount: count, error }) => {
       setNotifications(items)
       setUnreadCount(count)
+      setInboxError(error ?? '')
     })
   }, [userId])
 
@@ -90,6 +93,7 @@ export function NotificationInboxProvider({ children }) {
     () => ({
       notifications,
       unreadCount,
+      inboxError,
       inboxOpen,
       expandedId,
       busy,
@@ -103,6 +107,7 @@ export function NotificationInboxProvider({ children }) {
     [
       notifications,
       unreadCount,
+      inboxError,
       inboxOpen,
       expandedId,
       busy,
