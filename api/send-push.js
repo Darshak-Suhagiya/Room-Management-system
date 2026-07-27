@@ -398,6 +398,81 @@ async function writePushLog(db, payload) {
   }
 }
 
+function userDeliveryMessage(recipient) {
+  if (recipient.status === 'no_tokens') {
+    return 'Enable notifications in Settings to receive alerts'
+  }
+  if (recipient.status === 'partial') {
+    return 'Sent to some devices only'
+  }
+  if (recipient.status === 'failed' && recipient.errors?.length) {
+    const err = recipient.errors[0]
+    return `${err.code}: ${err.message}`
+  }
+  return null
+}
+
+function resolveRelated(source, kind, menuDateId) {
+  if (source === 'notice') {
+    return { relatedType: 'notice', relatedId: null }
+  }
+  if (source === 'shopping') {
+    return { relatedType: 'shopping_ticket', relatedId: null }
+  }
+  if (source === 'menu_update' || kind === 'menu_digest' || kind === 'daily_digest') {
+    return { relatedType: 'menu', relatedId: menuDateId ?? null }
+  }
+  return { relatedType: null, relatedId: null }
+}
+
+async function fanOutUserNotifications(db, pushLogId, recipients, payload) {
+  if (!pushLogId || !recipients?.length) return
+  const { relatedType, relatedId } = resolveRelated(
+    payload.source,
+    payload.kind,
+    payload.menuDateId,
+  )
+  const createdAt = new Date().toISOString()
+
+  try {
+    for (let i = 0; i < recipients.length; i += 500) {
+      const batch = db.batch()
+      const chunk = recipients.slice(i, i + 500)
+      for (const recipient of chunk) {
+        const ref = db
+          .collection(COL.USERS)
+          .doc(recipient.userId)
+          .collection('notifications')
+          .doc()
+        batch.set(ref, {
+          pushLogId,
+          title: payload.title,
+          body: payload.body,
+          kind: payload.kind,
+          source: payload.source,
+          relatedType,
+          relatedId,
+          menuDateId: payload.menuDateId ?? null,
+          mealSlot: payload.mealSlot ?? null,
+          sentAt: payload.sentAt,
+          deliveryStatus: recipient.status,
+          deviceCount: recipient.deviceCount,
+          successCount: recipient.successCount,
+          failureCount: recipient.failureCount,
+          deliveryMessage: userDeliveryMessage(recipient),
+          seenAt: null,
+          readAt: null,
+          clearedAt: null,
+          createdAt,
+        })
+      }
+      await batch.commit()
+    }
+  } catch (err) {
+    console.error('user notification fan-out failed', err)
+  }
+}
+
 function resolveTriggeredBy(source) {
   return AUTOMATIC_SOURCES.has(source) ? 'automatic' : 'user'
 }
@@ -495,7 +570,7 @@ export default async function handler(req, res) {
         tokensByUser,
         perUserResults,
       )
-      await writePushLog(db, {
+      const pushLogId = await writePushLog(db, {
         title,
         body: messageBody,
         kind,
@@ -513,6 +588,15 @@ export default async function handler(req, res) {
         failureCount: result.failureCount,
         errors: result.errors,
         recipients,
+      })
+      await fanOutUserNotifications(db, pushLogId, recipients, {
+        title,
+        body: messageBody,
+        kind,
+        source,
+        menuDateId,
+        mealSlot,
+        sentAt,
       })
     }
 
