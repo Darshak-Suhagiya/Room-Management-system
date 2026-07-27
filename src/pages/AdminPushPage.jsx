@@ -1,13 +1,18 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Send, Sunrise, Sunset } from 'lucide-react'
+import { History, Send, Sunrise, Sunset } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { PushUserPickerField } from '../components/push/PushUserPicker'
 import { PushMobileView } from '../components/push/mobile'
+import {
+  PushLogDetailContent,
+  pushLogListSubtitle,
+} from '../components/push/PushLogDetailContent'
 import { useMediaQuery } from '../hooks/useMediaQuery'
 import { ALL_ROLES, ROLE_LABELS } from '../config/rolePermissions'
 import {
   PUSH_AUDIENCE_TYPES,
   PUSH_JOB_KINDS,
+  PUSH_SOURCES,
 } from '../config/constants'
 import { listApprovedUsers } from '../services/userService'
 import { getMenuByDate } from '../services/menuService'
@@ -21,6 +26,7 @@ import {
   savePushSettings,
   sendPushNow,
 } from '../services/pushAdminService'
+import { listPushLogs } from '../services/pushLogService'
 
 const EMPTY_COMPOSE = {
   title: '',
@@ -49,6 +55,10 @@ export function AdminPushPage() {
   const [catalog, setCatalog] = useState(null)
   const [menuPreview, setMenuPreview] = useState('')
   const [loading, setLoading] = useState(true)
+  const [logs, setLogs] = useState([])
+  const [logsLoading, setLogsLoading] = useState(false)
+  const [logsError, setLogsError] = useState('')
+  const [selectedLogId, setSelectedLogId] = useState(null)
 
   const todayId = useMemo(() => formatDateId(new Date()), [])
   const tomorrowId = useMemo(() => getTomorrowDateId(), [])
@@ -76,6 +86,30 @@ export function AdminPushPage() {
   useEffect(() => {
     reload()
   }, [reload])
+
+  const loadLogs = useCallback(async () => {
+    setLogsLoading(true)
+    setLogsError('')
+    try {
+      const items = await listPushLogs({ limit: 50 })
+      setLogs(items)
+      setSelectedLogId((prev) => {
+        if (prev && items.some((l) => l.id === prev)) return prev
+        return items[0]?.id ?? null
+      })
+    } catch (err) {
+      console.error(err)
+      setLogsError(err.message || 'Failed to load push logs.')
+    } finally {
+      setLogsLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (tab === 'logs') {
+      loadLogs()
+    }
+  }, [tab, loadLogs])
 
   useEffect(() => {
     let cancelled = false
@@ -152,10 +186,12 @@ export function AdminPushPage() {
         menuDateId,
         mealSlot: slot,
         audience,
+        source: PUSH_SOURCES.MANUAL_QUICK,
       })
       setSuccess(
         `Sent ${slot} digest. OK ${res.successCount ?? 0} · fail ${res.failureCount ?? 0} · ${res.tokenCount ?? 0} device(s).`,
       )
+      if (tab === 'logs') loadLogs()
     } catch (err) {
       console.error(err)
       setError(err.message || 'Send failed.')
@@ -211,6 +247,7 @@ export function AdminPushPage() {
           kind === PUSH_JOB_KINDS.MENU_DIGEST ? compose.menuDateId : null,
         mealSlot: kind === PUSH_JOB_KINDS.MENU_DIGEST ? compose.mealSlot : null,
         audience: buildAudience(),
+        source: PUSH_SOURCES.MANUAL_COMPOSE,
       }
       if (!payload.title) throw new Error('Title is required.')
       const res = await sendPushNow(payload)
@@ -218,6 +255,7 @@ export function AdminPushPage() {
         `Sent. OK ${res.successCount ?? 0} · fail ${res.failureCount ?? 0} · ${res.tokenCount ?? 0} device(s), ${res.recipientUserCount ?? 0} users.`,
       )
       setCompose(EMPTY_COMPOSE)
+      if (tab === 'logs') loadLogs()
     } catch (err) {
       console.error(err)
       setError(err.message || 'Send failed.')
@@ -248,7 +286,13 @@ export function AdminPushPage() {
     setTab(next)
     setSuccess('')
     setError('')
+    setLogsError('')
   }
+
+  const selectedLog = useMemo(
+    () => logs.find((l) => l.id === selectedLogId) ?? null,
+    [logs, selectedLogId],
+  )
 
   if (!canManagePush) {
     return (
@@ -279,6 +323,12 @@ export function AdminPushPage() {
         onToggleRole={toggleRole}
         onToggleUser={toggleUser}
         onSubmitCompose={submitCompose}
+        logs={logs}
+        logsLoading={logsLoading}
+        logsError={logsError}
+        selectedLog={selectedLog}
+        onSelectLog={setSelectedLogId}
+        onClearSelectedLog={() => setSelectedLogId(null)}
       />
     )
   }
@@ -318,6 +368,16 @@ export function AdminPushPage() {
         >
           <Send size={16} aria-hidden />
           Custom send
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === 'logs'}
+          className={`notices-tab${tab === 'logs' ? ' is-active' : ''}`}
+          onClick={() => changeTab('logs')}
+        >
+          <History size={16} aria-hidden />
+          Logs
         </button>
       </div>
 
@@ -666,6 +726,45 @@ export function AdminPushPage() {
             {saving ? 'Sending…' : 'Send now'}
           </button>
         </form>
+      )}
+
+      {tab === 'logs' && (
+        <div className="push-logs-layout">
+          <div className="push-logs-list-col">
+            {logsError && <p className="form-error">{logsError}</p>}
+            {logsLoading ? (
+              <p className="muted">Loading logs…</p>
+            ) : logs.length === 0 ? (
+              <p className="muted">No notification logs yet.</p>
+            ) : (
+              <ul className="push-logs-card-list">
+                {logs.map((log) => (
+                  <li key={log.id}>
+                    <button
+                      type="button"
+                      className={`push-logs-card${selectedLogId === log.id ? ' is-selected' : ''}`}
+                      onClick={() => setSelectedLogId(log.id)}
+                    >
+                      <div className="push-logs-card-top">
+                        <strong>{log.title}</strong>
+                      </div>
+                      <p className="muted push-logs-card-sub">
+                        {pushLogListSubtitle(log)}
+                      </p>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <div className="push-logs-detail-col rail-card">
+            {selectedLog ? (
+              <PushLogDetailContent log={selectedLog} />
+            ) : (
+              <p className="muted">Select a notification to view delivery details.</p>
+            )}
+          </div>
+        </div>
       )}
     </div>
   )

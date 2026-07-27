@@ -1,7 +1,10 @@
 import { Send } from 'lucide-react'
 import { MobilePageHeader, MobilePageSkeleton } from '../../mobile'
+import { AdminEmptyPanel, AdminItemRowCard } from '../../admin/mobile'
 import { PushQuickPanel } from './PushQuickPanel'
 import { PushComposePanel } from './PushComposePanel'
+import { PushLogDetailSheet } from './PushLogDetailSheet'
+import { pushLogListSubtitle } from '../PushLogDetailContent'
 
 export function PushMobileView({
   tab,
@@ -22,17 +25,24 @@ export function PushMobileView({
   onToggleRole,
   onToggleUser,
   onSubmitCompose,
+  logs,
+  logsLoading,
+  logsError,
+  selectedLog,
+  onSelectLog,
+  onClearSelectedLog,
 }) {
   return (
     <div className="page admin-push-page admin-mobile-page mobile-section-gap">
       <MobilePageHeader
         icon={Send}
         title="Push"
-        description="Quick menu digests or custom sends."
+        description="Send notifications and view delivery logs."
       />
 
       {error && <p className="form-error">{error}</p>}
       {success && <p className="form-success">{success}</p>}
+      {logsError && tab === 'logs' && <p className="form-error">{logsError}</p>}
 
       <div className="mobile-segmented" role="tablist" aria-label="Push sections">
         <button
@@ -42,7 +52,7 @@ export function PushMobileView({
           className={`mobile-segmented-btn${tab === 'quick' ? ' is-active' : ''}`}
           onClick={() => onTabChange('quick')}
         >
-          Quick send
+          Quick
         </button>
         <button
           type="button"
@@ -51,11 +61,37 @@ export function PushMobileView({
           className={`mobile-segmented-btn${tab === 'compose' ? ' is-active' : ''}`}
           onClick={() => onTabChange('compose')}
         >
-          Custom send
+          Custom
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === 'logs'}
+          className={`mobile-segmented-btn${tab === 'logs' ? ' is-active' : ''}`}
+          onClick={() => onTabChange('logs')}
+        >
+          Logs
         </button>
       </div>
 
-      {loading ? (
+      {tab === 'logs' ? (
+        logsLoading ? (
+          <MobilePageSkeleton />
+        ) : logs.length === 0 ? (
+          <AdminEmptyPanel title="No logs yet" message="Sent notifications will appear here." />
+        ) : (
+          <div className="push-logs-mobile-list mobile-section-gap">
+            {logs.map((log) => (
+              <AdminItemRowCard
+                key={log.id}
+                title={log.title}
+                subtitle={pushLogListSubtitle(log)}
+                onClick={() => onSelectLog(log.id)}
+              />
+            ))}
+          </div>
+        )
+      ) : loading ? (
         <MobilePageSkeleton />
       ) : tab === 'quick' ? (
         <PushQuickPanel
@@ -79,6 +115,12 @@ export function PushMobileView({
           onSubmit={onSubmitCompose}
         />
       )}
+
+      <PushLogDetailSheet
+        open={Boolean(selectedLog)}
+        onClose={onClearSelectedLog}
+        log={selectedLog}
+      />
     </div>
   )
 }

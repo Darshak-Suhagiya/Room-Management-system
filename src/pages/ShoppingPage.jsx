@@ -23,6 +23,7 @@ import {
   STOCK_UNIT_LABELS,
   PUSH_AUDIENCE_TYPES,
   PUSH_JOB_KINDS,
+  PUSH_SOURCES,
 } from '../config/constants'
 import {
   canEditShoppingTicket,
@@ -698,6 +699,7 @@ export function ShoppingPage() {
               userIds: [uid],
             },
             softFailNoTokens: true,
+            source: PUSH_SOURCES.SHOPPING,
           })
           if (pushRes?.warning || pushRes?.tokenCount === 0) {
             toast.error(

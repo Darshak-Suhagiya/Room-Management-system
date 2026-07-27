@@ -4,6 +4,7 @@ import {
   COLLECTIONS,
   PUSH_AUDIENCE_TYPES,
   PUSH_JOB_KINDS,
+  PUSH_SOURCES,
 } from '../config/constants'
 import { getPlannedMenuItems } from '../utils/menuVoteUtils'
 
@@ -133,6 +134,7 @@ export async function sendNoticePush(notice) {
     body: notice.message || '',
     kind: PUSH_JOB_KINDS.CUSTOM,
     audience,
+    source: PUSH_SOURCES.NOTICE,
   })
 }
 
@@ -150,6 +152,15 @@ export function audienceSummary(audience) {
   }
   if (audience.type === PUSH_AUDIENCE_TYPES.USERS) {
     return `${(audience.userIds || []).length} user(s)`
+  }
+  if (audience.type === 'roles_or_users') {
+    const roles = audience.roles || []
+    const userIds = audience.userIds || []
+    if (roles.length === 0 && userIds.length === 0) return 'All users'
+    const parts = []
+    if (roles.length) parts.push(`Roles: ${roles.join(', ')}`)
+    if (userIds.length) parts.push(`${userIds.length} user(s)`)
+    return parts.join(' · ')
   }
   return audience.type
 }

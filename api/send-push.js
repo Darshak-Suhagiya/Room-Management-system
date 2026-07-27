@@ -1,5 +1,5 @@
 /**
- * Vercel serverless: send FCM push now (no scheduler / no logs).
+ * Vercel serverless: send FCM push now + write delivery logs.
  * Auth: Firebase ID token in Authorization: Bearer <token>
  * Caller must be admin | kitchen_leader | room_leader.
  *
@@ -9,6 +9,8 @@ import admin from 'firebase-admin'
 
 const MANAGE_ROLES = new Set(['admin', 'kitchen_leader', 'room_leader'])
 
+const AUTOMATIC_SOURCES = new Set(['notice', 'shopping', 'menu_update', 'system'])
+
 const COL = {
   USERS: 'users',
   MENUS: 'menus',
@@ -16,6 +18,7 @@ const COL = {
   MENU_CATEGORIES: 'menuCategories',
   MENU_ITEMS: 'menuItems',
   PUSH_SETTINGS: 'pushSettings',
+  PUSH_LOGS: 'pushLogs',
 }
 
 function initAdmin() {
@@ -142,15 +145,12 @@ async function resolveAudience(db, audience, catalog) {
   const users = await listApprovedUsers(db)
 
   if (type === 'users') {
-    // Explicit targets — do not drop IDs that fail the approved-list filter
-    // (avoids false "No users matched" for shopping assign / targeted alerts).
     return [...new Set((audience.userIds || []).filter(Boolean))]
   }
   if (type === 'roles') {
     const roles = new Set(audience.roles || [])
     return users.filter((u) => roles.has(u.role)).map((u) => u.id)
   }
-  // Notice-style: match if role OR explicit user id (empty both = all)
   if (type === 'roles_or_users') {
     const roles = new Set(audience.roles || [])
     const ids = new Set(audience.userIds || [])
@@ -185,9 +185,39 @@ async function resolveAudience(db, audience, catalog) {
   return users.map((u) => u.id)
 }
 
+async function loadUserProfiles(db, userIds) {
+  const profiles = new Map()
+  const chunkSize = 20
+  for (let i = 0; i < userIds.length; i += chunkSize) {
+    const chunk = userIds.slice(i, i + chunkSize)
+    await Promise.all(
+      chunk.map(async (uid) => {
+        const snap = await db.collection(COL.USERS).doc(uid).get()
+        if (snap.exists) {
+          const data = snap.data()
+          profiles.set(uid, {
+            id: uid,
+            displayName:
+              data.displayName || data.email?.split('@')[0] || 'User',
+            role: data.role ?? null,
+          })
+        } else {
+          profiles.set(uid, {
+            id: uid,
+            displayName: uid,
+            role: null,
+          })
+        }
+      }),
+    )
+  }
+  return profiles
+}
+
 async function loadTokensForUsers(db, userIds) {
   const tokens = []
   const tokenMeta = []
+  const tokensByUser = new Map()
   const chunkSize = 20
   for (let i = 0; i < userIds.length; i += chunkSize) {
     const chunk = userIds.slice(i, i + chunkSize)
@@ -198,17 +228,24 @@ async function loadTokensForUsers(db, userIds) {
           .doc(uid)
           .collection('fcmTokens')
           .get()
+        const userTokens = []
         snap.docs.forEach((d) => {
           const data = d.data()
           if (data.token) {
             tokens.push(data.token)
             tokenMeta.push({ userId: uid, docId: d.id, token: data.token })
+            userTokens.push(data.token)
           }
         })
+        tokensByUser.set(uid, userTokens)
       }),
     )
   }
-  return { tokens: [...new Set(tokens)], tokenMeta }
+  return {
+    tokens: [...new Set(tokens)],
+    tokenMeta,
+    tokensByUser,
+  }
 }
 
 async function pruneInvalidToken(db, meta, errorCode) {
@@ -230,23 +267,90 @@ async function pruneInvalidToken(db, meta, errorCode) {
   }
 }
 
+function dedupeErrors(errors) {
+  const seen = new Set()
+  const out = []
+  for (const err of errors) {
+    const key = `${err.code}:${err.message}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push(err)
+  }
+  return out
+}
+
+function deriveRecipientStatus(successCount, failureCount, deviceCount) {
+  if (deviceCount === 0) return 'no_tokens'
+  if (failureCount === 0) return 'success'
+  if (successCount === 0) return 'failed'
+  return 'partial'
+}
+
+function buildRecipientRows(userIds, profiles, tokensByUser, perUserResults) {
+  return userIds.map((uid) => {
+    const profile = profiles.get(uid) || {
+      id: uid,
+      displayName: uid,
+      role: null,
+    }
+    const deviceCount = tokensByUser.get(uid)?.length ?? 0
+    const result = perUserResults.get(uid) || {
+      successCount: 0,
+      failureCount: 0,
+      errors: [],
+    }
+    const pushEnabled = deviceCount > 0
+    const status = deriveRecipientStatus(
+      result.successCount,
+      result.failureCount,
+      deviceCount,
+    )
+    return {
+      userId: uid,
+      displayName: profile.displayName,
+      role: profile.role,
+      pushEnabled,
+      deviceCount,
+      status,
+      successCount: result.successCount,
+      failureCount: result.failureCount,
+      errors: dedupeErrors(result.errors),
+    }
+  })
+}
+
 async function sendToTokens(db, title, body, tokens, tokenMeta) {
   const uniqueTokens = [...new Set(tokens)]
   if (!uniqueTokens.length) {
-    return { successCount: 0, failureCount: 0, errors: ['No device tokens'] }
+    return {
+      successCount: 0,
+      failureCount: 0,
+      errors: ['No device tokens'],
+      perUserResults: new Map(),
+    }
   }
   const messaging = admin.messaging()
   let successCount = 0
   let failureCount = 0
   const errors = []
+  const perUserResults = new Map()
   const metaByToken = new Map(tokenMeta.map((m) => [m.token, m]))
+
+  const ensureUserResult = (uid) => {
+    if (!perUserResults.has(uid)) {
+      perUserResults.set(uid, {
+        successCount: 0,
+        failureCount: 0,
+        errors: [],
+      })
+    }
+    return perUserResults.get(uid)
+  }
 
   for (let i = 0; i < uniqueTokens.length; i += 500) {
     const batch = uniqueTokens.slice(i, i + 500)
     const res = await messaging.sendEachForMulticast({
       tokens: batch,
-      // Single display path only — do NOT also set webpush.notification
-      // (that causes 2 banners for 1 token on web/PWA).
       notification: { title, body },
       webpush: {
         fcmOptions: { link: '/' },
@@ -257,15 +361,45 @@ async function sendToTokens(db, title, body, tokens, tokenMeta) {
     successCount += res.successCount
     failureCount += res.failureCount
     res.responses.forEach((r, idx) => {
-      if (!r.success) {
+      const meta = metaByToken.get(batch[idx])
+      if (!meta) return
+      const userResult = ensureUserResult(meta.userId)
+      if (r.success) {
+        userResult.successCount += 1
+      } else {
         const code = r.error?.code || 'unknown'
-        errors.push(`${code}: ${r.error?.message || 'send failed'}`)
-        const meta = metaByToken.get(batch[idx])
-        if (meta) pruneInvalidToken(db, meta, code)
+        const message = r.error?.message || 'send failed'
+        userResult.failureCount += 1
+        userResult.errors.push({ code, message })
+        errors.push(`${code}: ${message}`)
+        pruneInvalidToken(db, meta, code)
       }
     })
   }
-  return { successCount, failureCount, errors: errors.slice(0, 20) }
+  return {
+    successCount,
+    failureCount,
+    errors: errors.slice(0, 20),
+    perUserResults,
+  }
+}
+
+async function writePushLog(db, payload) {
+  try {
+    const ref = db.collection(COL.PUSH_LOGS).doc()
+    await ref.set({
+      ...payload,
+      createdAt: new Date().toISOString(),
+    })
+    return ref.id
+  } catch (err) {
+    console.error('push log write failed', err)
+    return null
+  }
+}
+
+function resolveTriggeredBy(source) {
+  return AUTOMATIC_SOURCES.has(source) ? 'automatic' : 'user'
 }
 
 function cors(res) {
@@ -315,6 +449,11 @@ export default async function handler(req, res) {
     const menuDateId = body.menuDateId || null
     const mealSlot = body.mealSlot || null
     const audience = body.audience || { type: 'all' }
+    const source = body.source || 'manual_compose'
+    const triggeredBy = resolveTriggeredBy(source)
+    const createdBy = decoded.uid
+    const createdByName =
+      profile.displayName || profile.email?.split('@')[0] || 'User'
     let messageBody = String(body.body || '')
 
     const catalog = await loadCatalog(db)
@@ -334,13 +473,48 @@ export default async function handler(req, res) {
     }
 
     const userIds = await resolveAudience(db, audience, catalog)
-    const { tokens, tokenMeta } = await loadTokensForUsers(db, userIds)
+    const profiles = await loadUserProfiles(db, userIds)
+    const { tokens, tokenMeta, tokensByUser } = await loadTokensForUsers(
+      db,
+      userIds,
+    )
 
     console.log('send-push audience', {
       userCount: userIds.length,
       tokenCount: tokens.length,
       audienceType: audience?.type,
+      source,
     })
+
+    const sentAt = new Date().toISOString()
+
+    const writeLogForSend = async (result, perUserResults) => {
+      const recipients = buildRecipientRows(
+        userIds,
+        profiles,
+        tokensByUser,
+        perUserResults,
+      )
+      await writePushLog(db, {
+        title,
+        body: messageBody,
+        kind,
+        menuDateId,
+        mealSlot,
+        audience,
+        source,
+        triggeredBy,
+        createdBy,
+        createdByName,
+        sentAt,
+        recipientUserCount: userIds.length,
+        tokenCount: tokens.length,
+        successCount: result.successCount,
+        failureCount: result.failureCount,
+        errors: result.errors,
+        recipients,
+      })
+    }
 
     if (!userIds.length) {
       return res.status(400).json({
@@ -351,8 +525,13 @@ export default async function handler(req, res) {
     }
 
     if (!tokens.length) {
-      // Transactional notifies (e.g. shopping assign) can soft-fail when the
-      // assignee has not enabled push yet.
+      const emptyResult = {
+        successCount: 0,
+        failureCount: 0,
+        errors: ['No device tokens'],
+      }
+      await writeLogForSend(emptyResult, new Map())
+
       if (body.softFailNoTokens) {
         return res.status(200).json({
           ok: true,
@@ -374,6 +553,7 @@ export default async function handler(req, res) {
     }
 
     const result = await sendToTokens(db, title, messageBody, tokens, tokenMeta)
+    await writeLogForSend(result, result.perUserResults)
 
     return res.status(200).json({
       ok: true,

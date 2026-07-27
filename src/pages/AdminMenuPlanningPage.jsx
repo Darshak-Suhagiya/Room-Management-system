@@ -30,6 +30,7 @@ import {
 import {
   PUSH_AUDIENCE_TYPES,
   PUSH_JOB_KINDS,
+  PUSH_SOURCES,
 } from '../config/constants'
 import { formatDisplayDateGu, getPlannedDateIds } from '../utils/mealDateUtils'
 import {
@@ -207,6 +208,7 @@ export function AdminMenuPlanningPage() {
               userIds,
             },
             softFailNoTokens: true,
+            source: PUSH_SOURCES.MENU_UPDATE,
           })
         } catch (pushErr) {
           console.error('menu update push', pushErr)
