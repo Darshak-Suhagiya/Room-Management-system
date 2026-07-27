@@ -7,7 +7,6 @@ import {
   orderBy,
   query,
   updateDoc,
-  where,
   writeBatch,
 } from 'firebase/firestore'
 import { COLLECTIONS } from '../config/constants'
@@ -46,12 +45,15 @@ export function normalizeNotification(id, data) {
 }
 
 function inboxQuery(userId, max) {
-  return query(
-    notificationsCol(userId),
-    where('clearedAt', '==', null),
-    orderBy('sentAt', 'desc'),
-    limit(max),
-  )
+  // Fetch extra rows so cleared items filtered client-side still fill the inbox.
+  return query(notificationsCol(userId), orderBy('sentAt', 'desc'), limit(max * 3))
+}
+
+function activeNotifications(docs, max) {
+  return docs
+    .map((d) => normalizeNotification(d.id, d.data()))
+    .filter((n) => !n.clearedAt)
+    .slice(0, max)
 }
 
 export function subscribeNotifications(userId, onChange, { limit: max = 50 } = {}) {
@@ -64,15 +66,17 @@ export function subscribeNotifications(userId, onChange, { limit: max = 50 } = {
   return onSnapshot(
     q,
     (snap) => {
-      const notifications = snap.docs.map((d) =>
-        normalizeNotification(d.id, d.data()),
-      )
+      const notifications = activeNotifications(snap.docs, max)
       const unreadCount = notifications.filter((n) => n.isUnread).length
-      onChange({ notifications, unreadCount })
+      onChange({ notifications, unreadCount, error: null })
     },
     (err) => {
       console.error('notification inbox subscribe', err)
-      onChange({ notifications: [], unreadCount: 0, error: err.message })
+      onChange({
+        notifications: [],
+        unreadCount: 0,
+        error: err.message || 'Could not load notifications.',
+      })
     },
   )
 }
@@ -80,20 +84,19 @@ export function subscribeNotifications(userId, onChange, { limit: max = 50 } = {
 export async function listNotifications(userId, { limit: max = 50 } = {}) {
   if (!isFirebaseConfigured || !db || !userId) return []
   const snap = await getDocs(inboxQuery(userId, max))
-  return snap.docs.map((d) => normalizeNotification(d.id, d.data()))
+  return activeNotifications(snap.docs, max)
 }
 
 export async function markAllSeen(userId) {
   if (!isFirebaseConfigured || !db || !userId) return
-  const snap = await getDocs(
-    query(notificationsCol(userId), where('clearedAt', '==', null), limit(50)),
-  )
+  const snap = await getDocs(inboxQuery(userId, 50))
   if (snap.empty) return
   const now = new Date().toISOString()
   const batch = writeBatch(db)
   let pending = 0
   snap.docs.forEach((d) => {
-    if (!d.data().seenAt) {
+    const data = d.data()
+    if (!data.clearedAt && !data.seenAt) {
       batch.update(d.ref, { seenAt: now })
       pending += 1
     }
@@ -119,14 +122,13 @@ export async function markRead(userId, notificationId) {
 
 export async function clearAll(userId) {
   if (!isFirebaseConfigured || !db || !userId) return
-  const snap = await getDocs(
-    query(notificationsCol(userId), where('clearedAt', '==', null)),
-  )
-  if (snap.empty) return
+  const snap = await getDocs(inboxQuery(userId, 50))
+  const active = snap.docs.filter((d) => !d.data().clearedAt)
+  if (!active.length) return
   const now = new Date().toISOString()
-  for (let i = 0; i < snap.docs.length; i += 500) {
+  for (let i = 0; i < active.length; i += 500) {
     const batch = writeBatch(db)
-    snap.docs.slice(i, i + 500).forEach((d) => {
+    active.slice(i, i + 500).forEach((d) => {
       batch.update(d.ref, { clearedAt: now, seenAt: d.data().seenAt ?? now })
     })
     await batch.commit()
