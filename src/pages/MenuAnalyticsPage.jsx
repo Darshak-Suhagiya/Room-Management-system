@@ -27,6 +27,7 @@ import {
   getItemCookHistory,
   resolveAnalyticsRange,
 } from '../utils/menuReviewUtils'
+import { useRegisterPullToRefresh } from '../hooks/useRegisterPullToRefresh'
 
 const MIN_REVIEWS_FOR_BEST = 3
 
@@ -73,14 +74,14 @@ export function MenuAnalyticsPage() {
   const [historyMode, setHistoryMode] = useState('range') // last5 | range
   const isMobileLayout = useMediaQuery('(max-width: 899px)')
 
-  const load = useCallback(async () => {
+  const load = useCallback(async ({ silent = false } = {}) => {
     if (!categoryIds?.length) {
       setMenus([])
       setParticipations([])
-      setLoading(false)
+      if (!silent) setLoading(false)
       return
     }
-    setLoading(true)
+    if (!silent) setLoading(true)
     setError('')
     try {
       const [menuList, parts] = await Promise.all([
@@ -92,9 +93,13 @@ export function MenuAnalyticsPage() {
     } catch (err) {
       setError(err.message || 'Failed to load analytics data.')
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }, [categoryIds])
+
+  useRegisterPullToRefresh(async () => {
+    await load({ silent: true })
+  })
 
   useEffect(() => {
     load()

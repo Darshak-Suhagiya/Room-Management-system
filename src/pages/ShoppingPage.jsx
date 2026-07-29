@@ -15,6 +15,7 @@ import { useMenuCatalog } from '../hooks/useMenuCatalog'
 import { MobilePageHeader, MobilePageSkeleton } from '../components/mobile'
 import { useDelayedLoading } from '../hooks/useDelayedLoading'
 import { useSaveMutation } from '../hooks/useSaveMutation'
+import { useRegisterPullToRefresh } from '../hooks/useRegisterPullToRefresh'
 import { ShoppingMobileView } from '../components/stock/mobile'
 import { StockQtySlider } from '../components/stock/StockQtySlider'
 import { ShoppingTicketPreview } from '../components/stock/ShoppingTicketPreview'
@@ -527,6 +528,10 @@ export function ShoppingPage() {
       setLoading(false)
     }
   }, [toast, user?.uid])
+
+  useRegisterPullToRefresh(async () => {
+    await reload({ silent: true })
+  })
 
   const patchTicket = useCallback((updated) => {
     if (!updated?.id) return

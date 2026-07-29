@@ -27,6 +27,7 @@ import {
   sendPushNow,
 } from '../services/pushAdminService'
 import { listPushLogs } from '../services/pushLogService'
+import { useRegisterPullToRefresh } from '../hooks/useRegisterPullToRefresh'
 
 const EMPTY_COMPOSE = {
   title: '',
@@ -63,8 +64,8 @@ export function AdminPushPage() {
   const todayId = useMemo(() => formatDateId(new Date()), [])
   const tomorrowId = useMemo(() => getTomorrowDateId(), [])
 
-  const reload = useCallback(async () => {
-    setLoading(true)
+  const reload = useCallback(async ({ silent = false } = {}) => {
+    if (!silent) setLoading(true)
     setError('')
     try {
       const [s, u, cat] = await Promise.all([
@@ -79,7 +80,7 @@ export function AdminPushPage() {
       console.error(err)
       setError(err.message || 'Failed to load push data.')
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }, [])
 
@@ -87,8 +88,8 @@ export function AdminPushPage() {
     reload()
   }, [reload])
 
-  const loadLogs = useCallback(async () => {
-    setLogsLoading(true)
+  const loadLogs = useCallback(async ({ silent = false } = {}) => {
+    if (!silent) setLogsLoading(true)
     setLogsError('')
     try {
       const items = await listPushLogs({ limit: 50 })
@@ -101,9 +102,14 @@ export function AdminPushPage() {
       console.error(err)
       setLogsError(err.message || 'Failed to load push logs.')
     } finally {
-      setLogsLoading(false)
+      if (!silent) setLogsLoading(false)
     }
   }, [])
+
+  useRegisterPullToRefresh(async () => {
+    await reload({ silent: true })
+    if (tab === 'logs') await loadLogs({ silent: true })
+  })
 
   useEffect(() => {
     if (tab === 'logs') {

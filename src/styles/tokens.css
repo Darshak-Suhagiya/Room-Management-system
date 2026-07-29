@@ -26,6 +26,29 @@
 
   /* Seva group tones (up to 10) — overridden per theme × appearance */
   --seva-tone-count: 10;
+
+  /* Liquid glass / floating dock (resolved against theme --surface etc.) */
+  --glass-bg: color-mix(in srgb, var(--surface) 55%, transparent);
+  --glass-solid: color-mix(in srgb, var(--surface) 90%, transparent);
+  --glass-border: color-mix(in srgb, var(--border) 65%, transparent);
+  --glass-blur: 32px;
+  --glass-saturate: 1.6;
+  --glass-shadow: 0 8px 32px color-mix(in srgb, var(--text) 12%, transparent);
+  --glass-highlight: color-mix(in srgb, #fff 40%, transparent);
+  --nav-dock-radius: 28px;
+  --nav-dock-inset: 0.75rem;
+  --nav-dock-gap: 0.5rem;
+  --chrome-stack-gap: 0.5rem;
+  --sheet-radius: 20px;
+}
+
+html[data-appearance='dark'] {
+  --glass-bg: color-mix(in srgb, var(--surface) 62%, transparent);
+  --glass-solid: color-mix(in srgb, var(--surface) 92%, transparent);
+  --glass-blur: 36px;
+  --glass-saturate: 1.5;
+  --glass-shadow: 0 10px 36px color-mix(in srgb, #000 45%, transparent);
+  --glass-highlight: color-mix(in srgb, #fff 14%, transparent);
 }
 
 html[data-ui-scale='large'] {

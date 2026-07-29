@@ -16,6 +16,7 @@ import { MobileActionBar } from '../components/ui/MobileActionBar'
 import { useDelayedLoading } from '../hooks/useDelayedLoading'
 import { useSaveMutation } from '../hooks/useSaveMutation'
 import { useMenuCatalog } from '../hooks/useMenuCatalog'
+import { useRegisterPullToRefresh } from '../hooks/useRegisterPullToRefresh'
 import {
   formatDateId,
   getAllPlannedMenus,
@@ -81,6 +82,12 @@ export function AdminMenuPlanningPage() {
     setParticipations(parts)
     setPlannedDates(new Set(getPlannedDateIds(menusData)))
   }, [categoryKey])
+
+  useRegisterPullToRefresh(async () => {
+    await loadHistory()
+    const data = await getMenuByDate(selectedDateRef.current, categoryIds)
+    setMenu(data)
+  })
 
   useEffect(() => {
     if (catalogLoading) return

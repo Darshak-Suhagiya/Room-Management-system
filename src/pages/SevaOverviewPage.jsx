@@ -12,6 +12,11 @@ import { PageHeader } from '../components/ui/PageHeader'
 import { MobilePageHeader, MobilePageSkeleton } from '../components/mobile'
 import { useDelayedLoading } from '../hooks/useDelayedLoading'
 import { NOTICE_PAGES } from '../config/constants'
+import { useRegisterPullToRefresh } from '../hooks/useRegisterPullToRefresh'
+import {
+  invalidateActiveNoticesCache,
+  listActiveNotices,
+} from '../services/noticeService'
 import { getPersonById } from '../utils/sevaLoadUtils'
 import {
   findLinkedPerson,
@@ -55,6 +60,11 @@ export function SevaOverviewPage() {
     () => findLinkedPerson(config?.people, user?.uid),
     [config?.people, user?.uid],
   )
+
+  useRegisterPullToRefresh(async () => {
+    invalidateActiveNoticesCache()
+    await listActiveNotices({ bypassCache: true }).catch(() => {})
+  })
 
   const mobileDay = weekDays.find((d) => d.id === selectedDayId) ?? weekDays[0]
 

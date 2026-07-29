@@ -4649,7 +4649,72 @@
   padding-bottom: 0.5rem;
 }
 
-/* User notification inbox (bell) */
+/* Pull-to-refresh (mobile / PWA soft refresh) */
+.ptr-root {
+  min-height: 100%;
+}
+
+.ptr-indicator {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  overflow: hidden;
+  height: 0;
+  transition: none;
+  background: transparent;
+  pointer-events: none;
+}
+
+.ptr-indicator.is-refreshing {
+  transition: height 0.18s ease;
+}
+
+.ptr-indicator-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  width: 100%;
+  min-height: 3.25rem;
+  padding-bottom: 0.35rem;
+  color: var(--muted);
+}
+
+.ptr-indicator.is-ready .ptr-indicator-inner,
+.ptr-indicator.is-refreshing .ptr-indicator-inner {
+  color: var(--primary);
+}
+
+.ptr-spinner {
+  flex-shrink: 0;
+  opacity: 0.85;
+  will-change: transform;
+}
+
+.ptr-spinner.is-spinning {
+  animation: ptr-spin 0.7s linear infinite;
+}
+
+@keyframes ptr-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.ptr-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1;
+}
+
+@media (min-width: 900px) {
+  .ptr-indicator {
+    display: none;
+  }
+}
+
 .topbar-notif-anchor {
   position: relative;
   display: inline-flex;

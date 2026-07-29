@@ -8,6 +8,8 @@ import { NotificationInboxProvider } from '../contexts/NotificationInboxContext'
 import { NotificationBell } from './notifications/NotificationBell'
 import { NotificationInboxPanel } from './notifications/NotificationInboxPanel'
 import { NotificationInboxSheet } from './notifications/NotificationInboxSheet'
+import { PullToRefresh } from './PullToRefresh'
+import { PullToRefreshProvider } from '../contexts/PullToRefreshContext'
 import { BottomNav } from './BottomNav'
 import { MobileTabCache } from './mobile/MobileTabCache'
 import { getBottomNavTabs, isBottomNavRoute } from '../config/bottomNavTabs'
@@ -19,6 +21,7 @@ import {
   resolveTabsFromIds,
 } from '../config/appNavRegistry'
 import { useMediaQuery } from '../hooks/useMediaQuery'
+import { applyGlassSupportClass } from '../lib/detectGlassSupport'
 import { getRoleLabel, getUserInitials } from '../utils/userDisplay'
 import { listActiveNotices } from '../services/noticeService'
 
@@ -83,6 +86,10 @@ export function Layout() {
     isMobileLayout && isBottomNavRoute(bottomNavTabs, location.pathname)
 
   useEffect(() => {
+    applyGlassSupportClass()
+  }, [])
+
+  useEffect(() => {
     const prevTabIds = prevTabIdsRef.current
     if (prevTabIds === tabIds) return
     prevTabIdsRef.current = tabIds
@@ -108,6 +115,7 @@ export function Layout() {
 
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const scrimRef = useRef(null)
+  const appMainRef = useRef(null)
 
   useEffect(() => {
     setSidebarOpen(false)
@@ -166,6 +174,7 @@ export function Layout() {
   return (
     <PushNotificationProvider>
       <NotificationInboxProvider>
+      <PullToRefreshProvider>
       <div className="app-layout">
         <aside className={`sidebar ${sidebarOpen ? 'is-open' : ''}`}>
           <div className="sidebar-brand">
@@ -259,15 +268,17 @@ export function Layout() {
 
           {isMobileLayout && <NotificationInboxSheet />}
 
-          <main className="app-main">
-            {showMobileTabCache ? (
-              <MobileTabCache
-                activePath={location.pathname}
-                tabs={bottomNavTabs}
-              />
-            ) : (
-              <Outlet />
-            )}
+          <main className="app-main" ref={appMainRef}>
+            <PullToRefresh scrollRef={appMainRef}>
+              {showMobileTabCache ? (
+                <MobileTabCache
+                  activePath={location.pathname}
+                  tabs={bottomNavTabs}
+                />
+              ) : (
+                <Outlet />
+              )}
+            </PullToRefresh>
           </main>
 
           <div id="mobile-action-portal" className="mobile-action-portal" />
@@ -275,6 +286,7 @@ export function Layout() {
           <BottomNav />
         </div>
       </div>
+      </PullToRefreshProvider>
       </NotificationInboxProvider>
     </PushNotificationProvider>
   )

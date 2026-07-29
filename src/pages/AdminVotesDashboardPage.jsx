@@ -8,6 +8,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useMenuCatalog } from '../hooks/useMenuCatalog'
 import { useMediaQuery } from '../hooks/useMediaQuery'
 import { useMobileTabPanelActive } from '../contexts/MobileTabPanelContext'
+import { useRegisterPullToRefresh } from '../hooks/useRegisterPullToRefresh'
 import { MobilePageSkeleton } from '../components/mobile/MobilePageSkeleton'
 import { useDelayedLoading } from '../hooks/useDelayedLoading'
 import {
@@ -153,6 +154,10 @@ export function AdminVotesDashboardPage() {
     setMenus(menuData)
     setUsers(userList)
   }, [categoryIds])
+
+  useRegisterPullToRefresh(async () => {
+    await loadDashboard()
+  })
 
   useEffect(() => {
     if (catalogLoading) return

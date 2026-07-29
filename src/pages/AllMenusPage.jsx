@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   ArrowLeft as IconBack,
@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import { MobilePageHeader } from '../components/mobile'
 import { useMenuCatalog } from '../hooks/useMenuCatalog'
+import { useRegisterPullToRefresh } from '../hooks/useRegisterPullToRefresh'
 import { getAllPlannedMenus } from '../services/menuService'
 import { getPlannedMenuItems } from '../utils/menuVoteUtils'
 import { MEAL_SLOTS } from '../config/menuItems'
@@ -25,28 +26,27 @@ export function AllMenusPage() {
 
   const categoryKey = categoryIds.join(',')
 
-  useEffect(() => {
+  const loadMenus = useCallback(async ({ silent = false } = {}) => {
     if (catalogLoading) return
-
-    let cancelled = false
-    setLoading(true)
-
-    getAllPlannedMenus(categoryIds)
-      .then((data) => {
-        if (!cancelled) setMenus(data)
-      })
-      .catch((err) => {
-        if (!cancelled) setError(err.message)
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
-
-    return () => {
-      cancelled = true
+    if (!silent) setLoading(true)
+    try {
+      const data = await getAllPlannedMenus(categoryIds)
+      setMenus(data)
+      setError('')
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      if (!silent) setLoading(false)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [catalogLoading, categoryKey])
+
+  useRegisterPullToRefresh(async () => {
+    await loadMenus({ silent: true })
+  })
+
+  useEffect(() => {
+    loadMenus()
+  }, [loadMenus])
 
   const rows = useMemo(() => {
     const out = []

@@ -183,8 +183,32 @@
   color: var(--muted);
 }
 
+/* ─── Liquid glass surfaces ─── */
+.glass-surface {
+  background: var(--glass-solid);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+}
+
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  html.glass-ok .glass-surface {
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate, 1.6));
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate, 1.6));
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .glass-surface {
+    background: var(--glass-solid);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
 /* ─── Content column ─── */
 .app-content {
+  position: relative;
   flex: 1;
   min-width: 0;
   min-height: 0;
@@ -211,13 +235,21 @@
   display: none;
   flex-shrink: 0;
   z-index: 50;
-  border-top: 1px solid var(--border);
-  background: color-mix(in srgb, var(--surface) 97%, transparent);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  box-shadow: 0 -4px 16px color-mix(in srgb, var(--text) 6%, transparent);
   min-height: var(--bottom-nav-height, 3.25rem);
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--nav-dock-radius);
+  background: var(--glass-solid);
+  box-shadow:
+    var(--glass-shadow),
+    inset 0 1px 0 var(--glass-highlight);
+}
+
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  html.glass-ok .bottom-nav {
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate, 1.6));
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate, 1.6));
+  }
 }
 
 .bottom-nav-link {
@@ -233,9 +265,10 @@
 
 .bottom-nav-active-pill {
   position: absolute;
-  inset: 0.2rem 0.3rem;
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--primary) 14%, transparent);
+  inset: 0.28rem 0.35rem;
+  border-radius: calc(var(--nav-dock-radius) - 6px);
+  background: color-mix(in srgb, var(--primary) 16%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 22%, transparent);
   z-index: 0;
 }
 
@@ -532,10 +565,17 @@
 @media (max-width: 899px) {
   .app-layout {
     --bottom-nav-height: 3.5rem;
+    /* Dock height + float gap + safe area (nav is absolute / overlays content) */
     --bottom-nav-total-height: calc(
-      var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px)
+      var(--bottom-nav-height) + var(--nav-dock-gap) + env(safe-area-inset-bottom, 0px)
     );
-    --mobile-action-bar-height: 3.75rem;
+    --mobile-action-bar-height: 4.75rem;
+    --chrome-action-offset: calc(
+      var(--bottom-nav-total-height) + var(--chrome-stack-gap)
+    );
+    --chrome-content-inset-with-action: calc(
+      var(--chrome-action-offset) + var(--mobile-action-bar-height) + 0.75rem
+    );
   }
 
   .app-main {
@@ -553,9 +593,7 @@
 
   body.mobile-action-bar-visible .app-main,
   body.meals-save-bar-visible .app-main {
-    padding-bottom: calc(
-      1rem + var(--bottom-nav-total-height) + var(--mobile-action-bar-height)
-    );
+    padding-bottom: var(--chrome-content-inset-with-action);
   }
 
   .mobile-action-portal {
@@ -594,9 +632,28 @@
     display: inline-flex;
   }
 
+  .topbar {
+    background: var(--glass-solid);
+    border-bottom-color: var(--glass-border);
+    box-shadow: 0 1px 0 var(--glass-highlight);
+  }
+
+  @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    html.glass-ok .topbar {
+      background: var(--glass-bg);
+      backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate, 1.6));
+      -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate, 1.6));
+    }
+  }
+
   .bottom-nav {
     display: flex;
     align-items: stretch;
+    position: absolute;
+    left: var(--nav-dock-inset);
+    right: var(--nav-dock-inset);
+    bottom: calc(var(--nav-dock-gap) + env(safe-area-inset-bottom, 0px));
+    padding-bottom: 0;
   }
 }
 
@@ -3115,9 +3172,9 @@
 
   .meals-mobile-save-bar {
     position: fixed;
-    left: 0;
-    right: 0;
-    bottom: var(--bottom-nav-total-height);
+    left: var(--nav-dock-inset);
+    right: var(--nav-dock-inset);
+    bottom: var(--chrome-action-offset);
     z-index: 55;
     margin: 0;
     padding: 0.5rem 1rem;
@@ -3126,13 +3183,18 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    border-top: 1px solid var(--border);
-    border-bottom: none;
-    border-radius: 0;
-    background: color-mix(in srgb, var(--surface) 98%, transparent);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    box-shadow: 0 -2px 12px color-mix(in srgb, var(--text) 5%, transparent);
+    border: 1px solid var(--glass-border);
+    border-radius: calc(var(--nav-dock-radius) - 4px);
+    background: var(--glass-solid);
+    box-shadow: var(--glass-shadow);
+  }
+
+  @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    html.glass-ok .meals-mobile-save-bar {
+      background: var(--glass-bg);
+      backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate, 1.6));
+      -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate, 1.6));
+    }
   }
 
   .meals-mobile-save-bar .vote-actions,
@@ -3525,17 +3587,6 @@
     font-size: 0.88rem;
   }
 
-  body.mobile-action-bar-visible .bottom-nav,
-  body.meals-save-bar-visible .bottom-nav {
-    border-top: none;
-  }
-
-  body.mobile-action-bar-visible .meals-mobile-save-bar,
-  body.mobile-action-bar-visible .mobile-action-bar,
-  body.meals-save-bar-visible .meals-mobile-save-bar {
-    border-bottom: 1px solid var(--border);
-  }
-
   .toast-stack {
     bottom: calc(var(--bottom-nav-total-height) + 0.75rem);
     right: 0.75rem;
@@ -3545,9 +3596,7 @@
 
   body.mobile-action-bar-visible .toast-stack,
   body.meals-save-bar-visible .toast-stack {
-    bottom: calc(
-      var(--bottom-nav-total-height) + var(--mobile-action-bar-height) + 0.75rem
-    );
+    bottom: calc(var(--chrome-action-offset) + var(--mobile-action-bar-height) + 0.75rem);
   }
 
   /* All menus: mobile date cards grouped by day */
@@ -3776,9 +3825,29 @@
   gap: 0.75rem;
   width: 100%;
   padding: 0.5rem 1rem;
-  background: var(--surface);
-  border-top: 1px solid var(--border);
-  box-shadow: 0 -4px 16px color-mix(in srgb, var(--text) 8%, transparent);
+  background: var(--glass-solid);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+}
+
+@media (max-width: 899px) {
+  .mobile-action-bar {
+    position: fixed;
+    left: var(--nav-dock-inset);
+    right: var(--nav-dock-inset);
+    bottom: var(--chrome-action-offset);
+    z-index: 55;
+    width: auto;
+    border-radius: calc(var(--nav-dock-radius) - 4px);
+  }
+
+  @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    html.glass-ok .mobile-action-bar {
+      background: var(--glass-bg);
+      backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate, 1.6));
+      -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate, 1.6));
+    }
+  }
 }
 
 .mobile-action-bar .btn {
@@ -4593,6 +4662,23 @@
 }
 
 /* ─── Modal / bottom sheet chrome ─── */
+.modal-sheet-grabber {
+  display: none;
+  width: 2.25rem;
+  height: 0.28rem;
+  margin: 0.55rem auto 0.15rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--muted) 45%, transparent);
+  flex-shrink: 0;
+}
+
+.modal-sheet-grabber-hit {
+  display: none;
+  touch-action: none;
+  cursor: grab;
+  padding: 0.15rem 0 0.1rem;
+}
+
 .modal-sheet-header {
   display: flex;
   align-items: center;
@@ -4653,9 +4739,36 @@
   cursor: not-allowed;
 }
 
+.modal-sheet-scrim {
+  position: fixed;
+  inset: 0;
+  background: var(--modal-overlay, var(--overlay));
+}
+
 @media (max-width: 899px) {
+  .modal-sheet-grabber,
+  .modal-sheet-grabber-hit {
+    display: block;
+  }
+
+  .modal-sheet {
+    border-radius: var(--sheet-radius) var(--sheet-radius) 0 0;
+    background: var(--glass-solid);
+    border: 1px solid var(--glass-border);
+    border-bottom: none;
+    box-shadow: var(--modal-shadow, var(--glass-shadow));
+  }
+
+  @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    html.glass-ok .modal-sheet {
+      background: var(--glass-bg);
+      backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate, 1.6));
+      -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate, 1.6));
+    }
+  }
+
   .modal-sheet-header {
-    padding-top: 1.25rem;
+    padding-top: 0.35rem;
     padding-left: 1rem;
     padding-right: 0.75rem;
     padding-bottom: 0.9rem;
@@ -4676,6 +4789,8 @@
     padding-bottom: 0.45rem;
     padding-top: calc(0.45rem + env(safe-area-inset-top, 0px));
     min-height: calc(2.75rem + env(safe-area-inset-top, 0px));
+    position: sticky;
+    top: 0;
   }
 
   .topbar-brand {
@@ -5059,7 +5174,9 @@
   }
 
   .admin-mobile-page-with-bar {
-    padding-bottom: calc(var(--bottom-nav-height, 4rem) + var(--mobile-action-bar-height, 4.5rem));
+    padding-bottom: calc(
+      var(--chrome-stack-gap, 0.5rem) + var(--mobile-action-bar-height, 4.75rem) + 0.5rem
+    );
   }
 
   .admin-mobile-page-actions {
