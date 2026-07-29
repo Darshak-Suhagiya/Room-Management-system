@@ -11,6 +11,7 @@ import { SevaPrefillPanel } from '../components/seva/SevaPrefillPanel'
 import { SevaAdminMobileSchedule } from '../components/seva/SevaAdminMobileSchedule'
 import { MobilePageHeader } from '../components/mobile'
 import { useSevaRoom } from '../hooks/useSevaRoom'
+import { useRegisterPullToRefresh } from '../hooks/useRegisterPullToRefresh'
 import { getTodayWeekDayId } from '../utils/sevaDayUtils'
 import { listAllUsers } from '../services/userService'
 import {
@@ -48,6 +49,11 @@ export function AdminSevaPage() {
   useEffect(() => {
     listAllUsers().then(setUsers).catch(() => setUsers([]))
   }, [])
+
+  useRegisterPullToRefresh(async () => {
+    const list = await listAllUsers().catch(() => [])
+    setUsers(list)
+  })
 
   const handleSave = async () => {
     try {

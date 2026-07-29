@@ -16,6 +16,7 @@ import {
   updateUserByAdmin,
   updateUserStatus,
 } from '../services/userService'
+import { useRegisterPullToRefresh } from '../hooks/useRegisterPullToRefresh'
 
 const STATUS_LABEL = {
   pending: 'Pending',
@@ -50,8 +51,8 @@ export function AdminUsersPage() {
   )
   const actorRole = profile?.role
 
-  const loadUsers = useCallback(async () => {
-    setLoading(true)
+  const loadUsers = useCallback(async ({ silent = false } = {}) => {
+    if (!silent) setLoading(true)
     setError('')
     try {
       const list = await listAllUsers()
@@ -60,9 +61,13 @@ export function AdminUsersPage() {
     } catch (err) {
       setError(err.message)
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }, [])
+
+  useRegisterPullToRefresh(async () => {
+    await loadUsers({ silent: true })
+  })
 
   useEffect(() => {
     loadUsers()

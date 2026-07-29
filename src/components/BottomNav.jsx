@@ -1,9 +1,12 @@
+import { useEffect } from 'react'
 import { NavLink } from 'react-router-dom'
 import { motion } from 'motion/react'
 import { useAuth } from '../contexts/AuthContext'
 import { useBottomNavPreferences } from '../contexts/BottomNavPreferencesContext'
 import { getBottomNavTabs } from '../config/bottomNavTabs'
 import { buildAuthSnapshot } from '../config/appNavRegistry'
+import { applyGlassSupportClass } from '../lib/detectGlassSupport'
+import { springSnappy, springSoft } from '../lib/motionPresets'
 import { triggerSelectionHaptic } from '../utils/haptics'
 
 function BottomNavLink({ to, end, label, icon: Icon }) {
@@ -20,14 +23,14 @@ function BottomNavLink({ to, end, label, icon: Icon }) {
             <motion.span
               layoutId="bottom-nav-active-pill"
               className="bottom-nav-active-pill"
-              transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+              transition={springSnappy}
             />
           )}
           <motion.span
             className="bottom-nav-link-inner"
-            whileTap={{ scale: 0.92 }}
-            animate={{ scale: isActive ? 1.05 : 1 }}
-            transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+            whileTap={{ scale: 0.96 }}
+            animate={{ scale: isActive ? 1.02 : 1 }}
+            transition={springSoft}
           >
             <Icon
               size={22}
@@ -54,10 +57,14 @@ export function BottomNav() {
 
   const tabs = getBottomNavTabs(auth, { isCustomizable, tabIds })
 
+  useEffect(() => {
+    applyGlassSupportClass()
+  }, [])
+
   if (tabs.length === 0) return null
 
   return (
-    <nav className="bottom-nav" aria-label="Primary navigation">
+    <nav className="bottom-nav glass-surface" aria-label="Primary navigation">
       {tabs.map((tab) => (
         <BottomNavLink
           key={tab.path}

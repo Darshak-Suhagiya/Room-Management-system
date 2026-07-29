@@ -16,6 +16,7 @@ import { MobilePageSkeleton } from '../components/mobile/MobilePageSkeleton'
 import { NOTICE_PAGES } from '../config/constants'
 import { useMenuCatalog } from '../hooks/useMenuCatalog'
 import { useMobileTabPanelActive } from '../contexts/MobileTabPanelContext'
+import { useRegisterPullToRefresh } from '../hooks/useRegisterPullToRefresh'
 import { getAllPlannedMenus, getMenuByDate } from '../services/menuService'
 import { subscribeVoteLock } from '../services/voteLockService'
 import { subscribeUserParticipations } from '../services/participationService'
@@ -185,6 +186,7 @@ export function UserDashboardPage() {
   const [selectedSlot, setSelectedSlot] = useState('morning')
   const [calendarOpen, setCalendarOpen] = useState(false)
   const [optionsOpen, setOptionsOpen] = useState(false)
+  const [panelRefreshTick, setPanelRefreshTick] = useState(0)
   const mobileInitializedRef = useRef(false)
   const [participations, setParticipations] = useState([])
   const [showOthersFeedback, setShowOthersFeedback] = useState(() => {
@@ -221,6 +223,11 @@ export function UserDashboardPage() {
     const data = await getAllPlannedMenus(categoryIds)
     setMenus(sortMenusByDateDesc(data))
   }, [categoryKey])
+
+  useRegisterPullToRefresh(async () => {
+    await loadMenus()
+    setPanelRefreshTick((t) => t + 1)
+  })
 
   useEffect(() => {
     if (catalogLoading) return
@@ -443,6 +450,7 @@ export function UserDashboardPage() {
                 <div className="menu-slots-row">
                   {selectedMenu.hasMorning && (
                     <SlotWithLock
+                      key={`morning-${panelRefreshTick}`}
                       {...slotPanelProps}
                       dateId={selectedMenu.date}
                       slot="morning"
@@ -450,6 +458,7 @@ export function UserDashboardPage() {
                   )}
                   {selectedMenu.hasEvening && (
                     <SlotWithLock
+                      key={`evening-${panelRefreshTick}`}
                       {...slotPanelProps}
                       dateId={selectedMenu.date}
                       slot="evening"
@@ -549,6 +558,7 @@ export function UserDashboardPage() {
                 <div className="meals-mobile-slot-panel">
                   {availableSlots.includes(selectedSlot) && (
                     <SlotWithLock
+                      key={`${selectedSlot}-${panelRefreshTick}`}
                       {...slotPanelProps}
                       dateId={selectedMenu.date}
                       slot={selectedSlot}

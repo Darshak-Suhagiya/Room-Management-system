@@ -14,6 +14,7 @@ import { useToast } from '../contexts/ToastContext'
 import { MobilePageHeader, MobilePageSkeleton } from '../components/mobile'
 import { useDelayedLoading } from '../hooks/useDelayedLoading'
 import { useSaveMutation } from '../hooks/useSaveMutation'
+import { useRegisterPullToRefresh } from '../hooks/useRegisterPullToRefresh'
 import { StocksMobileView } from '../components/stock/mobile'
 import { StockQtySlider } from '../components/stock/StockQtySlider'
 import {
@@ -390,6 +391,10 @@ export function StocksPage() {
       setLoading(false)
     }
   }, [toast, user?.uid])
+
+  useRegisterPullToRefresh(async () => {
+    await reload({ silent: true })
+  })
 
   const patchItem = useCallback((updated) => {
     if (!updated?.id) return

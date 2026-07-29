@@ -14,6 +14,8 @@ import {
 } from '../services/catalogService'
 import { PlanningViewGroupsEditor } from '../components/PlanningViewGroupsEditor'
 import { CatalogMobileView } from '../components/catalog/mobile'
+import { useRegisterPullToRefresh } from '../hooks/useRegisterPullToRefresh'
+import { fetchCatalog } from '../services/catalogService'
 
 function VoteTypeSegmented({ value, onChange }) {
   return (
@@ -419,6 +421,9 @@ function AddCategoryForm({ notify, handleError }) {
 
 export function AdminMenuCatalogPage() {
   const { catalog, loading, seeding, error } = useMenuCatalog({ autoSeed: true })
+  useRegisterPullToRefresh(async () => {
+    await fetchCatalog()
+  })
   const toast = useToast()
   const isMobile = useMediaQuery('(max-width: 899px)')
 

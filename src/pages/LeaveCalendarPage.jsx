@@ -20,6 +20,7 @@ import {
   updateLeave,
 } from '../services/leaveService'
 import { formatDateId } from '../utils/mealDateUtils'
+import { useRegisterPullToRefresh } from '../hooks/useRegisterPullToRefresh'
 
 function currentMonthView() {
   const now = new Date()
@@ -303,13 +304,13 @@ export function LeaveCalendarPage() {
     }
   }, [])
 
-  const loadLeaves = useCallback(async () => {
+  const loadLeaves = useCallback(async ({ silent = false } = {}) => {
     if (maharajs.length === 0) {
       setLeaves([])
-      setLoading(false)
+      if (!silent) setLoading(false)
       return
     }
-    setLoading(true)
+    if (!silent) setLoading(true)
     setError('')
     try {
       const rows = await listLeavesForMonth(
@@ -322,10 +323,15 @@ export function LeaveCalendarPage() {
       console.error(err)
       setError(err.message || 'Could not load leave entries.')
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
       initialLoadDone.current = true
     }
   }, [maharajs, viewMonth.year, viewMonth.month])
+
+  useRegisterPullToRefresh(async () => {
+    await loadMaharajs()
+    await loadLeaves({ silent: true })
+  })
 
   useEffect(() => {
     loadMaharajs()

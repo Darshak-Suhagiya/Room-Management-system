@@ -4,9 +4,19 @@ import { MobilePageHeader } from '../components/mobile'
 import { ThemeSettingsSection } from '../components/settings/ThemeSettingsSection'
 import { PushNotificationSettings } from '../components/settings/PushNotificationSettings'
 import { BottomNavSettingsSection } from '../components/settings/BottomNavSettingsSection'
+import { useRegisterPullToRefresh } from '../hooks/useRegisterPullToRefresh'
+import {
+  invalidateActiveNoticesCache,
+  listActiveNotices,
+} from '../services/noticeService'
 import '../components/settings/settings.css'
 
 export function SettingsPage() {
+  useRegisterPullToRefresh(async () => {
+    invalidateActiveNoticesCache()
+    await listActiveNotices({ bypassCache: true }).catch(() => {})
+  })
+
   const settingsSections = (
     <div className="settings-sections">
       <ThemeSettingsSection />

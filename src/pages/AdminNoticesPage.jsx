@@ -33,6 +33,7 @@ import {
   updateNotice,
 } from '../services/noticeService'
 import { sendNoticePush } from '../services/pushAdminService'
+import { useRegisterPullToRefresh } from '../hooks/useRegisterPullToRefresh'
 
 const EMPTY_FORM = {
   title: '',
@@ -251,8 +252,8 @@ export function AdminNoticesPage() {
 
   const [people, setPeople] = useState([])
 
-  const reload = useCallback(async () => {
-    setLoading(true)
+  const reload = useCallback(async ({ silent = false } = {}) => {
+    if (!silent) setLoading(true)
     setError('')
     try {
       const [active, past] = await Promise.all([
@@ -265,9 +266,13 @@ export function AdminNoticesPage() {
       console.error(err)
       setError(err.message || 'Failed to load notices.')
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }, [])
+
+  useRegisterPullToRefresh(async () => {
+    await reload({ silent: true })
+  })
 
   useEffect(() => {
     reload()
