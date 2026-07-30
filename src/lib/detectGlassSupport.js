@@ -2,6 +2,11 @@
  * Toggle html.glass-ok / html.glass-fallback for progressive glass chrome.
  * Honors prefers-reduced-transparency and CSS.supports for backdrop-filter.
  */
+function isAndroidDevice() {
+  if (typeof navigator === 'undefined') return false
+  return /Android/i.test(navigator.userAgent)
+}
+
 export function applyGlassSupportClass() {
   if (typeof document === 'undefined') return
 
@@ -21,4 +26,5 @@ export function applyGlassSupportClass() {
 
   root.classList.toggle('glass-ok', blurOk)
   root.classList.toggle('glass-fallback', !blurOk)
+  root.classList.toggle('platform-android', isAndroidDevice())
 }
