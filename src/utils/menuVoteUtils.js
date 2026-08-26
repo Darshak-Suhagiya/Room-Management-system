@@ -30,6 +30,28 @@ export function getPlannedMenuItems(menu, slotKey, catalog) {
   return planned
 }
 
+/**
+ * Resolve kitchen-lead override to a display total.
+ * New shape: { total, baseline } → live + (total − baseline)
+ * Legacy bare number: absolute total (frozen until re-adjusted)
+ */
+export function resolveOverrideDisplay(override, liveSum, validate) {
+  if (override === undefined || override === null || override === '') {
+    return null
+  }
+
+  if (typeof override === 'object' && !Array.isArray(override)) {
+    const total = Number(override.total)
+    if (!validate(total)) return null
+    const baseline = Number(override.baseline)
+    if (!Number.isFinite(baseline)) return total
+    return Math.max(0, liveSum + (total - baseline))
+  }
+
+  if (!validate(override)) return null
+  return Number(override)
+}
+
 export function buildVoteStats({
   users,
   participations,
@@ -104,20 +126,30 @@ export function buildVoteStats({
     }
 
     if (item.voteType === VOTE_TYPES.INTEGER) {
-      const override = totalOverrides[item.id]
-      if (override !== undefined && isValidQuantity(override)) {
+      const resolved = resolveOverrideDisplay(
+        totalOverrides[item.id],
+        stat.votedSum,
+        isValidQuantity,
+      )
+      if (resolved !== null) {
         stat.hasOverride = true
-        stat.displayTotal = Number(override)
+        // Keep half-step precision for quantity totals
+        const rounded = Math.round(resolved * 2) / 2
+        stat.displayTotal = rounded
       } else {
         stat.displayTotal = stat.votedSum
       }
       stat.totalInteger = stat.displayTotal
     } else {
       stat.votedYesCount = stat.yes.length
-      const override = totalOverrides[item.id]
-      if (override !== undefined && isValidYesTotal(override)) {
+      const resolved = resolveOverrideDisplay(
+        totalOverrides[item.id],
+        stat.votedYesCount,
+        isValidYesTotal,
+      )
+      if (resolved !== null) {
         stat.hasOverride = true
-        stat.displayYes = Number(override)
+        stat.displayYes = Math.round(resolved)
       } else {
         stat.displayYes = stat.yes.length
       }

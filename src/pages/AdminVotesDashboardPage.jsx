@@ -4,6 +4,7 @@ import { MealSlotDetailModal } from '../components/MealSlotDetailModal'
 import { MenuItemDetailModal } from '../components/MenuItemDetailModal'
 import { VotesMobileView } from '../components/votes/mobile'
 import { MEAL_SLOTS } from '../config/menuItems'
+import { VOTE_TYPES } from '../config/voteTypes'
 import { useAuth } from '../contexts/AuthContext'
 import { useMenuCatalog } from '../hooks/useMenuCatalog'
 import { useMediaQuery } from '../hooks/useMediaQuery'
@@ -435,29 +436,54 @@ export function AdminVotesDashboardPage() {
     setOverrideSavingId(itemId)
     try {
       const total = rawTotal
-      await setMenuTotalOverride(entry.date, entry.slot, itemId, total)
+      const currentStats = statsByKey[slotKey] ?? modalSlot?.stats
+      const itemStat = currentStats?.itemStats?.find((s) => s.item.id === itemId)
+      const baseline =
+        itemStat == null
+          ? undefined
+          : itemStat.voteType === VOTE_TYPES.INTEGER
+            ? Number(itemStat.votedSum) || 0
+            : Number(itemStat.votedYesCount) || 0
+
+      const stored =
+        total === null || total === undefined || total === ''
+          ? null
+          : Number.isFinite(baseline)
+            ? { total, baseline }
+            : total
+
+      await setMenuTotalOverride(entry.date, entry.slot, itemId, total, {
+        baseline,
+      })
       toast.success(
         total === null ? 'Using vote sum again' : 'Total count updated',
       )
+
+      const overrides = {
+        morning: { ...(entry.menu?.totalOverrides?.morning ?? {}) },
+        evening: { ...(entry.menu?.totalOverrides?.evening ?? {}) },
+      }
+      if (stored === null) {
+        delete overrides[entry.slot][itemId]
+      } else {
+        overrides[entry.slot][itemId] = stored
+      }
+      const nextMenu = {
+        ...entry.menu,
+        totalOverrides: overrides,
+      }
+
       setMenus((prev) =>
-        prev.map((m) => {
-          if (m.date !== entry.date) return m
-          const overrides = {
-            morning: { ...(m.totalOverrides?.morning ?? {}) },
-            evening: { ...(m.totalOverrides?.evening ?? {}) },
-          }
-          if (total === null) {
-            delete overrides[entry.slot][itemId]
-          } else {
-            overrides[entry.slot][itemId] = total
-          }
-          return { ...m, totalOverrides: overrides }
-        }),
+        prev.map((m) =>
+          m.date !== entry.date ? m : { ...m, totalOverrides: overrides },
+        ),
       )
-      const stats = await loadSlotStats(entry)
+      const stats = await loadSlotStats(entry, nextMenu)
       setStatsByKey((prev) => ({ ...prev, [entry.key]: stats }))
       setModalSlot((prev) =>
-        prev && prev.entry?.key === slotKey ? { ...prev, stats } : prev,
+        prev && prev.entry?.key === slotKey
+          ? { ...prev, stats, entry: { ...prev.entry, menu: nextMenu } }
+          : prev,
       )
     } catch (err) {
       toast.error(err.message)

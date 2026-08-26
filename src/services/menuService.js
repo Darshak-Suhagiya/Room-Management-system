@@ -226,8 +226,18 @@ export async function saveMenu(
   return { menu: saved, clearedSlots, previousVoters }
 }
 
-/** Admin: set or clear adjusted total for a number-vote item (null clears). */
-export async function setMenuTotalOverride(dateId, slot, itemId, total) {
+/**
+ * Admin / kitchen lead: set or clear adjusted total (null clears).
+ * Stores { total, baseline } so later votes keep the same difference:
+ * display = liveVotes + (total − baseline).
+ */
+export async function setMenuTotalOverride(
+  dateId,
+  slot,
+  itemId,
+  total,
+  { baseline } = {},
+) {
   if (!isFirebaseConfigured || !db) {
     throw new Error('Firebase is not configured')
   }
@@ -248,12 +258,18 @@ export async function setMenuTotalOverride(dateId, slot, itemId, total) {
     throw new Error('Use whole numbers or half steps (e.g. 1, 1.5, 2)')
   }
 
+  const baselineNum = Number(baseline)
+  const payload =
+    Number.isFinite(baselineNum) && baselineNum >= 0
+      ? { total: num, baseline: baselineNum }
+      : num
+
   await setDoc(
     ref,
     {
       totalOverrides: {
         [slot]: {
-          [itemId]: num,
+          [itemId]: payload,
         },
       },
     },
