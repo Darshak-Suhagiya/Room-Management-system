@@ -3,7 +3,7 @@
  */
 
 [data-theme='clay-rose'][data-appearance='light'] {
-  color-scheme: light;
+  color-scheme: only light;
 
   --bg: #faf6f5;
   --bg-subtle: #f3eae8;
@@ -190,7 +190,7 @@
 }
 
 [data-theme='clay-rose'][data-appearance='dark'] {
-  color-scheme: dark;
+  color-scheme: only dark;
 
   --bg: #161214;
   --bg-subtle: #1c1618;

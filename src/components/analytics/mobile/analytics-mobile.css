@@ -1,0 +1,242 @@
+.analytics-mobile-range-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  width: 100%;
+  min-height: var(--touch-min, 2.75rem);
+  padding: 0.65rem 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.analytics-mobile-range-chip span {
+  flex: 1;
+  min-width: 0;
+}
+
+.analytics-mobile-range-dates {
+  margin: -0.35rem 0 0;
+  font-size: 0.78rem;
+}
+
+.analytics-mobile-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.55rem;
+}
+
+.analytics-mobile-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+.analytics-mobile-stat-value {
+  font-size: 1.25rem;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.analytics-mobile-stat-label {
+  font-size: 0.75rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.analytics-mobile-insight-group,
+.analytics-mobile-top {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.analytics-mobile-insight-group h3,
+.analytics-mobile-top h3 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.analytics-mobile-insight-note {
+  margin: 0;
+  font-size: 0.75rem;
+}
+
+.analytics-mobile-insight-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.analytics-mobile-insight-row,
+.analytics-mobile-dish-row,
+.analytics-mobile-browse,
+.analytics-mobile-rank-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  width: 100%;
+  min-height: var(--touch-min, 2.75rem);
+  padding: 0.7rem 0.85rem;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.analytics-mobile-insight-row {
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+}
+
+.analytics-mobile-insight-list li:last-child .analytics-mobile-insight-row {
+  border-bottom: none;
+}
+
+.analytics-mobile-insight-row-main,
+.analytics-mobile-dish-row-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.analytics-mobile-dish-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.analytics-mobile-dish-row {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+.analytics-mobile-dish-row-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.analytics-mobile-made {
+  font-size: 0.75rem;
+  font-weight: 650;
+  color: var(--muted);
+}
+
+.analytics-mobile-chevron {
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.analytics-mobile-rank-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.analytics-mobile-rank-row {
+  padding: 0.45rem 0;
+  gap: 0.7rem;
+}
+
+.analytics-mobile-rank-index {
+  width: 1.25rem;
+  flex-shrink: 0;
+  font-weight: 750;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.analytics-mobile-rank-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+}
+
+.analytics-mobile-rank-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.analytics-mobile-rank-bar {
+  display: block;
+  height: 0.4rem;
+  border-radius: 999px;
+  background: var(--primary);
+  max-width: 100%;
+}
+
+.analytics-mobile-browse {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  justify-content: space-between;
+}
+
+.analytics-mobile-browse span {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  text-align: left;
+}
+
+.analytics-mobile-sort {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.analytics-mobile-filter-label {
+  margin: 0 0 0.45rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.analytics-history-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.analytics-history-details > summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+.analytics-history-details > summary::-webkit-details-marker {
+  display: none;
+}
+
+.analytics-mobile .admin-mobile-search-bar {
+  margin: 0;
+}

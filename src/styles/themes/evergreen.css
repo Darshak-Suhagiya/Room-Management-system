@@ -3,7 +3,7 @@
  */
 
 [data-theme='evergreen'][data-appearance='light'] {
-  color-scheme: light;
+  color-scheme: only light;
 
   --bg: #f5f8f4;
   --bg-subtle: #e8f0e6;
@@ -190,7 +190,7 @@
 }
 
 [data-theme='evergreen'][data-appearance='dark'] {
-  color-scheme: dark;
+  color-scheme: only dark;
 
   --bg: #0f1612;
   --bg-subtle: #141c17;

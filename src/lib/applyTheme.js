@@ -25,10 +25,32 @@ export function getStoredAppearance() {
   }
 }
 
+/** Opt out of Android/Samsung auto-dark inversion when the app chose light. */
+function appearanceColorScheme(appearance) {
+  return appearance === 'dark' ? 'only dark' : 'only light'
+}
+
 export function applyAppearanceToDocument(appearance) {
   const id = isValidAppearance(appearance) ? appearance : DEFAULT_APPEARANCE
+  const scheme = appearanceColorScheme(id)
   document.documentElement.setAttribute('data-appearance', id)
-  document.documentElement.style.colorScheme = id
+  document.documentElement.style.colorScheme = scheme
+
+  let meta = document.querySelector('meta[name="color-scheme"]')
+  if (!meta) {
+    meta = document.createElement('meta')
+    meta.name = 'color-scheme'
+    document.head.prepend(meta)
+  }
+  meta.content = scheme
+
+  let supported = document.querySelector('meta[name="supported-color-schemes"]')
+  if (!supported) {
+    supported = document.createElement('meta')
+    supported.name = 'supported-color-schemes'
+    document.head.prepend(supported)
+  }
+  supported.content = id === 'dark' ? 'dark' : 'light'
 }
 
 export function applyThemeToDocument(themeId) {

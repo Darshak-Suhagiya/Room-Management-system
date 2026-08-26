@@ -42,7 +42,15 @@
   --sheet-radius: 20px;
 }
 
+html,
+html[data-appearance='light'] {
+  color-scheme: only light;
+  forced-color-adjust: none;
+}
+
 html[data-appearance='dark'] {
+  color-scheme: only dark;
+  forced-color-adjust: none;
   --glass-bg: color-mix(in srgb, var(--surface) 62%, transparent);
   --glass-solid: color-mix(in srgb, var(--surface) 92%, transparent);
   --glass-blur: 36px;

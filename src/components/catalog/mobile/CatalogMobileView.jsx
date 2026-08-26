@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Plus, UtensilsCrossed } from 'lucide-react'
+import { Pencil, Plus, UtensilsCrossed } from 'lucide-react'
 import { MobilePageHeader } from '../../mobile'
 import {
   AdminCategoryStrip,
@@ -22,6 +22,7 @@ export function CatalogMobileView({
   onSaveItem,
   onDeleteItem,
   onAddCategory,
+  onUpdateCategory,
   onDeleteCategory,
   onAddItem,
   onGroupsSaved,
@@ -89,6 +90,12 @@ export function CatalogMobileView({
     setSelectedItem(null)
   }
 
+  const deletingCategory =
+    confirmDelete?.type === 'category' ? confirmDelete.category : null
+  const categoryBlocked = deletingCategory
+    ? (catalog.itemsByCategory[deletingCategory.id] ?? []).length > 0
+    : false
+
   return (
     <div className="admin-catalog-mobile admin-mobile-page mobile-section-gap">
       <MobilePageHeader
@@ -118,6 +125,13 @@ export function CatalogMobileView({
             {categoryItems.length} item{categoryItems.length === 1 ? '' : 's'}
           </p>
           <div className="admin-mobile-catalog-toolbar-actions">
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={() => setCategorySheet(activeCategory)}
+            >
+              <Pencil size={16} aria-hidden /> Edit
+            </button>
             <button
               type="button"
               className="btn btn-secondary btn-sm"
@@ -191,8 +205,11 @@ export function CatalogMobileView({
         saving={categorySave.busy}
         onClose={() => setCategorySheet(null)}
         onSave={async (data) => {
+          const isNew = Boolean(categorySheet?.isNew) || !categorySheet?.id
           const { ok, error, stale } = await categorySave.run(() =>
-            onAddCategory?.(data),
+            isNew
+              ? onAddCategory?.(data)
+              : onUpdateCategory?.(categorySheet.id, data),
           )
           if (!ok) {
             if (!stale) onError?.(error)
@@ -237,19 +254,38 @@ export function CatalogMobileView({
       <AdminConfirmSheet
         open={Boolean(confirmDelete)}
         onClose={() => setConfirmDelete(null)}
-        title={confirmDelete?.type === 'category' ? 'Delete category?' : 'Remove dish?'}
+        title={
+          confirmDelete?.type === 'category'
+            ? categoryBlocked
+              ? 'Cannot delete yet'
+              : 'Delete category?'
+            : 'Remove dish?'
+        }
         message={
           confirmDelete?.type === 'category'
-            ? `Delete "${confirmDelete.category.labelEn}" and all its items?`
+            ? categoryBlocked
+              ? `Remove all dishes from "${deletingCategory.labelEn}" before deleting it.`
+              : `Delete "${deletingCategory.labelEn}"? This cannot be undone.`
             : confirmDelete?.item
               ? `Remove "${confirmDelete.item.gu || confirmDelete.item.en}" from the menu?`
               : ''
         }
-        confirmLabel={confirmDelete?.type === 'category' ? 'Delete' : 'Remove'}
-        destructive
+        confirmLabel={
+          categoryBlocked
+            ? 'OK'
+            : confirmDelete?.type === 'category'
+              ? 'Delete'
+              : 'Remove'
+        }
+        cancelLabel={categoryBlocked ? 'Close' : 'Cancel'}
+        destructive={!categoryBlocked}
         busy={deleteSave.busy}
         onConfirm={async () => {
           if (!confirmDelete) return
+          if (categoryBlocked) {
+            setConfirmDelete(null)
+            return
+          }
           const { ok, error, stale } = await deleteSave.run(async () => {
             if (confirmDelete.type === 'category') {
               await onDeleteCategory?.(confirmDelete.category.id)

@@ -1,9 +1,10 @@
 import { Settings } from 'lucide-react'
 import { PageHeader } from '../components/ui/PageHeader'
-import { MobilePageHeader } from '../components/mobile'
 import { ThemeSettingsSection } from '../components/settings/ThemeSettingsSection'
 import { PushNotificationSettings } from '../components/settings/PushNotificationSettings'
 import { BottomNavSettingsSection } from '../components/settings/BottomNavSettingsSection'
+import { SettingsMobileView } from '../components/settings/mobile'
+import { useMediaQuery } from '../hooks/useMediaQuery'
 import { useRegisterPullToRefresh } from '../hooks/useRegisterPullToRefresh'
 import {
   invalidateActiveNoticesCache,
@@ -12,37 +13,32 @@ import {
 import '../components/settings/settings.css'
 
 export function SettingsPage() {
+  const isMobile = useMediaQuery('(max-width: 899px)')
+
   useRegisterPullToRefresh(async () => {
     invalidateActiveNoticesCache()
     await listActiveNotices({ bypassCache: true }).catch(() => {})
   })
 
-  const settingsSections = (
-    <div className="settings-sections">
-      <ThemeSettingsSection />
-      <BottomNavSettingsSection />
-      <PushNotificationSettings />
-    </div>
-  )
+  if (isMobile) {
+    return (
+      <div className="page settings-page">
+        <SettingsMobileView />
+      </div>
+    )
+  }
 
   return (
     <div className="page settings-page">
-      <div className="layout-desktop">
-        <PageHeader
-          icon={Settings}
-          title="Settings"
-          description="Appearance and notification preferences for this device."
-        />
-        {settingsSections}
-      </div>
-
-      <div className="layout-mobile settings-mobile mobile-section-gap">
-        <MobilePageHeader
-          icon={Settings}
-          title="Settings"
-          description="Appearance and notifications for this device."
-        />
-        {settingsSections}
+      <PageHeader
+        icon={Settings}
+        title="Settings"
+        description="Appearance and notification preferences for this device."
+      />
+      <div className="settings-sections">
+        <ThemeSettingsSection />
+        <BottomNavSettingsSection />
+        <PushNotificationSettings />
       </div>
     </div>
   )

@@ -2,8 +2,25 @@
 <html lang="gu" data-theme="teal-slate" data-appearance="light">
   <head>
     <meta charset="UTF-8" />
+    <meta name="color-scheme" content="only light" />
+    <meta name="supported-color-schemes" content="light" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <meta name="theme-color" content="#ffffff" />
+    <script>
+      try {
+        var appearance = localStorage.getItem('rm-app-appearance')
+        var scheme = appearance === 'dark' ? 'only dark' : 'only light'
+        document.documentElement.style.colorScheme = scheme
+        document.documentElement.setAttribute(
+          'data-appearance',
+          appearance === 'dark' ? 'dark' : 'light',
+        )
+        var colorSchemeMeta = document.querySelector('meta[name="color-scheme"]')
+        if (colorSchemeMeta) colorSchemeMeta.content = scheme
+        var supportedMeta = document.querySelector('meta[name="supported-color-schemes"]')
+        if (supportedMeta) supportedMeta.content = appearance === 'dark' ? 'dark' : 'light'
+      } catch (e) {}
+    </script>
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
