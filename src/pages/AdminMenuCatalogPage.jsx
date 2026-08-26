@@ -10,6 +10,7 @@ import {
   deleteCategory,
   deleteMenuItem,
   replaceCatalogFromSeed,
+  updateCategory,
   updateMenuItem,
 } from '../services/catalogService'
 import { PlanningViewGroupsEditor } from '../components/PlanningViewGroupsEditor'
@@ -248,6 +249,112 @@ function confirmDelete(message) {
   return window.confirm(message)
 }
 
+async function requestDeleteCategory(cat, items, notify, handleError) {
+  if (items.length > 0) {
+    handleError({
+      message: `Remove all items in this category first (${items.length} remaining).`,
+    })
+    return
+  }
+  if (!confirmDelete(`Delete category "${cat.labelEn}"? This cannot be undone.`)) {
+    return
+  }
+  try {
+    await deleteCategory(cat.id)
+    notify('Category removed.')
+  } catch (err) {
+    handleError(err)
+  }
+}
+
+function CategoryRenameControls({ cat, notify, handleError }) {
+  const [editing, setEditing] = useState(false)
+  const [labelGu, setLabelGu] = useState(cat.labelGu ?? '')
+  const [labelEn, setLabelEn] = useState(cat.labelEn ?? '')
+  const { busy, run } = useSaveMutation()
+
+  const invalid = !labelGu.trim() || !labelEn.trim()
+  const dirty =
+    labelGu.trim() !== (cat.labelGu ?? '').trim() ||
+    labelEn.trim() !== (cat.labelEn ?? '').trim()
+
+  if (!editing) {
+    return (
+      <button
+        type="button"
+        className="btn btn-ghost btn-sm"
+        onClick={() => {
+          setLabelGu(cat.labelGu ?? '')
+          setLabelEn(cat.labelEn ?? '')
+          setEditing(true)
+        }}
+      >
+        Rename
+      </button>
+    )
+  }
+
+  return (
+    <form
+      className="inline-form catalog-category-rename"
+      onSubmit={async (e) => {
+        e.preventDefault()
+        if (invalid) {
+          handleError({ message: 'Category labels cannot be empty.' })
+          return
+        }
+        if (!dirty) {
+          setEditing(false)
+          return
+        }
+        const { ok, error, stale } = await run(() =>
+          updateCategory(cat.id, {
+            labelGu: labelGu.trim(),
+            labelEn: labelEn.trim(),
+          }),
+        )
+        if (!ok) {
+          if (!stale) handleError(error)
+          return
+        }
+        if (stale) return
+        notify('Category renamed.')
+        setEditing(false)
+      }}
+    >
+      <input
+        value={labelGu}
+        onChange={(e) => setLabelGu(e.target.value)}
+        placeholder="Gujarati label"
+        aria-label="Gujarati label"
+        required
+      />
+      <input
+        value={labelEn}
+        onChange={(e) => setLabelEn(e.target.value)}
+        placeholder="English label"
+        aria-label="English label"
+        required
+      />
+      <button type="submit" className="btn btn-primary btn-sm" disabled={busy || invalid}>
+        {busy ? '…' : 'Save'}
+      </button>
+      <button
+        type="button"
+        className="btn btn-ghost btn-sm"
+        disabled={busy}
+        onClick={() => {
+          setLabelGu(cat.labelGu ?? '')
+          setLabelEn(cat.labelEn ?? '')
+          setEditing(false)
+        }}
+      >
+        Cancel
+      </button>
+    </form>
+  )
+}
+
 function CatalogCategorySection({
   cat,
   catalog,
@@ -314,25 +421,16 @@ function CatalogCategorySection({
         </summary>
         <div className="catalog-accordion-body">
           <div className="catalog-section-header catalog-accordion-actions">
-            <button
-              type="button"
-              className="btn btn-danger btn-sm"
-              onClick={async () => {
-                const msg =
-                  items.length > 0
-                    ? `Delete category "${cat.labelEn}" and all ${items.length} item(s)? This cannot be undone.`
-                    : `Delete category "${cat.labelEn}"? This cannot be undone.`
-                if (!confirmDelete(msg)) return
-                try {
-                  await deleteCategory(cat.id)
-                  notify('Category removed.')
-                } catch (err) {
-                  handleError(err)
-                }
-              }}
-            >
-              Delete category
-            </button>
+            <div className="catalog-section-header-actions">
+              <CategoryRenameControls cat={cat} notify={notify} handleError={handleError} />
+              <button
+                type="button"
+                className="btn btn-danger btn-sm"
+                onClick={() => requestDeleteCategory(cat, items, notify, handleError)}
+              >
+                Delete category
+              </button>
+            </div>
           </div>
           {body}
         </div>
@@ -346,25 +444,16 @@ function CatalogCategorySection({
         <h3>
           {cat.labelGu} · {cat.labelEn}
         </h3>
-        <button
-          type="button"
-          className="btn btn-danger btn-sm"
-          onClick={async () => {
-            const msg =
-              items.length > 0
-                ? `Delete category "${cat.labelEn}" and all ${items.length} item(s)? This cannot be undone.`
-                : `Delete category "${cat.labelEn}"? This cannot be undone.`
-            if (!confirmDelete(msg)) return
-            try {
-              await deleteCategory(cat.id)
-              notify('Category removed.')
-            } catch (err) {
-              handleError(err)
-            }
-          }}
-        >
-          Delete category
-        </button>
+        <div className="catalog-section-header-actions">
+          <CategoryRenameControls cat={cat} notify={notify} handleError={handleError} />
+          <button
+            type="button"
+            className="btn btn-danger btn-sm"
+            onClick={() => requestDeleteCategory(cat, items, notify, handleError)}
+          >
+            Delete category
+          </button>
+        </div>
       </div>
       {body}
     </section>
@@ -474,6 +563,10 @@ export function AdminMenuCatalogPage() {
           onAddCategory={async (data) => {
             await addCategory(data)
             notify('Category added.')
+          }}
+          onUpdateCategory={async (id, data) => {
+            await updateCategory(id, data)
+            notify('Category renamed.')
           }}
           onDeleteCategory={async (id) => {
             await deleteCategory(id)

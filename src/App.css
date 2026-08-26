@@ -442,6 +442,18 @@
   margin-bottom: 0.75rem;
 }
 
+.catalog-section-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.45rem;
+}
+
+.catalog-category-rename {
+  flex-wrap: wrap;
+}
+
 .catalog-list {
   list-style: none;
   margin: 0 0 0.75rem;

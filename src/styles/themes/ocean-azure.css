@@ -3,7 +3,7 @@
  */
 
 [data-theme='ocean-azure'][data-appearance='light'] {
-  color-scheme: light;
+  color-scheme: only light;
 
   --bg: #f4f8fc;
   --bg-subtle: #e8f1f8;
@@ -190,7 +190,7 @@
 }
 
 [data-theme='ocean-azure'][data-appearance='dark'] {
-  color-scheme: dark;
+  color-scheme: only dark;
 
   --bg: #0d1520;
   --bg-subtle: #121c2a;

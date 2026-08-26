@@ -1,0 +1,49 @@
+.mobile-nested-screen .modal-sheet-body {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  padding-bottom: 0;
+}
+
+.mobile-nested-screen .modal-sheet-header {
+  display: none;
+}
+
+.mobile-nested-screen-header {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.4rem 0.65rem 0.55rem;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  min-height: 3rem;
+}
+
+.mobile-nested-screen-header-text {
+  min-width: 0;
+  flex: 1;
+}
+
+.mobile-nested-screen-header-text h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.mobile-nested-screen-header-text p {
+  margin: 0.1rem 0 0;
+  font-size: 0.78rem;
+}
+
+.mobile-nested-screen-action {
+  flex-shrink: 0;
+}
+
+.mobile-nested-screen-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 1rem;
+  padding-bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px));
+}

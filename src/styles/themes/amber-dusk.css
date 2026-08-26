@@ -3,7 +3,7 @@
  */
 
 [data-theme='amber-dusk'][data-appearance='light'] {
-  color-scheme: light;
+  color-scheme: only light;
 
   --bg: #faf7f2;
   --bg-subtle: #f3ebe0;
@@ -190,7 +190,7 @@
 }
 
 [data-theme='amber-dusk'][data-appearance='dark'] {
-  color-scheme: dark;
+  color-scheme: only dark;
 
   --bg: #16120e;
   --bg-subtle: #1c1712;

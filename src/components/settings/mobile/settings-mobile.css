@@ -1,0 +1,140 @@
+.settings-mobile-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.settings-mobile-group-title {
+  margin: 0 0.15rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.settings-mobile-group-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.settings-mobile-account {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.95rem 1rem 0.75rem;
+}
+
+.settings-mobile-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 999px;
+  background: var(--primary-soft, color-mix(in srgb, var(--primary) 18%, var(--surface)));
+  color: var(--primary);
+  font-weight: 750;
+  font-size: 0.92rem;
+  flex-shrink: 0;
+}
+
+.settings-mobile-account-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.settings-mobile-account-text strong {
+  font-size: 1.02rem;
+}
+
+.settings-mobile-signout {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  width: 100%;
+  min-height: var(--touch-min, 2.75rem);
+  padding: 0.7rem 1rem 0.9rem;
+  border: none;
+  border-top: 1px solid var(--border);
+  background: transparent;
+  color: var(--danger);
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.settings-mobile-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  min-height: var(--touch-min, 2.75rem);
+  padding: 0.8rem 0.95rem;
+  border: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.settings-mobile-group-card .settings-mobile-row:last-child {
+  border-bottom: none;
+}
+
+.settings-mobile-row.is-disabled {
+  opacity: 0.7;
+}
+
+.settings-mobile-row-icon {
+  display: inline-flex;
+  color: var(--primary);
+  flex-shrink: 0;
+}
+
+.settings-mobile-row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.settings-mobile-row-label {
+  font-weight: 650;
+  font-size: 0.95rem;
+}
+
+.settings-mobile-row-sub {
+  font-size: 0.78rem;
+}
+
+.settings-mobile-row-chevron {
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.settings-mobile-nested .settings-section {
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  background: transparent;
+}
+
+.settings-mobile-nested .settings-section-title,
+.settings-mobile-nested .settings-section-desc {
+  display: none;
+}
+
+.settings-mobile-nav-hint {
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.45;
+}

@@ -3,7 +3,7 @@
  */
 
 [data-theme='teal-slate'][data-appearance='light'] {
-  color-scheme: light;
+  color-scheme: only light;
 
   --bg: #f8f9fa;
   --bg-subtle: #f1f3f5;
@@ -190,7 +190,7 @@
 }
 
 [data-theme='teal-slate'][data-appearance='dark'] {
-  color-scheme: dark;
+  color-scheme: only dark;
 
   --bg: #12161f;
   --bg-subtle: #171c27;
