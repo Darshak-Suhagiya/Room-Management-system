@@ -40,14 +40,16 @@ export function SevaGroupDefinitions({
                 )}
               </td>
               {editable && (
-                <td className="seva-def-actions">
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-sm"
-                    onClick={() => onRemoveGroup(group.id)}
-                  >
-                    Remove
-                  </button>
+                <td className="seva-def-actions table-actions-cell">
+                  <span className="table-actions-inner">
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => onRemoveGroup(group.id)}
+                    >
+                      Remove
+                    </button>
+                  </span>
                 </td>
               )}
             </tr>

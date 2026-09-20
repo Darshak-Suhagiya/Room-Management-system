@@ -43,34 +43,57 @@ export function subscribeMealParticipation(userId, dateId, slot, callback) {
   })
 }
 
-/** Live stream of every participation doc belonging to one user. */
-export function subscribeUserParticipations(userId, callback) {
+function parseParticipation(docSnap) {
+  return { id: docSnap.id, ...docSnap.data() }
+}
+
+/** Live stream of participation docs for one user, optionally from a date. */
+export function subscribeUserParticipations(userId, callback, { fromDateId } = {}) {
   if (!isFirebaseConfigured || !db || !userId) {
     callback([])
     return () => {}
   }
-  const q = query(
-    collection(db, COLLECTIONS.MEAL_PARTICIPATION),
-    where('userId', '==', userId),
-  )
+  const constraints = [where('userId', '==', userId)]
+  if (fromDateId) constraints.push(where('date', '>=', fromDateId))
+  const q = query(collection(db, COLLECTIONS.MEAL_PARTICIPATION), ...constraints)
   return onSnapshot(q, (snap) => {
-    callback(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
+    callback(snap.docs.map(parseParticipation))
   })
 }
 
 export async function getParticipationsForSlot(dateId, slot) {
-  if (!isFirebaseConfigured || !db) return []
-  const snap = await getDocs(collection(db, COLLECTIONS.MEAL_PARTICIPATION))
-  return snap.docs
-    .map((d) => ({ id: d.id, ...d.data() }))
-    .filter((p) => p.date === dateId && p.slot === slot)
+  if (!isFirebaseConfigured || !db || !dateId || !slot) return []
+  const snap = await getDocs(
+    query(
+      collection(db, COLLECTIONS.MEAL_PARTICIPATION),
+      where('date', '==', dateId),
+      where('slot', '==', slot),
+    ),
+  )
+  return snap.docs.map(parseParticipation)
 }
 
-/** All participation docs (room-scale). Used for review history / sentiment. */
-export async function getAllParticipations() {
-  if (!isFirebaseConfigured || !db) return []
-  const snap = await getDocs(collection(db, COLLECTIONS.MEAL_PARTICIPATION))
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+export async function getParticipationsForDate(dateId) {
+  if (!isFirebaseConfigured || !db || !dateId) return []
+  const snap = await getDocs(
+    query(
+      collection(db, COLLECTIONS.MEAL_PARTICIPATION),
+      where('date', '==', dateId),
+    ),
+  )
+  return snap.docs.map(parseParticipation)
+}
+
+export async function getParticipationsInDateRange(fromDateId, toDateId) {
+  if (!isFirebaseConfigured || !db || !fromDateId || !toDateId) return []
+  const snap = await getDocs(
+    query(
+      collection(db, COLLECTIONS.MEAL_PARTICIPATION),
+      where('date', '>=', fromDateId),
+      where('date', '<=', toDateId),
+    ),
+  )
+  return snap.docs.map(parseParticipation)
 }
 
 /** Live stream of every participation for a date + slot (for shared feedback). */
@@ -82,13 +105,10 @@ export function subscribeParticipationsForSlot(dateId, slot, callback) {
   const q = query(
     collection(db, COLLECTIONS.MEAL_PARTICIPATION),
     where('date', '==', dateId),
+    where('slot', '==', slot),
   )
   return onSnapshot(q, (snap) => {
-    callback(
-      snap.docs
-        .map((d) => ({ id: d.id, ...d.data() }))
-        .filter((p) => p.slot === slot),
-    )
+    callback(snap.docs.map(parseParticipation))
   })
 }
 

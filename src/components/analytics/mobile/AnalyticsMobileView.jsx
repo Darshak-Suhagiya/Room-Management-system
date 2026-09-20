@@ -117,6 +117,10 @@ export function AnalyticsMobileView({ analytics }) {
   return (
     <div className="analytics-mobile admin-mobile-page mobile-section-gap">
       <MobilePageHeader
+        artKey="analytics"
+        size="comfort"
+        copyAlign="end"
+        showStamp={false}
         icon={ChartPie}
         title="Menu Analytics"
         description="How often dishes were cooked, and how they were rated."
@@ -275,6 +279,7 @@ export function AnalyticsMobileView({ analytics }) {
             ? [detailRow.en, detailRow.categoryLabel].filter(Boolean).join(' · ')
             : undefined
         }
+        artKey="analytics"
       >
         {detailRow ? (
           <div className="analytics-detail analytics-detail-mobile-nested">

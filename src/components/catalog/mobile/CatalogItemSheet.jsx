@@ -41,7 +41,7 @@ export function CatalogItemSheet({
     recipe.trim() !== (item.recipe ?? '').trim()
 
   return (
-    <Modal open={open} onClose={onClose} title="Edit dish" subtitle={item.gu || item.en} busy={saving}>
+    <Modal open={open} onClose={onClose} title="Edit dish" subtitle={item.gu || item.en} busy={saving} artKey="catalog">
       <div className="admin-mobile-catalog-sheet mobile-section-gap">
         <label className="field-stack">
           <span className="field-stack-label">Gujarati name</span>

@@ -15,6 +15,7 @@ export function PlanningGroupsSheet({ open, onClose, category, items, onSaved, o
       title="Planning groups"
       subtitle={`${category.labelGu} · ${category.labelEn}`}
       busy={busy}
+      artKey="catalog"
     >
       <div className="admin-mobile-planning-groups-sheet">
         <PlanningViewGroupsEditor

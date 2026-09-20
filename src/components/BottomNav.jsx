@@ -8,6 +8,7 @@ import { buildAuthSnapshot } from '../config/appNavRegistry'
 import { applyGlassSupportClass } from '../lib/detectGlassSupport'
 import { springSnappy, springSoft } from '../lib/motionPresets'
 import { triggerSelectionHaptic } from '../utils/haptics'
+import { BlessingStamp } from './darshan/BlessingStamp'
 
 function BottomNavLink({ to, end, label, icon: Icon }) {
   return (
@@ -32,12 +33,16 @@ function BottomNavLink({ to, end, label, icon: Icon }) {
             animate={{ scale: isActive ? 1.02 : 1 }}
             transition={springSoft}
           >
-            <Icon
-              size={22}
-              strokeWidth={isActive ? 2.5 : 2}
-              className={isActive ? 'text-primary' : 'text-muted'}
-              aria-hidden
-            />
+            {isActive ? (
+              <BlessingStamp artKey="chrome" size="nav" />
+            ) : (
+              <Icon
+                size={22}
+                strokeWidth={2}
+                className="text-muted"
+                aria-hidden
+              />
+            )}
             <span
               className={`bottom-nav-link-label ${isActive ? 'is-active' : ''}`}
             >

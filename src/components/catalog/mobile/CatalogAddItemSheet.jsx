@@ -30,7 +30,7 @@ export function CatalogAddItemSheet({
   const invalid = !gu.trim() || !en.trim()
 
   return (
-    <Modal open={open} onClose={onClose} title="Add dish" subtitle="New menu item" busy={saving}>
+    <Modal open={open} onClose={onClose} title="Add dish" subtitle="New menu item" busy={saving} artKey="catalog">
       <form
         className="admin-mobile-sheet-form mobile-section-gap"
         onSubmit={(e) => {

@@ -12,6 +12,7 @@ export function PlanningFeedbackSheet({ open, onClose, item, history = [] }) {
       onClose={onClose}
       title={item.gu}
       subtitle={`Last ${history.length || 0} cook${history.length === 1 ? '' : 's'} — person reviews`}
+      artKey="planning"
     >
       {history.length === 0 ? (
         <p className="muted">No past cook history for this dish yet.</p>

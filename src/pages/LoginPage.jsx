@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router-dom'
-import { CalendarCheck, ShieldCheck, UtensilsCrossed, Vote } from 'lucide-react'
 import { hasAuthActionParams } from '../lib/parseAuthActionParams'
 import { useAuth } from '../contexts/AuthContext'
 import { ThemeSwitcher } from '../components/ThemeSwitcher'
+import { AuthDarshanBrand, AuthMobileHero } from '../components/darshan'
 import { ROLES } from '../config/constants'
 import { getUserProfile, isUserApproved } from '../services/userService'
 
@@ -101,34 +101,9 @@ export function LoginPage() {
 
   return (
     <div className="auth-split">
-      <aside className="auth-brand">
-        <div className="auth-brand-badge">
-          <span className="auth-brand-logo">
-            <UtensilsCrossed size={22} />
-          </span>
-          Room Management
-        </div>
-        <div className="auth-brand-hero">
-          <h2>Plan meals, track seva, and vote — all in one place.</h2>
-          <p>
-            A calm, focused workspace for your kitchen and rooms. Sign in to see
-            today&apos;s menu and cast your vote.
-          </p>
-          <ul className="auth-brand-points">
-            <li>
-              <CalendarCheck size={18} /> Daily meal planning &amp; menus
-            </li>
-            <li>
-              <Vote size={18} /> Live meal voting &amp; dashboards
-            </li>
-            <li>
-              <ShieldCheck size={18} /> Role-based access for admins &amp; maharaj
-            </li>
-          </ul>
-        </div>
-        <p className="auth-brand-foot">Meal Planner &amp; Participation Tracker</p>
-      </aside>
+      <AuthDarshanBrand />
       <div className="auth-panel pt-safe pb-safe">
+      <AuthMobileHero />
       <div className="auth-card">
         <h1>Room Management</h1>
         <p className="subtitle">Meal Planner & Participation Tracker</p>

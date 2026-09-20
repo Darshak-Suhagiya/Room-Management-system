@@ -44,6 +44,7 @@ export function AnalyticsDishesScreen({
           : `${rows.length} item${rows.length === 1 ? '' : 's'}`
       }
       className="analytics-mobile-dishes-screen"
+      artKey="analytics"
     >
       <div hidden={Boolean(detailId)} className="analytics-mobile-dishes-list-pane mobile-section-gap">
         <AdminSearchField

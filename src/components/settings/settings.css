@@ -1,3 +1,13 @@
+.settings-page .blessing-hero-compact .blessing-hero-scrim {
+  background: linear-gradient(
+    180deg,
+    rgb(18 14 10 / 0) 0%,
+    rgb(18 14 10 / 0) 60%,
+    rgb(18 14 10 / 0.2) 82%,
+    rgb(18 14 10 / 0.58) 100%
+  );
+}
+
 .settings-page .settings-sections {
   display: flex;
   flex-direction: column;

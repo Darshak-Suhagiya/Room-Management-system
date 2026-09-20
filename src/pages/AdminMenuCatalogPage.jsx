@@ -15,6 +15,7 @@ import {
 } from '../services/catalogService'
 import { PlanningViewGroupsEditor } from '../components/PlanningViewGroupsEditor'
 import { CatalogMobileView } from '../components/catalog/mobile'
+import { BlessingHero } from '../components/darshan'
 import { useRegisterPullToRefresh } from '../hooks/useRegisterPullToRefresh'
 import { fetchCatalog } from '../services/catalogService'
 
@@ -520,7 +521,11 @@ export function AdminMenuCatalogPage() {
   const handleError = (err) => toast.error(err.message ?? 'Invalid value.')
 
   if (loading) {
-    return <p className="page-loading">Loading…</p>
+    return (
+      <div className="page admin-page admin-catalog-page">
+        <BlessingHero artKey="catalog" size="comfort" title="Menu editing" subtitle="Loading the catalog…" />
+      </div>
+    )
   }
 
   const seedBanner =
@@ -596,13 +601,12 @@ export function AdminMenuCatalogPage() {
   return (
     <div className="page admin-page admin-catalog-page">
       <div className="layout-desktop">
-        <header className="page-header">
-          <h2>Menu editing</h2>
-          <p>
-            Add dishes and set vote type: Yes/No for shaak, Number for roti, etc.
-            Optional notes and recipe are visible only to Maharaj on the vote dashboard.
-          </p>
-        </header>
+        <BlessingHero
+          artKey="catalog"
+          size="comfort"
+          title="Menu editing"
+          subtitle="Dishes, vote types, and Maharaj-only notes."
+        />
 
         {seeding && <p className="muted">Importing default menu list…</p>}
         {error && <p className="form-error">{error}</p>}

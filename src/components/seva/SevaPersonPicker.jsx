@@ -65,7 +65,7 @@ function MobilePersonPickerSheet({ people, onSelect, onClose }) {
   }, [people, query])
 
   return (
-    <Modal open onClose={onClose} title="Assign member">
+    <Modal open onClose={onClose} title="Assign member" artKey="seva" className="seva-person-sheet">
       <label className="seva-person-sheet-search">
         <Search size={18} aria-hidden />
         <input

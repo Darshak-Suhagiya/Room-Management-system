@@ -1,4 +1,31 @@
-export function PageHeader({ icon: Icon, title, description, actions, className = '' }) {
+import { BlessingHero } from '../darshan/BlessingHero'
+
+export function PageHeader({
+  icon: Icon,
+  title,
+  description,
+  actions,
+  className = '',
+  artKey,
+  size = 'compact',
+  kicker,
+  copyAlign,
+}) {
+  if (artKey) {
+    return (
+      <BlessingHero
+        artKey={artKey}
+        size={size}
+        title={title}
+        subtitle={description}
+        actions={actions}
+        kicker={kicker}
+        className={className}
+        copyAlign={copyAlign}
+      />
+    )
+  }
+
   return (
     <header
       className={`flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-6 ${className}`}

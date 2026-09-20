@@ -251,6 +251,7 @@ export function ThemeSwitcher({ compact = false }) {
           open={menuOpen}
           onClose={() => setMenuOpen(false)}
           title="Color theme"
+          artKey="settings"
         >
           <ThemePickerList
             themes={themes}

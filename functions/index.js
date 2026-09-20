@@ -1,12 +1,12 @@
 /**
- * Cloud Functions: FCM push send, schedule queue, daily morning/evening digests.
- * Timezone: Asia/Kolkata
+ * Cloud Functions (optional / unused on Spark): callable send + cancel.
+ * Production push uses Vercel /api/send-push. Finance reminders use the
+ * one daily Vercel cron. No scheduled functions — Spark/Hobby stay free.
  */
 const { initializeApp } = require('firebase-admin/app')
 const { getFirestore } = require('firebase-admin/firestore')
 const { getMessaging } = require('firebase-admin/messaging')
 const { onCall, HttpsError } = require('firebase-functions/v2/https')
-const { onSchedule } = require('firebase-functions/v2/scheduler')
 const { setGlobalOptions } = require('firebase-functions/v2')
 
 initializeApp()
@@ -24,7 +24,6 @@ const COL = {
   PUSH_SETTINGS: 'pushSettings',
   PUSH_JOBS: 'pushJobs',
   PUSH_LOGS: 'pushLogs',
-  PUSH_DIGEST_CURSOR: 'pushDigestCursor',
 }
 
 const MANAGE_ROLES = new Set(['admin', 'kitchen_leader', 'room_leader'])
@@ -36,18 +35,6 @@ function todayIdInIST(date = new Date()) {
     month: '2-digit',
     day: '2-digit',
   }).format(date)
-}
-
-function timeHmInIST(date = new Date()) {
-  const parts = new Intl.DateTimeFormat('en-GB', {
-    timeZone: TZ,
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  }).formatToParts(date)
-  const hour = parts.find((p) => p.type === 'hour')?.value ?? '00'
-  const minute = parts.find((p) => p.type === 'minute')?.value ?? '00'
-  return `${hour}:${minute}`
 }
 
 async function getCallerProfile(uid) {
@@ -364,135 +351,6 @@ async function executeSend({
   }
 }
 
-async function getDefaultSettings() {
-  const snap = await db.collection(COL.PUSH_SETTINGS).doc('default').get()
-  if (!snap.exists) {
-    return {
-      morningEnabled: false,
-      morningTime: '07:30',
-      morningTitle: 'સવારનું મેનુ',
-      morningAudienceType: 'all',
-      morningNotVotedSlot: 'morning',
-      eveningEnabled: false,
-      eveningTime: '17:30',
-      eveningTitle: 'સાંજનું મેનુ',
-      eveningAudienceType: 'all',
-      eveningNotVotedSlot: 'evening',
-      fallbackBody: 'આજનું મેનુ જોઈને વોટ કરો.',
-    }
-  }
-  return snap.data()
-}
-
-async function processDailyDigests() {
-  const settings = await getDefaultSettings()
-  const hm = timeHmInIST()
-  const dateId = todayIdInIST()
-  const cursorRef = db.collection(COL.PUSH_DIGEST_CURSOR).doc('default')
-  const cursorSnap = await cursorRef.get()
-  const cursor = cursorSnap.exists ? cursorSnap.data() : {}
-
-  const slots = [
-    {
-      enabled: settings.morningEnabled,
-      time: settings.morningTime || '07:30',
-      title: settings.morningTitle || 'સવારનું મેનુ',
-      mealSlot: 'morning',
-      audienceType: settings.morningAudienceType || 'all',
-      notVotedSlot: settings.morningNotVotedSlot || 'morning',
-      cursorKey: 'morningDateId',
-    },
-    {
-      enabled: settings.eveningEnabled,
-      time: settings.eveningTime || '17:30',
-      title: settings.eveningTitle || 'સાંજનું મેનુ',
-      mealSlot: 'evening',
-      audienceType: settings.eveningAudienceType || 'all',
-      notVotedSlot: settings.eveningNotVotedSlot || 'evening',
-      cursorKey: 'eveningDateId',
-    },
-  ]
-
-  for (const slot of slots) {
-    if (!slot.enabled) continue
-    if ((slot.time || '').slice(0, 5) !== hm) continue
-    if (cursor[slot.cursorKey] === dateId) continue
-
-    const audience =
-      slot.audienceType === 'not_voted'
-        ? {
-            type: 'not_voted',
-            voteDateId: dateId,
-            voteSlot: slot.notVotedSlot || slot.mealSlot,
-          }
-        : { type: 'all' }
-
-    await executeSend({
-      title: slot.title,
-      body: '',
-      audience,
-      kind: 'daily_digest',
-      menuDateId: dateId,
-      mealSlot: slot.mealSlot,
-      triggeredBy: 'cron_daily',
-      createdBy: 'system',
-    })
-
-    await cursorRef.set(
-      {
-        [slot.cursorKey]: dateId,
-        updatedAt: new Date().toISOString(),
-      },
-      { merge: true },
-    )
-  }
-}
-
-async function processDueJobs() {
-  const nowIso = new Date().toISOString()
-  const snap = await db
-    .collection(COL.PUSH_JOBS)
-    .where('status', '==', 'scheduled')
-    .where('sendAt', '<=', nowIso)
-    .limit(20)
-    .get()
-
-  for (const docSnap of snap.docs) {
-    const job = { id: docSnap.id, ...docSnap.data() }
-    await docSnap.ref.update({
-      status: 'sending',
-      updatedAt: nowIso,
-    })
-    try {
-      const result = await executeSend({
-        title: job.title,
-        body: job.body || '',
-        audience: job.audience || { type: 'all' },
-        kind: job.kind || 'custom',
-        menuDateId: job.menuDateId || null,
-        mealSlot: job.mealSlot || null,
-        triggeredBy: 'cron_job',
-        jobId: job.id,
-        createdBy: job.createdBy || null,
-      })
-      await docSnap.ref.update({
-        status: 'sent',
-        sentAt: nowIso,
-        successCount: result.successCount,
-        failureCount: result.failureCount,
-        updatedAt: nowIso,
-      })
-    } catch (err) {
-      console.error('job failed', job.id, err)
-      await docSnap.ref.update({
-        status: 'failed',
-        error: err.message || String(err),
-        updatedAt: nowIso,
-      })
-    }
-  }
-}
-
 exports.sendPushNow = onCall(async (request) => {
   if (!request.auth?.uid) {
     throw new HttpsError('unauthenticated', 'Sign in required.')
@@ -547,14 +405,3 @@ exports.cancelPushJob = onCall(async (request) => {
   })
   return { ok: true }
 })
-
-exports.processPushQueue = onSchedule(
-  {
-    schedule: 'every 1 minutes',
-    timeZone: TZ,
-  },
-  async () => {
-    await processDailyDigests()
-    await processDueJobs()
-  },
-)

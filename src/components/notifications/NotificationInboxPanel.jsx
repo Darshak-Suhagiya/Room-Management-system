@@ -11,7 +11,7 @@ export function NotificationInboxPanel() {
     expandedId,
     busy,
     inboxError,
-    markRead,
+    selectNotification,
     clearAll,
   } = useNotificationInbox()
 
@@ -43,7 +43,7 @@ export function NotificationInboxPanel() {
         expandedId={expandedId}
         busy={busy}
         error={inboxError}
-        onSelect={markRead}
+        onSelect={selectNotification}
         onClearAll={clearAll}
       />
     </div>

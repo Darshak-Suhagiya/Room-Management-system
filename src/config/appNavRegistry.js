@@ -14,6 +14,7 @@ import {
   Sparkles,
   Users,
   UtensilsCrossed,
+  Wallet,
 } from 'lucide-react'
 
 export const MEALS_TAB_ID = 'meals'
@@ -48,6 +49,9 @@ const NAV_COMPONENTS = {
   ),
   settings: lazyPage(() =>
     import('../pages/SettingsPage').then((m) => ({ default: m.SettingsPage })),
+  ),
+  finance: lazyPage(() =>
+    import('../pages/FinancePage').then((m) => ({ default: m.FinancePage })),
   ),
   'menu-planning': lazyPage(() =>
     import('../pages/AdminMenuPlanningPage').then((m) => ({
@@ -176,6 +180,18 @@ const NAV_DEFS = [
     isVisible: () => true,
   },
   {
+    id: 'finance',
+    path: '/finance',
+    end: false,
+    sidebarLabel: 'Finance',
+    navLabel: 'Finance',
+    icon: Wallet,
+    group: 'main',
+    guard: 'financeAccess',
+    inDefaultNav: false,
+    isVisible: (auth) => auth.canViewFinance,
+  },
+  {
     id: 'menu-planning',
     path: '/admin/planning',
     end: false,
@@ -272,6 +288,7 @@ export const NAV_GUARD_PROPS = {
   sevaManageAccess: { sevaManageAccess: true },
   noticesAccess: { noticesAccess: true },
   pushAccess: { pushAccess: true },
+  financeAccess: { financeAccess: true },
 }
 
 export function buildAuthSnapshot({
@@ -285,6 +302,7 @@ export function buildAuthSnapshot({
   canViewNoticeAnalytics,
   canManagePush,
   canViewStocks,
+  canViewFinance,
 }) {
   return {
     isMaharaj,
@@ -297,6 +315,7 @@ export function buildAuthSnapshot({
     canViewNoticeAnalytics,
     canManagePush,
     canViewStocks,
+    canViewFinance,
   }
 }
 

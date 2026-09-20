@@ -31,7 +31,7 @@ export function MealsOptionsSheet({
   if (!hasContent) return null
 
   return (
-    <Modal open={open} onClose={onClose} title="Meal options">
+    <Modal open={open} onClose={onClose} title="Meal options" artKey="meals">
       <div className="meals-options-sheet">
         {canSeeMealReviews && (
           <section className="meals-options-section">

@@ -1,5 +1,8 @@
+import { BlessingHero } from '../darshan/BlessingHero'
+
 /**
  * Compact mobile page header: icon + title + optional right action on one row.
+ * When artKey is set, renders the shared darshan banner instead.
  */
 export function MobilePageHeader({
   icon: Icon,
@@ -7,7 +10,28 @@ export function MobilePageHeader({
   description,
   action,
   className = '',
+  artKey,
+  size = 'compact',
+  kicker,
+  copyAlign,
+  showStamp = true,
 }) {
+  if (artKey) {
+    return (
+      <BlessingHero
+        artKey={artKey}
+        size={size}
+        title={title}
+        subtitle={description}
+        actions={action}
+        kicker={kicker}
+        className={className}
+        copyAlign={copyAlign}
+        showStamp={showStamp}
+      />
+    )
+  }
+
   return (
     <header className={`mobile-page-header ${className}`.trim()}>
       <div className="mobile-page-header-main">

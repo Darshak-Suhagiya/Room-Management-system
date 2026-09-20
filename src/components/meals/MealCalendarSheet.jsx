@@ -17,6 +17,7 @@ export function MealCalendarSheet({
   onViewMonthChange,
   showDotWhenEmpty,
   legend,
+  artKey = 'meals',
 }) {
   const handleSelect = (dateId) => {
     onSelect(dateId)
@@ -24,7 +25,7 @@ export function MealCalendarSheet({
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="Pick a date" wide>
+    <Modal open={open} onClose={onClose} title="Pick a date" wide artKey={artKey}>
       <MealCalendar
         allowAllDates={allowAllDates}
         plannedDates={plannedDates}

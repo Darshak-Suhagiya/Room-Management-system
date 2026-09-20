@@ -29,6 +29,7 @@ export function ComposeNoticeSheet({
       title={editingId ? 'Edit notice' : 'New notice'}
       busy={saving}
       wide
+      artKey="notices"
     >
       <form className="notices-compose-sheet mobile-section-gap" onSubmit={onSave}>
         <div className="notices-compose-preview">

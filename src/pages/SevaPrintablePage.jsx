@@ -5,6 +5,7 @@ import { SevaGroupDefinitions } from '../components/seva/SevaGroupDefinitions'
 import { SevaDailySchedule } from '../components/seva/SevaDailySchedule'
 import { SevaWeeklySection } from '../components/seva/SevaWeeklySection'
 import { SevaLoadTable } from '../components/seva/SevaLoadTable'
+import { BlessingHero } from '../components/darshan'
 import { useSevaRoom } from '../hooks/useSevaRoom'
 
 /** Printable spreadsheet view of the weekly seva board (admin / room leader). */
@@ -17,28 +18,38 @@ export function SevaPrintablePage() {
   }
 
   if (loading || !config) {
-    return <p className="page-loading">Loading…</p>
+    return (
+      <div className="page seva-page">
+        <BlessingHero
+          artKey="printable"
+          size="comfort"
+          className="seva-no-print seva-darshan-hero seva-printable-hero"
+          title="Room Seva Printable"
+          subtitle="Loading the print view…"
+        />
+      </div>
+    )
   }
 
   return (
     <div className="page seva-page">
-      <header className="page-header seva-no-print page-header-icon">
-        <span className="page-header-icon-wrap" aria-hidden>
-          <Printer size={22} />
-        </span>
-        <div>
-          <h2>Room Seva Printable</h2>
-          <p>Print-ready weekly seva schedule and load per person.</p>
-        </div>
-        <button
-          type="button"
-          className="btn btn-primary header-action-btn"
-          onClick={() => window.print()}
-        >
-          <Printer size={16} />
-          Print (A4 portrait)
-        </button>
-      </header>
+      <BlessingHero
+        artKey="printable"
+        size="comfort"
+        className="seva-no-print seva-darshan-hero seva-printable-hero"
+        title="Room Seva Printable"
+        subtitle="Print-ready weekly board."
+        actions={
+          <button
+            type="button"
+            className="btn btn-primary header-action-btn"
+            onClick={() => window.print()}
+          >
+            <Printer size={16} />
+            Print
+          </button>
+        }
+      />
 
       {error && <p className="form-error">{error}</p>}
 

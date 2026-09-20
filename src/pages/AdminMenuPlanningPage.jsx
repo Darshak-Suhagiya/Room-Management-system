@@ -12,6 +12,7 @@ import {
   PlanningPreviewSheet,
 } from '../components/planning/mobile'
 import { MobilePageHeader, MobilePageSkeleton } from '../components/mobile'
+import { BlessingHero } from '../components/darshan'
 import { MobileActionBar } from '../components/ui/MobileActionBar'
 import { useDelayedLoading } from '../hooks/useDelayedLoading'
 import { useSaveMutation } from '../hooks/useSaveMutation'
@@ -19,11 +20,11 @@ import { useMenuCatalog } from '../hooks/useMenuCatalog'
 import { useRegisterPullToRefresh } from '../hooks/useRegisterPullToRefresh'
 import {
   formatDateId,
-  getAllPlannedMenus,
   getMenuByDate,
+  listPlannedMenusFromDate,
   saveMenu,
 } from '../services/menuService'
-import { getAllParticipations } from '../services/participationService'
+import { getParticipationsInDateRange } from '../services/participationService'
 import {
   formatMenuDigestBody,
   sendPushNow,
@@ -45,7 +46,7 @@ import {
 const PLAN_FORM_ID = 'admin-menu-plan-form'
 
 export function AdminMenuPlanningPage() {
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
   const toast = useToast()
   const {
     catalog,
@@ -71,17 +72,17 @@ export function AdminMenuPlanningPage() {
 
   const categoryKey = categoryIds.join(',')
   const today = formatDateId(new Date())
-  const fromDate = dateIdMonthsAgo(2, today)
+  const fromDate = dateIdMonthsAgo(6, today)
 
   const loadHistory = useCallback(async () => {
     const [menusData, parts] = await Promise.all([
-      getAllPlannedMenus(categoryIds),
-      getAllParticipations(),
+      listPlannedMenusFromDate(fromDate, categoryIds),
+      getParticipationsInDateRange(fromDate, today),
     ])
     setAllMenus(menusData)
     setParticipations(parts)
     setPlannedDates(new Set(getPlannedDateIds(menusData)))
-  }, [categoryKey])
+  }, [categoryKey, fromDate, today])
 
   useRegisterPullToRefresh(async () => {
     await loadHistory()
@@ -173,7 +174,13 @@ export function AdminMenuPlanningPage() {
   const handleSave = async (data) => {
     const dateAtSave = selectedDate
     const { ok, result, error, stale } = await runSave(() =>
-      saveMenu(dateAtSave, data, user.uid, categoryIds),
+      saveMenu(dateAtSave, data, user.uid, categoryIds, {
+        displayName:
+          profile?.displayName?.trim() ||
+          user?.displayName?.trim() ||
+          user?.email?.split('@')[0] ||
+          'Member',
+      }),
     )
     if (!ok) {
       if (!stale) toast.error(error.message)
@@ -256,21 +263,21 @@ export function AdminMenuPlanningPage() {
   }
 
   if (catalogLoading) {
-    return showLoadSkeleton ? <MobilePageSkeleton /> : null
+    return showLoadSkeleton ? (
+      <MobilePageSkeleton artKey="planning" size="standard" copyAlign="end" title="Menu planning" />
+    ) : null
   }
 
   return (
     <div className="page admin-page admin-plan-page">
       <div className="layout-desktop">
-        <header className="page-header">
-          <h2>Menu planning</h2>
-          <p>
-            Pick a date and plan morning and/or evening — you do not need both.
-            Notes for everyone and for Maharaj can be set per slot. Selected dishes
-            show Good/Okay/Bad counts; use the info button for date- and person-wise
-            reviews from the last 5 cooks.
-          </p>
-        </header>
+        <BlessingHero
+          artKey="planning"
+          size="tall"
+          copyAlign="end"
+          title="Menu planning"
+          subtitle="Pick a date and plan morning and/or evening. Notes can be set per slot."
+        />
 
         {seeding && <p className="muted">Setting up menu list…</p>}
         {catalogError && <p className="form-error">{catalogError}</p>}
@@ -311,9 +318,13 @@ export function AdminMenuPlanningPage() {
 
       <div className="layout-mobile admin-plan-mobile admin-mobile-page-with-bar">
         <MobilePageHeader
+          artKey="planning"
+          size="standard"
+          copyAlign="end"
+          showStamp={false}
+          kicker=""
           icon={CalendarDays}
           title="Menu planning"
-          description="Plan morning and/or evening for a date."
         />
 
         {seeding && <p className="muted">Setting up menu list…</p>}
@@ -333,7 +344,7 @@ export function AdminMenuPlanningPage() {
         </p>
 
         {menuLoading ? (
-          showLoadSkeleton ? <MobilePageSkeleton /> : null
+          showLoadSkeleton ? <MobilePageSkeleton artKey="planning" size="standard" copyAlign="end" title="Menu planning" /> : null
         ) : (
           <div className="mobile-section-gap admin-plan-mobile-body">
             <PlanningPreviewEntryRow
@@ -367,6 +378,7 @@ export function AdminMenuPlanningPage() {
           selectedDate={selectedDate}
           today={today}
           onSelect={selectDate}
+          artKey="planning"
         />
 
         <MobileActionBar open={formDirty || saving}>

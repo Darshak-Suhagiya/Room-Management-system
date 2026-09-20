@@ -10,6 +10,7 @@ import { SevaPeoplePanel } from '../components/seva/SevaPeoplePanel'
 import { SevaPrefillPanel } from '../components/seva/SevaPrefillPanel'
 import { SevaAdminMobileSchedule } from '../components/seva/SevaAdminMobileSchedule'
 import { MobilePageHeader } from '../components/mobile'
+import { BlessingHero } from '../components/darshan'
 import { useSevaRoom } from '../hooks/useSevaRoom'
 import { useRegisterPullToRefresh } from '../hooks/useRegisterPullToRefresh'
 import { getTodayWeekDayId } from '../utils/sevaDayUtils'
@@ -66,7 +67,17 @@ export function AdminSevaPage() {
   }
 
   if (loading || !config) {
-    return <p className="page-loading">Loading…</p>
+    return (
+      <div className="page seva-page">
+        <BlessingHero
+          artKey="seva-admin"
+          size="comfort"
+          className="seva-no-print seva-darshan-hero"
+          title="Room seva"
+          subtitle="Loading the board…"
+        />
+      </div>
+    )
   }
 
   if (!canManageSeva) {
@@ -77,47 +88,51 @@ export function AdminSevaPage() {
     <SevaPersonColorProvider people={config.people}>
     <div className="page admin-page seva-page">
       <div className="layout-desktop">
-        <header className="page-header seva-no-print">
-          <div>
-            <h2>Room seva</h2>
-            <p>
-              Make changes, then save. Tap + Add on mobile or drag names on desktop to assign.
-            </p>
-          </div>
-          <div className="seva-toolbar">
-            <button
-              type="button"
-              className="btn btn-primary"
-              disabled={!dirty || saving}
-              onClick={handleSave}
-            >
-              {saving ? 'Saving…' : 'Save'}
-            </button>
-            {dirty && (
+        <BlessingHero
+          artKey="seva-admin"
+          size="comfort"
+          title="Room seva"
+          subtitle="Make changes, then save. Tap + Add on mobile or drag names on desktop to assign."
+          className="seva-no-print seva-darshan-hero"
+          actions={
+            <div className="seva-toolbar">
               <button
                 type="button"
-                className="btn btn-ghost"
-                disabled={saving}
-                onClick={discardChanges}
+                className="btn btn-primary"
+                disabled={!dirty || saving}
+                onClick={handleSave}
               >
-                Discard
+                {saving ? 'Saving…' : 'Save'}
               </button>
-            )}
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={() => window.print()}
-            >
-              Print (A4)
-            </button>
-            {dirty && <span className="seva-dirty-badge">Unsaved changes</span>}
-            {saveMsg && <span className="seva-saved-msg">{saveMsg}</span>}
-          </div>
-        </header>
+              {dirty && (
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  disabled={saving}
+                  onClick={discardChanges}
+                >
+                  Discard
+                </button>
+              )}
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => window.print()}
+              >
+                Print (A4)
+              </button>
+              {dirty && <span className="seva-dirty-badge">Unsaved changes</span>}
+              {saveMsg && <span className="seva-saved-msg">{saveMsg}</span>}
+            </div>
+          }
+        />
       </div>
 
       <div className="layout-mobile mobile-section-gap">
         <MobilePageHeader
+          artKey="seva-admin"
+          size="comfort"
+          className="seva-no-print seva-darshan-hero"
           icon={LayoutGrid}
           title="Room seva"
           description="Tap + Add to assign. Save when done."

@@ -52,9 +52,10 @@ export function SettingsMobileView() {
   return (
     <div className="settings-mobile-view admin-mobile-page mobile-section-gap">
       <MobilePageHeader
+        artKey="settings"
+        size="standard"
         icon={Settings}
         title="Settings"
-        description="Appearance and notifications for this device."
       />
 
       <SettingsGroup>
@@ -99,6 +100,7 @@ export function SettingsMobileView() {
         onClose={() => setScreen(null)}
         title="Appearance"
         className="settings-mobile-nested"
+        artKey="settings"
       >
         <ThemeSettingsSection />
       </MobileNestedScreen>
@@ -108,6 +110,7 @@ export function SettingsMobileView() {
         onClose={() => setScreen(null)}
         title="Notifications"
         className="settings-mobile-nested"
+        artKey="settings"
       >
         <PushNotificationSettings />
       </MobileNestedScreen>
@@ -117,6 +120,7 @@ export function SettingsMobileView() {
         onClose={() => setScreen(null)}
         title="Bottom navigation"
         className="settings-mobile-nested"
+        artKey="settings"
       >
         {isCustomizable ? (
           <BottomNavSettingsSection />

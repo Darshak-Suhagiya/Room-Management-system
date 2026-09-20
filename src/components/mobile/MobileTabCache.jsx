@@ -5,6 +5,17 @@ import { NAV_GUARD_PROPS } from '../../config/appNavRegistry'
 import { MobileTabPanelProvider } from '../../contexts/MobileTabPanelContext'
 import { MobilePageSkeleton } from './MobilePageSkeleton'
 
+const TAB_DARSHAN = {
+  '/': { artKey: 'meals', size: 'tall', title: 'My meals' },
+  '/seva': { artKey: 'seva', size: 'tall', title: 'Room Seva' },
+  '/leaves': { artKey: 'leave', size: 'standard', title: 'Leave' },
+  '/stocks': { artKey: 'stocks', size: 'compact', title: 'Stocks' },
+  '/shopping': { artKey: 'shopping', size: 'comfort', title: 'Shopping' },
+  '/admin/votes': { artKey: 'votes', size: 'standard', title: 'Vote dashboard' },
+  '/settings': { artKey: 'settings', size: 'compact', title: 'Settings' },
+  '/finance': { artKey: 'finance', size: 'compact', title: 'Finance' },
+}
+
 function TabPanel({ tab, children }) {
   if (!tab.guard) return children
 
@@ -53,7 +64,15 @@ export function MobileTabCache({ activePath, tabs }) {
           >
             <TabPanel tab={tab}>
               <MobileTabPanelProvider isActive={isActive}>
-                <Suspense fallback={<MobilePageSkeleton />}>
+                <Suspense
+                  fallback={
+                    <MobilePageSkeleton
+                      artKey={TAB_DARSHAN[tab.path]?.artKey}
+                      size={TAB_DARSHAN[tab.path]?.size}
+                      title={TAB_DARSHAN[tab.path]?.title}
+                    />
+                  }
+                >
                   <Component />
                 </Suspense>
               </MobileTabPanelProvider>

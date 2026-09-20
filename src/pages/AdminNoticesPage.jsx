@@ -2,13 +2,14 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Check,
   Eye,
-  Megaphone,
   Plus,
   X,
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { NoticeBanner } from '../components/NoticeBanner'
 import { NoticesMobileView } from '../components/notices/mobile'
+import { BlessingHero } from '../components/darshan'
+import { AdminConfirmSheet } from '../components/admin/mobile'
 import { useMediaQuery } from '../hooks/useMediaQuery'
 import { useSaveMutation } from '../hooks/useSaveMutation'
 import {
@@ -251,6 +252,7 @@ export function AdminNoticesPage() {
   const [receiptsLoading, setReceiptsLoading] = useState(false)
 
   const [people, setPeople] = useState([])
+  const [endingNotice, setEndingNotice] = useState(null)
 
   const reload = useCallback(async ({ silent = false } = {}) => {
     if (!silent) setLoading(true)
@@ -432,9 +434,14 @@ export function AdminNoticesPage() {
     await reload()
   }
 
-  const handleEnd = async (notice) => {
+  const handleEnd = (notice) => {
     if (!canManageNotices || !user) return
-    if (!window.confirm(`End notice “${notice.title}” now?`)) return
+    setEndingNotice(notice)
+  }
+
+  const confirmEndNotice = async () => {
+    const notice = endingNotice
+    if (!notice || !user) return
     setError('')
     const noticeId = notice.id
     const { ok, error: err, stale } = await runSave(() =>
@@ -445,6 +452,7 @@ export function AdminNoticesPage() {
       return
     }
     if (stale) return
+    setEndingNotice(null)
     if (selectedId === noticeId) setSelectedId(null)
     await reload()
   }
@@ -671,6 +679,7 @@ export function AdminNoticesPage() {
 
   if (isMobile) {
     return (
+      <>
       <NoticesMobileView
         canManageNotices={canManageNotices}
         canViewNoticeAnalytics={canViewNoticeAnalytics}
@@ -706,31 +715,45 @@ export function AdminNoticesPage() {
         onEdit={openEdit}
         onEnd={handleEnd}
       />
+      <AdminConfirmSheet
+        open={Boolean(endingNotice)}
+        onClose={() => {
+          if (!saving) setEndingNotice(null)
+        }}
+        artKey="notices"
+        title="End notice?"
+        message={
+          endingNotice ? `End “${endingNotice.title}” now? It will leave the active list.` : ''
+        }
+        confirmLabel="End now"
+        destructive
+        busy={saving}
+        onConfirm={confirmEndNotice}
+      />
+      </>
     )
   }
 
   return (
     <div className="page admin-page notices-admin-page">
-      <header className="page-header page-header-icon page-header-with-actions">
-        <span className="page-header-icon-wrap" aria-hidden>
-          <Megaphone size={22} />
-        </span>
-        <div>
-          <h2>Notices</h2>
-          <p>
-            Sticky notices on My Meals and Room Seva
-            {canManageNotices
-              ? ' — create, end, and track who has read them.'
-              : ' — view analytics for active and past notices.'}
-          </p>
-        </div>
-        {canManageNotices && (
-          <button type="button" className="btn btn-primary" onClick={openCreate}>
-            <Plus size={18} />
-            New notice
-          </button>
-        )}
-      </header>
+      <BlessingHero
+        artKey="notices"
+        size="standard"
+        title="Notices"
+        subtitle={
+          canManageNotices
+            ? 'Sticky notices on My Meals and Room Seva — create, end, and track who has read them.'
+            : 'Sticky notices on My Meals and Room Seva — view analytics for active and past notices.'
+        }
+        actions={
+          canManageNotices ? (
+            <button type="button" className="btn btn-primary" onClick={openCreate}>
+              <Plus size={18} />
+              New notice
+            </button>
+          ) : null
+        }
+      />
 
       {error && <p className="form-error">{error}</p>}
 
@@ -756,6 +779,22 @@ export function AdminNoticesPage() {
           )}
         </aside>
       </div>
+
+      <AdminConfirmSheet
+        open={Boolean(endingNotice)}
+        onClose={() => {
+          if (!saving) setEndingNotice(null)
+        }}
+        artKey="notices"
+        title="End notice?"
+        message={
+          endingNotice ? `End “${endingNotice.title}” now? It will leave the active list.` : ''
+        }
+        confirmLabel="End now"
+        destructive
+        busy={saving}
+        onConfirm={confirmEndNotice}
+      />
     </div>
   )
 }

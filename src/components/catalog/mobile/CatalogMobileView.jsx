@@ -99,11 +99,16 @@ export function CatalogMobileView({
   return (
     <div className="admin-catalog-mobile admin-mobile-page mobile-section-gap">
       <MobilePageHeader
+        artKey="catalog"
+        size="comfort"
+        showStamp={false}
         icon={UtensilsCrossed}
         title="Menu editing"
-        description="Dishes, vote types, and Maharaj-only notes"
-        action={headerAction}
       />
+
+      <div className="admin-mobile-catalog-toolbar-actions">
+        {headerAction}
+      </div>
 
       {seeding && <p className="muted">Importing default menu list…</p>}
       {error && <p className="form-error">{error}</p>}
@@ -254,6 +259,7 @@ export function CatalogMobileView({
       <AdminConfirmSheet
         open={Boolean(confirmDelete)}
         onClose={() => setConfirmDelete(null)}
+        artKey="catalog"
         title={
           confirmDelete?.type === 'category'
             ? categoryBlocked

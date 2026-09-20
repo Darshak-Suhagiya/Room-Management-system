@@ -6,6 +6,7 @@ import {
   useMemo,
   useState,
 } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from './AuthContext'
 import {
   clearAll as clearAllNotifications,
@@ -18,6 +19,7 @@ const NotificationInboxContext = createContext(null)
 
 export function NotificationInboxProvider({ children }) {
   const { profile, user } = useAuth()
+  const navigate = useNavigate()
   const userId = user?.uid ?? profile?.id ?? null
   const [notifications, setNotifications] = useState([])
   const [unreadCount, setUnreadCount] = useState(0)
@@ -89,6 +91,24 @@ export function NotificationInboxProvider({ children }) {
     [userId],
   )
 
+  const selectNotification = useCallback(
+    async (notificationId) => {
+      const item = notifications.find((n) => n.id === notificationId)
+      await markRead(notificationId)
+      if (
+        item &&
+        (item.relatedType === 'finance' || item.source === 'finance')
+      ) {
+        closeInbox()
+        const target = item.relatedId
+          ? `/finance?collection=${encodeURIComponent(item.relatedId)}`
+          : '/finance'
+        navigate(target)
+      }
+    },
+    [notifications, markRead, closeInbox, navigate],
+  )
+
   const value = useMemo(
     () => ({
       notifications,
@@ -102,6 +122,7 @@ export function NotificationInboxProvider({ children }) {
       toggleInbox,
       clearAll,
       markRead,
+      selectNotification,
       setExpandedId,
     }),
     [
@@ -116,6 +137,7 @@ export function NotificationInboxProvider({ children }) {
       toggleInbox,
       clearAll,
       markRead,
+      selectNotification,
     ],
   )
 

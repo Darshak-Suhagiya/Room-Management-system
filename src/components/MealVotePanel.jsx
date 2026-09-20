@@ -14,6 +14,8 @@ import { isPastDate } from '../utils/mealDateUtils'
 import { getItemReview, collectSlotItemReviews } from '../utils/menuReviewUtils'
 import { parseQuantityInput } from '../utils/voteQuantityUtils'
 import { MenuSlotNote } from './MenuSlotNote'
+import { MenuSlotLastEdit } from './MenuSlotLastEdit'
+import { MealSlotArt } from './meals/MealSlotArt'
 import { MobileMealVoteView } from './meals/mobile/MobileMealVoteView'
 import {
   MealFeedbackEntryRow,
@@ -128,6 +130,7 @@ export function MealVotePanel({
   const SlotIcon = slot === 'morning' ? IconSun : IconMoon
   const slotNote =
     slot === 'morning' ? menu?.morningNote : menu?.eveningNote
+  const lastEdit = menu?.slotEdits?.[slot] ?? null
   const plannedItems = getPlannedMenuItems(menu, slot, catalog)
   const grouped = useMemo(
     () => groupPlannedByCategory(plannedItems, catalog),
@@ -388,6 +391,7 @@ export function MealVotePanel({
         slot={slot}
         slotLabel={slotInfo.labelEn}
         slotNote={slotNote}
+        lastEdit={lastEdit}
         grouped={grouped}
         hydrated={hydrated}
         isComplete={isComplete}
@@ -426,50 +430,54 @@ export function MealVotePanel({
     <article
       className={`meal-vote-panel slot-panel-${slot} ${voteStatusClass} ${locked ? 'is-locked' : ''} ${past ? 'is-past' : ''}`}
     >
-      <header className="slot-card-header">
-        <div className="slot-card-title">
-          <SlotIcon size={20} className={`slot-icon slot-icon-${slot}`} />
-          <h3>{slotInfo.labelEn}</h3>
-          {hydrated && (
-            <span
-              className={`vote-status-pill ${isComplete ? 'is-done' : 'is-pending'}`}
-            >
-              {isComplete ? 'Voted' : 'Not voted'}
-            </span>
-          )}
-        </div>
-        <div className="slot-card-actions">
-          {locked && (
-            <span className="lock-badge">
-              <IconLock size={14} />
-              Locked
-            </span>
-          )}
-          {onRefresh && (
-            <button
-              type="button"
-              className="btn btn-icon btn-ghost slot-card-refresh"
-              disabled={refreshing}
-              onClick={() => onRefresh()}
-              title="Refresh menu and votes"
-              aria-label="Refresh"
-            >
-              <IconRefresh size={18} className={refreshing ? 'spin' : ''} />
-            </button>
-          )}
-          {isComplete && !showForm && !readOnly && (
-            <button
-              type="button"
-              className="btn-edit-corner"
-              onClick={() => setEditing(true)}
-            >
-              <IconEdit size={14} />
-              Edit
-            </button>
-          )}
-        </div>
-      </header>
+      <div className="meal-slot-banner">
+        <MealSlotArt slot={slot} />
+        <header className="slot-card-header">
+          <div className="slot-card-title">
+            <SlotIcon size={20} className={`slot-icon slot-icon-${slot}`} />
+            <h3>{slotInfo.labelEn}</h3>
+            {hydrated && (
+              <span
+                className={`vote-status-pill ${isComplete ? 'is-done' : 'is-pending'}`}
+              >
+                {isComplete ? 'Voted' : 'Not voted'}
+              </span>
+            )}
+          </div>
+          <div className="slot-card-actions">
+            {locked && (
+              <span className="lock-badge">
+                <IconLock size={14} />
+                Locked
+              </span>
+            )}
+            {onRefresh && (
+              <button
+                type="button"
+                className="btn btn-icon btn-ghost slot-card-refresh"
+                disabled={refreshing}
+                onClick={() => onRefresh()}
+                title="Refresh menu and votes"
+                aria-label="Refresh"
+              >
+                <IconRefresh size={18} className={refreshing ? 'spin' : ''} />
+              </button>
+            )}
+            {isComplete && !showForm && !readOnly && (
+              <button
+                type="button"
+                className="btn-edit-corner"
+                onClick={() => setEditing(true)}
+              >
+                <IconEdit size={14} />
+                Edit
+              </button>
+            )}
+          </div>
+        </header>
+      </div>
 
+      <MenuSlotLastEdit edit={lastEdit} />
       <MenuSlotNote note={slotNote} slot={slot} />
 
       {blockReason && (

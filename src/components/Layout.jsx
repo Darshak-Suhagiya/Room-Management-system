@@ -23,6 +23,7 @@ import {
 import { useMediaQuery } from '../hooks/useMediaQuery'
 import { applyGlassSupportClass } from '../lib/detectGlassSupport'
 import { getRoleLabel, getUserInitials } from '../utils/userDisplay'
+import { BlessingStamp } from './darshan/BlessingStamp'
 import { listActiveNotices } from '../services/noticeService'
 
 export function Layout() {
@@ -40,6 +41,7 @@ export function Layout() {
     canViewNoticeAnalytics,
     canManagePush,
     canViewStocks,
+    canViewFinance,
   } = authFromContext
 
   const auth = useMemo(
@@ -55,6 +57,7 @@ export function Layout() {
         canViewNoticeAnalytics,
         canManagePush,
         canViewStocks,
+        canViewFinance,
       }),
     [
       isMaharaj,
@@ -67,6 +70,7 @@ export function Layout() {
       canViewNoticeAnalytics,
       canManagePush,
       canViewStocks,
+      canViewFinance,
     ],
   )
 
@@ -178,7 +182,7 @@ export function Layout() {
       <div className="app-layout">
         <aside className={`sidebar ${sidebarOpen ? 'is-open' : ''}`}>
           <div className="sidebar-brand">
-            <span className="brand-mark">RM</span>
+            <BlessingStamp artKey="chrome" size="md" className="brand-mark brand-mark-photo" />
             <div className="brand-text">
               <h1>Room Management</h1>
               <p className="brand-subtitle">Meal Planner &amp; Tracker</p>
@@ -247,7 +251,7 @@ export function Layout() {
               <MenuIcon size={22} />
             </button>
             <Link to={homeTabPath} className="topbar-brand">
-              <span className="brand-mark brand-mark-sm">RM</span>
+              <BlessingStamp artKey="chrome" size="sm" className="brand-mark brand-mark-sm brand-mark-photo" />
               <span>Room Management</span>
             </Link>
             <div className="topbar-actions">

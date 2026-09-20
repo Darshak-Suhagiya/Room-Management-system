@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { ThemeSwitcher } from '../components/ThemeSwitcher'
+import { BlessingHero } from '../components/darshan'
 import { isUserApproved } from '../services/userService'
 
 export function AccountPendingPage() {
@@ -29,6 +30,12 @@ export function AccountPendingPage() {
 
   return (
     <div className="page account-status-page pt-safe pb-safe">
+      <BlessingHero
+        artKey="login"
+        size="tall"
+        title="Account pending approval"
+        subtitle="An admin will review your registration shortly."
+      />
       <div className="account-status-card">
         <h2>Account pending approval</h2>
         <p>

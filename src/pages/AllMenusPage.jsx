@@ -6,6 +6,7 @@ import {
   Table as IconTable,
 } from 'lucide-react'
 import { MobilePageHeader } from '../components/mobile'
+import { BlessingHero } from '../components/darshan'
 import { useMenuCatalog } from '../hooks/useMenuCatalog'
 import { useRegisterPullToRefresh } from '../hooks/useRegisterPullToRefresh'
 import { getAllPlannedMenus } from '../services/menuService'
@@ -108,35 +109,38 @@ export function AllMenusPage() {
   }, [rows, mobileSearch])
 
   if (catalogLoading || loading) {
-    return <p className="page-loading">Loading…</p>
+    return (
+      <div className="page">
+        <BlessingHero artKey="menus" size="standard" title="All menus" subtitle="Loading planned menus…" />
+      </div>
+    )
   }
 
   return (
     <div className="page all-menus-page">
       <div className="layout-desktop">
-        <header className="page-header page-header-icon">
-          <span className="page-header-icon-wrap" aria-hidden>
-            <IconTable size={22} />
-          </span>
-          <div>
-            <h2>All menus</h2>
-            <p>Every planned menu in one table, for quick reading.</p>
-          </div>
-          <div className="header-actions">
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm no-print"
-              onClick={() => window.print()}
-            >
-              <IconPrinter size={16} />
-              Print
-            </button>
-            <Link to="/" className="btn btn-secondary btn-sm no-print">
-              <IconBack size={16} />
-              Back to My meals
-            </Link>
-          </div>
-        </header>
+        <BlessingHero
+          artKey="menus"
+          size="standard"
+          title="All menus"
+          subtitle="Every planned menu in one table, for quick reading."
+          actions={
+            <div className="header-actions">
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm no-print"
+                onClick={() => window.print()}
+              >
+                <IconPrinter size={16} />
+                Print
+              </button>
+              <Link to="/" className="btn btn-secondary btn-sm no-print">
+                <IconBack size={16} />
+                Back to My meals
+              </Link>
+            </div>
+          }
+        />
 
         {error && <p className="form-error">{error}</p>}
 
@@ -182,6 +186,8 @@ export function AllMenusPage() {
 
       <div className="layout-mobile mobile-section-gap">
         <MobilePageHeader
+          artKey="menus"
+          size="standard"
           icon={IconTable}
           title="All menus"
           description="Browse every planned menu by day."

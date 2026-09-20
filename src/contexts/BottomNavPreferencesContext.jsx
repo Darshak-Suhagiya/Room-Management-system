@@ -38,6 +38,7 @@ export function BottomNavPreferencesProvider({ children }) {
       authFromContext.canViewNoticeAnalytics,
       authFromContext.canManagePush,
       authFromContext.canViewStocks,
+      authFromContext.canViewFinance,
     ],
   )
 

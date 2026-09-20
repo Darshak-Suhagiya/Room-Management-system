@@ -178,6 +178,7 @@ export function ShoppingTicketSheet({
         title="Shopping ticket"
         subtitle={groupLabel}
         fullScreenMobile
+        artKey="shopping"
       >
         <div className="admin-mobile-shop-ticket mobile-section-gap">
           {isOpen && totalCount > 0 && (
@@ -340,6 +341,7 @@ export function ShoppingTicketSheet({
         onClose={() => setConfirmCancel(false)}
         title="Cancel ticket?"
         message="This shopping ticket will be marked cancelled."
+        artKey="shopping"
         confirmLabel="Cancel ticket"
         destructive
         busy={cancelSave.busy}

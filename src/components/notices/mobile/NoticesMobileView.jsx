@@ -55,6 +55,8 @@ export function NoticesMobileView({
   return (
     <div className="page admin-page notices-admin-page admin-mobile-page mobile-section-gap">
       <MobilePageHeader
+        artKey="notices"
+        size="standard"
         icon={Megaphone}
         title="Notices"
         description={

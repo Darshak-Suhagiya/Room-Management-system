@@ -19,7 +19,7 @@ export function SevaPeoplePanel({
             <th>Drag</th>
             <th>Name</th>
             <th>Account link</th>
-            {editable && <th />}
+            {editable && <th className="table-actions-cell" aria-label="Actions" />}
           </tr>
         </thead>
         <tbody>
@@ -71,14 +71,16 @@ export function SevaPeoplePanel({
                 )}
               </td>
               {editable && (
-                <td>
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-sm"
-                    onClick={() => onRemovePerson(person.id)}
-                  >
-                    Remove
-                  </button>
+                <td className="table-actions-cell">
+                  <span className="table-actions-inner">
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => onRemovePerson(person.id)}
+                    >
+                      Remove
+                    </button>
+                  </span>
                 </td>
               )}
             </tr>

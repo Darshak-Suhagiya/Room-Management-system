@@ -51,6 +51,7 @@ export function MealFeedbackSheet({
       open={open}
       onClose={handleClose}
       title={`${slotLabel} · Reviews`}
+      artKey="meals"
       subtitle={
         canLeaveOwnReview
           ? 'Rate dishes you ate today'

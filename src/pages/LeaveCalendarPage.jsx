@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { MealCalendar } from '../components/MealCalendar'
 import { MealCalendarSheet } from '../components/meals/MealCalendarSheet'
 import { MobileDayStrip, MobilePageHeader, MobilePageSkeleton } from '../components/mobile'
+import { BlessingHero } from '../components/darshan'
 import { useDelayedLoading } from '../hooks/useDelayedLoading'
 import { useSaveMutation } from '../hooks/useSaveMutation'
 import {
@@ -573,7 +574,7 @@ export function LeaveCalendarPage() {
   const showInitialLoad = loading && !initialLoadDone.current
   const showLoadSkeleton = useDelayedLoading(showInitialLoad)
   if (showInitialLoad && showLoadSkeleton) {
-    return <MobilePageSkeleton />
+    return <MobilePageSkeleton artKey="leave" size="tall" title="Leave" />
   }
   if (showInitialLoad) {
     return null
@@ -582,15 +583,12 @@ export function LeaveCalendarPage() {
   return (
     <div className="page leave-calendar-page">
       <div className="layout-desktop">
-        <header className="page-header page-header-icon">
-          <span className="page-header-icon-wrap" aria-hidden>
-            <CalendarOff size={22} />
-          </span>
-          <div>
-            <h2>Leave calendar</h2>
-            <p>Maharaj leave schedule — morning, evening, or full day.</p>
-          </div>
-        </header>
+        <BlessingHero
+          artKey="leave"
+          size="tall"
+          title="Leave calendar"
+          subtitle="Maharaj leave schedule — morning, evening, or full day."
+        />
 
         {leaveStats}
 
@@ -623,6 +621,8 @@ export function LeaveCalendarPage() {
 
       <div className="layout-mobile leave-mobile mobile-section-gap">
         <MobilePageHeader
+          artKey="leave"
+          size="standard"
           icon={CalendarOff}
           title="Leave calendar"
           description="Maharaj leave — morning, evening, or full day."
@@ -664,6 +664,7 @@ export function LeaveCalendarPage() {
             />
 
             <MealCalendarSheet
+              artKey="leave"
               open={calendarSheetOpen}
               onClose={() => setCalendarSheetOpen(false)}
               plannedDates={plannedDates}

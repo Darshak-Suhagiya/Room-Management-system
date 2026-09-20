@@ -11,6 +11,7 @@ export function MobileNestedScreen({
   action,
   children,
   className = '',
+  artKey = 'sheet',
 }) {
   return (
     <Modal
@@ -19,6 +20,7 @@ export function MobileNestedScreen({
       title={title}
       subtitle={subtitle}
       fullScreenMobile
+      artKey={artKey}
       className={`mobile-nested-screen ${className}`.trim()}
     >
       <header className="mobile-nested-screen-header">

@@ -32,6 +32,7 @@ export function StockGroupSheet({ open, onClose, onCreated, userId }) {
       title="New stock group"
       subtitle="Organize pantry items"
       busy={busy}
+      artKey="stocks"
     >
       <form className="admin-mobile-sheet-form mobile-section-gap" onSubmit={handleSubmit}>
         <label className="field-stack">
