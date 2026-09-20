@@ -96,6 +96,8 @@ export function StocksMobileView({
   return (
     <div className="stocks-mobile admin-mobile-page mobile-section-gap">
       <MobilePageHeader
+        artKey="stocks"
+        size="standard"
         icon={Package}
         title="Stocks"
         description="Pantry levels by group"
@@ -216,6 +218,7 @@ export function StocksMobileView({
         message={confirmDelete ? `Remove “${confirmDelete.name}” from stock?` : ''}
         confirmLabel="Delete"
         destructive
+        artKey="stocks"
         busy={deleteSave.busy}
         onConfirm={async () => {
           if (!confirmDelete) return

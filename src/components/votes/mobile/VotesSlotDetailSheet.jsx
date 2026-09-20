@@ -61,6 +61,7 @@ export function VotesSlotDetailSheet({
       subtitle={dateLabel}
       fullScreenMobile
       className="votes-mobile-detail-sheet"
+      artKey="votes"
     >
       <div className="votes-mobile-detail mobile-section-gap">
         {(everyoneNote?.trim() || cookNote?.trim()) && (

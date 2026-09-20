@@ -31,6 +31,8 @@ export function SettingsPage() {
   return (
     <div className="page settings-page">
       <PageHeader
+        artKey="settings"
+        size="tall"
         icon={Settings}
         title="Settings"
         description="Appearance and notification preferences for this device."

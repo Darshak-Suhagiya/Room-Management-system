@@ -17,6 +17,7 @@ import { useDelayedLoading } from '../hooks/useDelayedLoading'
 import { useSaveMutation } from '../hooks/useSaveMutation'
 import { useRegisterPullToRefresh } from '../hooks/useRegisterPullToRefresh'
 import { ShoppingMobileView } from '../components/stock/mobile'
+import { BlessingHero } from '../components/darshan'
 import { StockQtySlider } from '../components/stock/StockQtySlider'
 import { ShoppingTicketPreview } from '../components/stock/ShoppingTicketPreview'
 import {
@@ -833,13 +834,19 @@ export function ShoppingPage() {
   const showLoadSkeleton = useDelayedLoading(loading)
 
   if (loading) {
-    return showLoadSkeleton ? <MobilePageSkeleton /> : null
+    return showLoadSkeleton ? <MobilePageSkeleton artKey="shopping" size="comfort" title="Shopping" /> : null
   }
 
   if (createStep === 'preview') {
     return (
       <div className="page admin-page shopping-page">
         <div className="layout-desktop">
+          <BlessingHero
+            artKey="shopping"
+            size="tall"
+            title="Shopping"
+            subtitle="Review amounts, then create the ticket."
+          />
           <ShoppingTicketPreview {...previewProps} />
         </div>
         <div className="layout-mobile shopping-mobile admin-mobile-page-with-bar">
@@ -883,24 +890,20 @@ export function ShoppingPage() {
   return (
     <div className="page admin-page shopping-page">
       <div className="layout-desktop">
-        <header className="page-header page-header-icon page-header-with-actions">
-          <span className="page-header-icon-wrap" aria-hidden>
-            <ShoppingCart size={22} />
-          </span>
-          <div>
-            <h2>Shopping</h2>
-            <p>
-              Raise tickets for groups below need, assign shoppers, adjust buy
-              amounts, then tick items to fill stock.
-            </p>
-          </div>
-          <div className="header-actions">
-            <Link to="/stocks" className="btn btn-secondary">
-              <Package size={16} aria-hidden /> Stocks
-            </Link>
-            {newTicketButton}
-          </div>
-        </header>
+        <BlessingHero
+          artKey="shopping"
+          size="tall"
+          title="Shopping"
+          subtitle="Tickets for groups below need — assign shoppers and tick items."
+          actions={
+            <div className="header-actions">
+              <Link to="/stocks" className="btn btn-secondary meals-blessing-options-btn">
+                <Package size={16} aria-hidden /> Stocks
+              </Link>
+              {newTicketButton}
+            </div>
+          }
+        />
 
         {!createStep && (
           <ShoppingListTabs

@@ -28,7 +28,7 @@ export function NoticeDetailSheet({
   if (!notice) return null
 
   return (
-    <Modal open={open} onClose={onClose} title={notice.title} wide busy={saving}>
+    <Modal open={open} onClose={onClose} title={notice.title} wide busy={saving} artKey="notices">
       <div className="notices-detail-sheet mobile-section-gap">
         <p className="notices-detail-msg">{notice.message}</p>
         <p className="muted notices-detail-meta">

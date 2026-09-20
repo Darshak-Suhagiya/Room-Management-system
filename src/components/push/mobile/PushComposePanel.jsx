@@ -206,6 +206,7 @@ export function PushComposePanel({
       <AdminConfirmSheet
         open={confirmOpen}
         onClose={() => setConfirmOpen(false)}
+        artKey="push"
         title="Send push now?"
         message={
           compose.title.trim()

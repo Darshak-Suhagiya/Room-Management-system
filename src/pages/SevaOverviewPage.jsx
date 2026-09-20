@@ -75,7 +75,7 @@ export function SevaOverviewPage() {
   const showLoadSkeleton = useDelayedLoading(loading || !config)
 
   if (loading || !config) {
-    return showLoadSkeleton ? <MobilePageSkeleton /> : null
+    return showLoadSkeleton ? <MobilePageSkeleton artKey="seva" size="tall" title="Room Seva" /> : null
   }
 
   return (
@@ -84,6 +84,8 @@ export function SevaOverviewPage() {
 
       <div className="layout-desktop">
         <PageHeader
+          artKey="seva"
+          size="tall"
           icon={Sparkles}
           title="Room Seva"
           description="Who serves what this week — duties, turns, and load."
@@ -92,6 +94,8 @@ export function SevaOverviewPage() {
 
       <div className="layout-mobile">
         <MobilePageHeader
+          artKey="seva"
+          size="tall"
           icon={Sparkles}
           title="Room Seva"
           description="Who serves what this week — duties and load."

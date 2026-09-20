@@ -74,6 +74,8 @@ export function VotesMobileView({
   return (
     <div className="votes-mobile admin-mobile-page mobile-section-gap">
       <MobilePageHeader
+        artKey="votes"
+        size="standard"
         icon={BarChart3}
         title="Vote dashboard"
         description={description}
@@ -137,6 +139,7 @@ export function VotesMobileView({
         selectedDate={selectedDate}
         today={todayId}
         dateStatus={dateStatus}
+        artKey="votes"
         onSelect={(id) => {
           onSelectDate(id)
           setCalendarOpen(false)
@@ -167,6 +170,7 @@ export function VotesMobileView({
       <AdminConfirmSheet
         open={Boolean(lockConfirm)}
         onClose={() => setLockConfirm(null)}
+        artKey="votes"
         title={lockConfirm?.locked ? 'Unlock votes?' : 'Lock votes?'}
         message={
           lockConfirm

@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useMenuCatalog } from './useMenuCatalog'
 import { useRegisterPullToRefresh } from './useRegisterPullToRefresh'
-import { getAllPlannedMenus } from '../services/menuService'
-import { getAllParticipations } from '../services/participationService'
+import {
+  getAllPlannedMenus,
+  listPlannedMenusFromDate,
+} from '../services/menuService'
+import { getParticipationsInDateRange } from '../services/participationService'
 import {
   ANALYTICS_RANGE_PRESETS,
   buildCookCounts,
@@ -12,6 +15,7 @@ import {
   getItemCookHistory,
   resolveAnalyticsRange,
 } from '../utils/menuReviewUtils'
+import { formatDateId } from '../utils/mealDateUtils'
 
 export const MIN_REVIEWS_FOR_BEST = 3
 
@@ -61,10 +65,22 @@ export function useMenuAnalytics() {
     if (!silent) setLoading(true)
     setError('')
     try {
-      const [menuList, parts] = await Promise.all([
-        getAllPlannedMenus(categoryIds),
-        getAllParticipations(),
-      ])
+      const today = formatDateId(new Date())
+      let menuList
+      let fromDateId
+      let toDateId
+      if (preset === ANALYTICS_RANGE_PRESETS.ALL) {
+        menuList = await getAllPlannedMenus(categoryIds)
+        const range = resolveAnalyticsRange(preset, customFrom, customTo, menuList)
+        fromDateId = range.fromDateId
+        toDateId = range.toDateId
+      } else {
+        const range = resolveAnalyticsRange(preset, customFrom, customTo, [])
+        fromDateId = range.fromDateId
+        toDateId = range.toDateId
+        menuList = await listPlannedMenusFromDate(fromDateId, categoryIds)
+      }
+      const parts = await getParticipationsInDateRange(fromDateId, toDateId || today)
       setMenus(menuList)
       setParticipations(parts)
     } catch (err) {
@@ -72,7 +88,7 @@ export function useMenuAnalytics() {
     } finally {
       if (!silent) setLoading(false)
     }
-  }, [categoryIds])
+  }, [categoryIds, preset, customFrom, customTo])
 
   useRegisterPullToRefresh(async () => {
     await load({ silent: true })

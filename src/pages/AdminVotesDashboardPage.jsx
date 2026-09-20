@@ -3,6 +3,7 @@ import { MealDashboardSlotCard } from '../components/MealDashboardSlotCard'
 import { MealSlotDetailModal } from '../components/MealSlotDetailModal'
 import { MenuItemDetailModal } from '../components/MenuItemDetailModal'
 import { VotesMobileView } from '../components/votes/mobile'
+import { BlessingHero } from '../components/darshan'
 import { MEAL_SLOTS } from '../config/menuItems'
 import { VOTE_TYPES } from '../config/voteTypes'
 import { useAuth } from '../contexts/AuthContext'
@@ -13,12 +14,12 @@ import { useRegisterPullToRefresh } from '../hooks/useRegisterPullToRefresh'
 import { MobilePageSkeleton } from '../components/mobile/MobilePageSkeleton'
 import { useDelayedLoading } from '../hooks/useDelayedLoading'
 import {
-  getAllPlannedMenus,
   getMenuByDate,
+  listPlannedMenusFromDate,
   setMenuTotalOverride,
 } from '../services/menuService'
 import { useToast } from '../contexts/ToastContext'
-import { getParticipationsForSlot } from '../services/participationService'
+import { getParticipationsForDate } from '../services/participationService'
 import { listApprovedUsers } from '../services/userService'
 import { setVoteLock } from '../services/voteLockService'
 import {
@@ -33,6 +34,7 @@ import {
   sortSlotsTodayThenTomorrow,
 } from '../utils/mealDateUtils'
 import { buildVoteStats, getPlannedMenuItems } from '../utils/menuVoteUtils'
+import { addDaysToDateId } from '../utils/menuReviewUtils'
 import { VoteSummary } from '../components/VoteSummary'
 import { MealCalendar } from '../components/MealCalendar'
 
@@ -132,6 +134,7 @@ export function AdminVotesDashboardPage() {
   const [statsByKey, setStatsByKey] = useState({})
   const [loading, setLoading] = useState(true)
   const todayId = formatDateId(new Date())
+  const votesFromDateId = addDaysToDateId(todayId, -90)
   const [dateFilter, setDateFilter] = useState('custom')
   const [customDate, setCustomDate] = useState(todayId)
   const [slotFilter, setSlotFilter] = useState('all')
@@ -149,12 +152,12 @@ export function AdminVotesDashboardPage() {
 
   const loadDashboard = useCallback(async () => {
     const [menuData, userList] = await Promise.all([
-      getAllPlannedMenus(categoryIds),
+      listPlannedMenusFromDate(votesFromDateId, categoryIds),
       listApprovedUsers(),
     ])
     setMenus(menuData)
     setUsers(userList)
-  }, [categoryIds])
+  }, [categoryIds, votesFromDateId])
 
   useRegisterPullToRefresh(async () => {
     await loadDashboard()
@@ -217,11 +220,10 @@ export function AdminVotesDashboardPage() {
   )
   const pageGroups = useMemo(() => groupSlotsByDate(pageSlots), [pageSlots])
 
-  const loadSlotStats = useCallback(
-    async (entry, menuDoc = entry.menu) => {
-      const participations = await getParticipationsForSlot(
-        entry.date,
-        entry.slot,
+  const buildSlotStats = useCallback(
+    (entry, menuDoc = entry.menu, dateParticipations = []) => {
+      const participations = dateParticipations.filter(
+        (p) => p.slot === entry.slot,
       )
       const plannedItems = getPlannedMenuItems(menuDoc, entry.slot, catalog)
       const slotOverrides = menuDoc?.totalOverrides?.[entry.slot] ?? {}
@@ -239,6 +241,14 @@ export function AdminVotesDashboardPage() {
     [users, catalog],
   )
 
+  const loadSlotStats = useCallback(
+    async (entry, menuDoc = entry.menu) => {
+      const dateParts = await getParticipationsForDate(entry.date)
+      return buildSlotStats(entry, menuDoc, dateParts)
+    },
+    [buildSlotStats],
+  )
+
   const upsertMenuInList = useCallback((prev, freshMenu) => {
     if (!freshMenu) return prev
     const rest = prev.filter((m) => m.date !== freshMenu.date)
@@ -248,14 +258,19 @@ export function AdminVotesDashboardPage() {
 
   const loadFilterStats = useCallback(async () => {
     if (mealSlots.length === 0) return
-    const next = {}
+    const dates = [...new Set(mealSlots.map((entry) => entry.date))]
+    const byDate = {}
     await Promise.all(
-      mealSlots.map(async (entry) => {
-        next[entry.key] = await loadSlotStats(entry)
+      dates.map(async (dateId) => {
+        byDate[dateId] = await getParticipationsForDate(dateId)
       }),
     )
+    const next = {}
+    for (const entry of mealSlots) {
+      next[entry.key] = buildSlotStats(entry, entry.menu, byDate[entry.date] || [])
+    }
     setStatsByKey((prev) => ({ ...prev, ...next }))
-  }, [mealSlots, loadSlotStats])
+  }, [mealSlots, buildSlotStats])
 
   const filterSlotKeys = mealSlots.map((s) => s.key).join(',')
 
@@ -304,18 +319,17 @@ export function AdminVotesDashboardPage() {
         const slots = MEAL_SLOTS.filter((slot) =>
           slot === 'morning' ? menu.hasMorning : menu.hasEvening,
         )
+        const dateParts = await getParticipationsForDate(customDate)
         const next = {}
-        await Promise.all(
-          slots.map(async (slot) => {
-            const entry = {
-              key: `${customDate}-${slot}`,
-              date: customDate,
-              slot,
-              menu,
-            }
-            next[entry.key] = await loadSlotStats(entry, menu)
-          }),
-        )
+        for (const slot of slots) {
+          const entry = {
+            key: `${customDate}-${slot}`,
+            date: customDate,
+            slot,
+            menu,
+          }
+          next[entry.key] = buildSlotStats(entry, menu, dateParts)
+        }
         if (cancelled) return
         setStatsByKey((prev) => ({ ...prev, ...next }))
       } catch {
@@ -332,7 +346,7 @@ export function AdminVotesDashboardPage() {
     customDate,
     categoryKey,
     upsertMenuInList,
-    loadSlotStats,
+    buildSlotStats,
   ])
 
   useEffect(() => {
@@ -359,19 +373,52 @@ export function AdminVotesDashboardPage() {
     }
   }, [loading, plannedDates, todayId])
 
+  const hasCustomDateMenu = menus.some((m) => m.date === customDate)
+
+  useEffect(() => {
+    if (loading || dateFilter !== 'custom' || !customDate || catalogLoading) {
+      return undefined
+    }
+    if (hasCustomDateMenu) return undefined
+
+    let cancelled = false
+    getMenuByDate(customDate, categoryIds)
+      .then((menu) => {
+        if (cancelled || !menu) return
+        if (!menu.hasMorning && !menu.hasEvening) return
+        setMenus((prev) => upsertMenuInList(prev, menu))
+      })
+      .catch(() => {
+        /* keep windowed menus if the extra day fails to load */
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [
+    dateFilter,
+    customDate,
+    catalogLoading,
+    loading,
+    categoryIds,
+    hasCustomDateMenu,
+    upsertMenuInList,
+  ])
+
   useEffect(() => {
     if (dateFilter !== 'custom' || plannedDates.length === 0) return
-    if (!plannedDates.includes(customDate)) {
-      if (plannedDates.includes(todayId)) {
-        setCustomDate(todayId)
-        return
-      }
-      const upcoming = [...plannedDates]
-        .filter((d) => d >= todayId)
-        .sort((a, b) => a.localeCompare(b))
-      setCustomDate(upcoming[0] ?? plannedDates[0])
+    if (plannedDates.includes(customDate)) return
+    // Keep dates outside the loaded window so the merge fetch can attach them.
+    if (customDate < votesFromDateId) return
+    if (plannedDates.includes(todayId)) {
+      setCustomDate(todayId)
+      return
     }
-  }, [dateFilter, plannedDates, customDate, todayId])
+    const upcoming = [...plannedDates]
+      .filter((d) => d >= todayId)
+      .sort((a, b) => a.localeCompare(b))
+    setCustomDate(upcoming[0] ?? plannedDates[0])
+  }, [dateFilter, plannedDates, customDate, todayId, votesFromDateId])
 
   useEffect(() => {
     if (dateFilter !== 'today_tomorrow') {
@@ -537,7 +584,7 @@ export function AdminVotesDashboardPage() {
   const showLoadSkeleton = useDelayedLoading(showInitialLoad)
 
   if (showInitialLoad && showLoadSkeleton) {
-    return <MobilePageSkeleton />
+    return <MobilePageSkeleton artKey="votes" size="standard" title="Vote dashboard" />
   }
 
   if (showInitialLoad) {
@@ -592,16 +639,18 @@ export function AdminVotesDashboardPage() {
   return (
     <div className="page admin-page admin-votes-page">
       <div className="layout-desktop">
-        <header className="page-header">
-          <h2>Vote dashboard</h2>
-          <p>
-            {isMaharaj
+        <BlessingHero
+          artKey="votes"
+          size="tall"
+          title="Vote dashboard"
+          subtitle={
+            isMaharaj
               ? 'View adjusted meal totals, cook notes, and dish notes/recipes. Lock or unlock voting per slot.'
               : canAdjustVoteTotals
                 ? `Default: today and tomorrow — ${users.length} members in counts. Lock, refresh, and adjust totals on each card.`
-                : `View votes — ${users.length} members in counts. Open a card for details.`}
-          </p>
-        </header>
+                : `View votes — ${users.length} members in counts. Open a card for details.`
+          }
+        />
 
         <div className="rail-layout">
           <div className="dash-main">
@@ -691,6 +740,7 @@ export function AdminVotesDashboardPage() {
           canAdjustTotals={canAdjustVoteTotals}
           showVoteBreakdown={showVoteCountBreakdown}
           overrideSavingId={overrideSavingId}
+          artKey="votes"
           onSaveOverride={
             canAdjustVoteTotals
               ? (itemId, total) =>

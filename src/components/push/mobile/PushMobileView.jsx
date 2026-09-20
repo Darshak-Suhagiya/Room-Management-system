@@ -35,6 +35,8 @@ export function PushMobileView({
   return (
     <div className="page admin-push-page admin-mobile-page mobile-section-gap">
       <MobilePageHeader
+        artKey="push"
+        size="standard"
         icon={Send}
         title="Push"
         description="Send notifications and view delivery logs."

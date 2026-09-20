@@ -8,9 +8,9 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
-import { ChartPie } from 'lucide-react'
 import { AnalyticsDishDetail } from '../components/analytics/AnalyticsDishDetail'
 import { AnalyticsMobileView } from '../components/analytics/mobile'
+import { BlessingHero } from '../components/darshan'
 import { MobilePageSkeleton } from '../components/mobile'
 import { useMenuAnalytics, ANALYTICS_PRESET_OPTIONS } from '../hooks/useMenuAnalytics'
 import { useMediaQuery } from '../hooks/useMediaQuery'
@@ -61,8 +61,12 @@ export function MenuAnalyticsPage() {
   } = analytics
 
   if (catalogLoading || loading) {
-    if (isMobile) return <MobilePageSkeleton />
-    return <p className="page-loading">Loading analytics…</p>
+    if (isMobile) return <MobilePageSkeleton artKey="analytics" size="comfort" copyAlign="end" showStamp={false} title="Menu Analytics" />
+    return (
+      <div className="page analytics-page">
+        <BlessingHero artKey="analytics" size="standard" copyAlign="end" title="Menu Analytics" subtitle="Loading analytics…" />
+      </div>
+    )
   }
 
   if (isMobile) {
@@ -76,19 +80,13 @@ export function MenuAnalyticsPage() {
   return (
     <div className="page analytics-page">
       <div className="layout-desktop">
-        <header className="page-header page-header-icon">
-          <span className="page-header-icon-wrap" aria-hidden>
-            <ChartPie size={22} />
-          </span>
-          <div>
-            <h2>Menu Analytics</h2>
-            <p>
-              How often dishes were planned, and Good / Okay / Bad feedback for the
-              selected date range. “Times made” counts each morning or evening
-              appearance.
-            </p>
-          </div>
-        </header>
+        <BlessingHero
+          artKey="analytics"
+          size="standard"
+          copyAlign="end"
+          title="Menu Analytics"
+          subtitle="How often dishes were cooked, and how they were rated."
+        />
       </div>
 
       <div className="mobile-section-gap">

@@ -58,13 +58,15 @@ export function subscribeCatalog(onData, onError) {
   }
 
   let active = true
+  let categorySnap = null
+  let itemSnap = null
 
-  const load = async () => {
-    if (!active) return
+  const emit = () => {
+    if (!active || !categorySnap || !itemSnap) return
     try {
-      onData(await fetchCatalog())
+      onData(parseCatalogSnapshot(categorySnap, itemSnap))
     } catch (err) {
-      console.error('Catalog load failed:', err)
+      console.error('Catalog snapshot parse failed:', err)
       onData({ ...EMPTY_CATALOG })
       onError?.(err.message ?? 'Failed to load menu catalog')
     }
@@ -78,15 +80,20 @@ export function subscribeCatalog(onData, onError) {
 
   const unsubCat = onSnapshot(
     collection(db, COLLECTIONS.MENU_CATEGORIES),
-    () => load(),
+    (snap) => {
+      categorySnap = snap
+      emit()
+    },
     handleSnapshotError,
   )
   const unsubItems = onSnapshot(
     collection(db, COLLECTIONS.MENU_ITEMS),
-    () => load(),
+    (snap) => {
+      itemSnap = snap
+      emit()
+    },
     handleSnapshotError,
   )
-  load()
 
   return () => {
     active = false

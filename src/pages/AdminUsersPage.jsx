@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Ban, CircleCheck, Clock, Users as UsersIcon } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { MobileFilterBar, MobilePageHeader } from '../components/mobile'
+import { BlessingHero } from '../components/darshan'
+import { AdminConfirmSheet } from '../components/admin/mobile'
 import { ROLES, USER_STATUS } from '../config/constants'
 import {
   ROLE_LABELS,
@@ -44,6 +46,7 @@ export function AdminUsersPage() {
   const [error, setError] = useState('')
   const [busyId, setBusyId] = useState(null)
   const [statusFilter, setStatusFilter] = useState('all')
+  const [deleteTarget, setDeleteTarget] = useState(null)
 
   const assignableRoles = useMemo(
     () => assignableRolesForActor(profile),
@@ -123,7 +126,7 @@ export function AdminUsersPage() {
     }
   }
 
-  const removeUser = async (target) => {
+  const requestDeleteUser = (target) => {
     if (target.id === user?.uid) {
       setError('You cannot delete your own account.')
       return
@@ -132,19 +135,18 @@ export function AdminUsersPage() {
       setError('You cannot delete an admin account.')
       return
     }
-    const label = target.displayName || target.email || target.id
-    if (
-      !window.confirm(
-        `Permanently delete user "${label}"?\n\nTheir profile will be removed. If they can still sign in, contact an administrator.`,
-      )
-    ) {
-      return
-    }
+    setDeleteTarget(target)
+  }
+
+  const confirmDeleteUser = async () => {
+    const target = deleteTarget
+    if (!target) return
     setBusyId(target.id)
     setError('')
     try {
       await deleteUserByAdmin(target.id, user?.uid, actorRole)
       toast.success('User deleted.')
+      setDeleteTarget(null)
       await loadUsers()
     } catch (err) {
       setError(err.message)
@@ -197,26 +199,26 @@ export function AdminUsersPage() {
   }
 
   if (loading) {
-    return <p className="page-loading">Loading…</p>
+    return (
+      <div className="page">
+        <BlessingHero artKey="users" size="tall" title="Users" subtitle="Loading members…" />
+      </div>
+    )
   }
 
   return (
     <div className="page admin-page admin-users-page">
       <div className="layout-desktop">
-        <header className="page-header">
-          <h2>Users</h2>
-          <p>
-            Edit names and roles, approve or deactivate accounts. Only approved users
-            are counted in vote stats.
-            {!isAdmin && (
-              <>
-                {' '}
-                As Room leader you can manage members, but not Admin accounts or the
-                Admin role.
-              </>
-            )}
-          </p>
-        </header>
+        <BlessingHero
+          artKey="users"
+          size="tall"
+          title="Users"
+          subtitle={
+            isAdmin
+              ? 'Edit names, roles, and approvals. Only approved users count in votes.'
+              : 'Manage members — Admin accounts are read-only.'
+          }
+        />
 
         {error && <p className="form-error">{error}</p>}
 
@@ -246,6 +248,8 @@ export function AdminUsersPage() {
 
       <div className="layout-mobile">
         <MobilePageHeader
+          artKey="users"
+          size="standard"
           icon={UsersIcon}
           title="Users"
           description={
@@ -386,7 +390,7 @@ export function AdminUsersPage() {
                       type="button"
                       className="btn btn-danger btn-sm min-h-11 flex-1"
                       disabled={busy}
-                      onClick={() => removeUser(u)}
+                      onClick={() => requestDeleteUser(u)}
                     >
                       Delete user
                     </button>
@@ -409,7 +413,7 @@ export function AdminUsersPage() {
               <th>Email</th>
               <th>Role</th>
               <th>Status</th>
-              <th>Actions</th>
+              <th className="table-actions-cell">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -494,7 +498,7 @@ export function AdminUsersPage() {
                       {STATUS_LABEL[u.status] ?? u.status}
                     </span>
                   </td>
-                  <td>
+                  <td className="table-actions-cell">
                     <div className="admin-users-actions">
                       {dirty && canEdit && (
                         <button
@@ -548,7 +552,7 @@ export function AdminUsersPage() {
                             type="button"
                             className="btn btn-danger btn-sm"
                             disabled={busy}
-                            onClick={() => removeUser(u)}
+                            onClick={() => requestDeleteUser(u)}
                           >
                             Delete user
                           </button>
@@ -572,6 +576,24 @@ export function AdminUsersPage() {
           </tbody>
         </table>
       </div>
+
+      <AdminConfirmSheet
+        open={Boolean(deleteTarget)}
+        onClose={() => {
+          if (!busyId) setDeleteTarget(null)
+        }}
+        artKey="users"
+        title="Delete user?"
+        message={
+          deleteTarget
+            ? `Permanently delete “${deleteTarget.displayName || deleteTarget.email}”? Their profile will be removed.`
+            : ''
+        }
+        confirmLabel="Delete"
+        destructive
+        busy={Boolean(deleteTarget) && busyId === deleteTarget.id}
+        onConfirm={confirmDeleteUser}
+      />
     </div>
   )
 }

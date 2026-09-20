@@ -52,6 +52,7 @@ export function PushUserPickerModal({ open, users, selectedIds, onToggle, onClos
       title="Select recipients"
       subtitle={`${selectedIds.length} selected`}
       wide
+      artKey="push"
     >
       <label className="seva-person-sheet-search">
         <Search size={18} aria-hidden />

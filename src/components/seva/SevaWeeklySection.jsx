@@ -49,7 +49,7 @@ export function SevaWeeklySection({
             {Array.from({ length: colCount }, (_, i) => (
               <th key={i}>Member {i + 1}</th>
             ))}
-            {editable && <th className="seva-no-print" />}
+            {editable && <th className="seva-no-print table-actions-cell" aria-label="Actions" />}
           </tr>
         </thead>
         <tbody>
@@ -101,14 +101,16 @@ export function SevaWeeklySection({
                   )
                 })}
                 {editable && (
-                  <td className="seva-no-print">
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-sm"
-                      onClick={() => onRemoveTask(task.id)}
-                    >
-                      Remove
-                    </button>
+                  <td className="seva-no-print table-actions-cell">
+                    <span className="table-actions-inner">
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => onRemoveTask(task.id)}
+                      >
+                        Remove
+                      </button>
+                    </span>
                   </td>
                 )}
               </tr>

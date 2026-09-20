@@ -140,6 +140,7 @@ export function StockItemSheet({
       title={item.name}
       subtitle="Stock quantity & settings"
       busy={metaSave.busy}
+      artKey="stocks"
     >
       <div className="admin-mobile-stock-sheet mobile-section-gap">
         <div className="admin-mobile-stock-qty-display">

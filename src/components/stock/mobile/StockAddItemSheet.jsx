@@ -50,6 +50,7 @@ export function StockAddItemSheet({ open, onClose, groupId, userId, onCreated })
       title="Add stock item"
       subtitle="New item in this group"
       busy={busy}
+      artKey="stocks"
     >
       <form className="admin-mobile-sheet-form mobile-section-gap" onSubmit={handleSubmit}>
         <label className="field-stack">

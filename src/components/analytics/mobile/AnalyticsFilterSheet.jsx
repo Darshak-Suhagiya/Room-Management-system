@@ -23,6 +23,7 @@ export function AnalyticsFilterSheet({
       onClose={onClose}
       title="Filters"
       subtitle="Date range and category"
+      artKey="analytics"
     >
       <div className="analytics-mobile-filter mobile-section-gap">
         <div>

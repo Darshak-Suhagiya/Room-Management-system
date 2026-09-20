@@ -3,6 +3,7 @@ import { History, Send, Sunrise, Sunset } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { PushUserPickerField } from '../components/push/PushUserPicker'
 import { PushMobileView } from '../components/push/mobile'
+import { BlessingHero } from '../components/darshan'
 import {
   PushLogDetailContent,
   pushLogListSubtitle,
@@ -341,14 +342,12 @@ export function AdminPushPage() {
 
   return (
     <div className="page admin-push-page">
-      <header className="page-header">
-        <div>
-          <h1>Push notifications</h1>
-          <p className="page-lead">
-            Send now only (via Vercel + Firebase Cloud Messaging). No auto schedule.
-          </p>
-        </div>
-      </header>
+      <BlessingHero
+        artKey="push"
+        size="tall"
+        title="Push notifications"
+        subtitle="Send now via Vercel + FCM. No auto schedule."
+      />
 
       {error && <p className="form-error">{error}</p>}
       {success && <p className="form-success">{success}</p>}

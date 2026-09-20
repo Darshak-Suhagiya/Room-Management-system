@@ -101,6 +101,8 @@ export function ShoppingMobileView({
     return (
       <div className="shopping-mobile admin-mobile-page">
         <MobilePageHeader
+          artKey="shopping"
+          size="comfort"
           icon={Package}
           title="New ticket"
           description="Select groups to shop"
@@ -120,7 +122,7 @@ export function ShoppingMobileView({
   if (createStep === 'preview') {
     return (
       <div className="shopping-mobile admin-mobile-page admin-mobile-page-with-bar">
-        <MobilePageHeader icon={Package} title="Review list" description="Adjust amounts" />
+        <MobilePageHeader artKey="shopping" size="comfort" icon={Package} title="Review list" description="Adjust amounts" />
         <ShoppingTicketPreview
           groups={groups}
           groupIds={selectedGroups}
@@ -139,9 +141,11 @@ export function ShoppingMobileView({
   return (
     <div className="shopping-mobile admin-mobile-page mobile-section-gap">
       <MobilePageHeader
+        artKey="shopping"
+        size="comfort"
         icon={Package}
         title="Shopping"
-        description="Buy lists for stock groups"
+        description="Lists for groups below need"
         action={headerAction}
       />
 

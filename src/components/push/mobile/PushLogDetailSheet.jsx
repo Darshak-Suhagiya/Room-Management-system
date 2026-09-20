@@ -5,7 +5,7 @@ export function PushLogDetailSheet({ open, onClose, log }) {
   if (!log) return null
 
   return (
-    <Modal open={open} onClose={onClose} title={log.title} wide>
+    <Modal open={open} onClose={onClose} title={log.title} wide artKey="push">
       <PushLogDetailContent log={log} />
     </Modal>
   )

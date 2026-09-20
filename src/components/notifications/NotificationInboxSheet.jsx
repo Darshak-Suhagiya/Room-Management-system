@@ -10,7 +10,7 @@ export function NotificationInboxSheet() {
     expandedId,
     busy,
     inboxError,
-    markRead,
+    selectNotification,
     clearAll,
   } = useNotificationInbox()
 
@@ -22,13 +22,14 @@ export function NotificationInboxSheet() {
       wide
       busy={busy}
       className="notif-inbox-sheet"
+      artKey="inbox"
     >
       <NotificationInboxList
         notifications={notifications}
         expandedId={expandedId}
         busy={busy}
         error={inboxError}
-        onSelect={markRead}
+        onSelect={selectNotification}
         onClearAll={clearAll}
         showTitle={false}
       />

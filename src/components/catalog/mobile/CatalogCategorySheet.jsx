@@ -34,6 +34,7 @@ export function CatalogCategorySheet({
       title={isNew ? 'Add category' : 'Edit category'}
       subtitle={isNew ? 'New menu category' : category?.labelEn}
       busy={saving}
+      artKey="catalog"
     >
       <form
         className="admin-mobile-sheet-form mobile-section-gap"

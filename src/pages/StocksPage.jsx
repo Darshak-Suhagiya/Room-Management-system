@@ -16,6 +16,7 @@ import { useDelayedLoading } from '../hooks/useDelayedLoading'
 import { useSaveMutation } from '../hooks/useSaveMutation'
 import { useRegisterPullToRefresh } from '../hooks/useRegisterPullToRefresh'
 import { StocksMobileView } from '../components/stock/mobile'
+import { BlessingHero } from '../components/darshan'
 import { StockQtySlider } from '../components/stock/StockQtySlider'
 import {
   STOCK_ITERATION_PERIODS,
@@ -555,7 +556,7 @@ export function StocksPage() {
   const showLoadSkeleton = useDelayedLoading(loading)
 
   if (loading) {
-    return showLoadSkeleton ? <MobilePageSkeleton /> : null
+    return showLoadSkeleton ? <MobilePageSkeleton artKey="stocks" title="Stocks" /> : null
   }
 
   const stocksBody = (
@@ -766,24 +767,20 @@ export function StocksPage() {
   return (
     <div className="page admin-page stocks-page">
       <div className="layout-desktop">
-        <header className="page-header page-header-icon page-header-with-actions">
-          <span className="page-header-icon-wrap" aria-hidden>
-            <Package size={22} />
-          </span>
-          <div>
-            <h2>Stocks</h2>
-            <p>
-              Pantry levels by group. The slider midpoint is your need per
-              week/month — fill, use, and link items for menu planning.
-            </p>
-          </div>
-          <div className="header-actions">
-            <Link to="/shopping" className="btn btn-secondary">
-              <ShoppingCart size={16} aria-hidden /> Shopping
-            </Link>
-            {headerActions}
-          </div>
-        </header>
+        <BlessingHero
+          artKey="stocks"
+          size="tall"
+          title="Stocks"
+          subtitle="Pantry levels by group"
+          actions={
+            <div className="header-actions">
+              <Link to="/shopping" className="btn btn-secondary meals-blessing-options-btn">
+                <ShoppingCart size={16} aria-hidden /> Shopping
+              </Link>
+              {headerActions}
+            </div>
+          }
+        />
 
         {groupTabs}
         {stocksBody}
