@@ -27,6 +27,8 @@ import {
   canManagePush,
   canViewStocks,
   canManageStocks,
+  canViewFinance,
+  canManageFinance,
   isKitchenLeaderRole,
   isMaharajRole,
   isRoomLeaderRole,
@@ -122,6 +124,8 @@ export function AuthProvider({ children }) {
       canViewNoticeAnalytics: canViewNoticeAnalytics(profile),
       canViewStocks: canViewStocks(profile),
       canManageStocks: canManageStocks(profile),
+      canViewFinance: canViewFinance(profile),
+      canManageFinance: canManageFinance(profile),
       isApproved: profile
         ? !isUserPending(profile) && !isUserDeactivated(profile)
         : false,

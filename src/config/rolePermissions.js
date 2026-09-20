@@ -36,13 +36,9 @@ export const ALL_ROLES = [
   ROLES.ROOM_LEADER,
 ]
 
-/** Vote dashboard: admin, maharaj, and kitchen leader. */
+/** Vote dashboard: every approved role. Lock / total-edit stay separate. */
 export function canAccessVoteDashboard(profile) {
-  return (
-    isAdminRole(profile) ||
-    isMaharajRole(profile) ||
-    isKitchenLeaderRole(profile)
-  )
+  return Boolean(profile?.role)
 }
 
 /** Lock / unlock meal slots on vote dashboard. */
@@ -89,9 +85,9 @@ export function canSeeMaharajMenuDetails(profile) {
   return isMaharajRole(profile) || isAdminRole(profile)
 }
 
-/** Menu planning page: admin or kitchen leader. */
+/** Menu planning page: admin, kitchen leader, room leader, or member. */
 export function canPlanMenus(profile) {
-  return isAdminRole(profile) || isKitchenLeaderRole(profile)
+  return Boolean(profile?.role) && !isMaharajRole(profile)
 }
 
 /** Menu catalog editing: admin or kitchen leader. */
@@ -149,6 +145,16 @@ export function canViewNoticeAnalytics(profile) {
 /** Stocks + shopping pages: any approved role except Maharaj. */
 export function canViewStocks(profile) {
   return Boolean(profile?.role) && !isMaharajRole(profile)
+}
+
+/** Finance pages: any approved role except Maharaj. */
+export function canViewFinance(profile) {
+  return Boolean(profile?.role) && !isMaharajRole(profile)
+}
+
+/** Create/edit collections, deposits, fund: admin or room leader. */
+export function canManageFinance(profile) {
+  return isAdminRole(profile) || isRoomLeaderRole(profile)
 }
 
 /** Create groups, manage editors, create/assign shopping tickets. */
