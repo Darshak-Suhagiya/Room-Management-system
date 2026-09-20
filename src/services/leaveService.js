@@ -69,6 +69,12 @@ export async function listLeavesForMonth(personIds, year, month) {
     .sort((a, b) => a.date.localeCompare(b.date) || a.period.localeCompare(b.period))
 }
 
+export async function listLeavesForPersonMonth(personId, periodId) {
+  if (!personId || !/^\d{4}-\d{2}$/.test(periodId || '')) return []
+  const [year, month] = periodId.split('-').map(Number)
+  return listLeavesForMonth([personId], year, month - 1)
+}
+
 async function getLeavesForPersonDate(personId, dateId) {
   const rows = await listLeavesForPerson(personId)
   return rows.filter((row) => row.date === dateId)

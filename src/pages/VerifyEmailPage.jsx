@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { ThemeSwitcher } from '../components/ThemeSwitcher'
+import { BlessingHero } from '../components/darshan'
 import { isUserApproved } from '../services/userService'
 
 export function VerifyEmailPage() {
@@ -87,6 +88,12 @@ export function VerifyEmailPage() {
 
   return (
     <div className="auth-page pt-safe pb-safe">
+      <BlessingHero
+        artKey="login"
+        size="tall"
+        title="Verify your email"
+        subtitle="Open the link we sent, then come back here."
+      />
       <div className="auth-card account-status-card">
         <h1>Verify your email</h1>
         <p className="subtitle">

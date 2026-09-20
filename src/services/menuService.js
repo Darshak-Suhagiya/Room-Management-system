@@ -4,8 +4,11 @@ import {
   doc,
   getDoc,
   getDocs,
+  orderBy,
+  query,
   setDoc,
   updateDoc,
+  where,
 } from 'firebase/firestore'
 import { db, isFirebaseConfigured } from '../lib/firebase'
 import { emptyMealSlot } from '../config/menuItems'
@@ -14,7 +17,7 @@ import {
   deleteParticipationsForSlot,
   getParticipationsForSlot,
 } from './participationService'
-import { didSlotMenuChange } from '../utils/menuSlotCompare'
+import { didSlotMenuChange, slotMenuSignature } from '../utils/menuSlotCompare'
 import {
   applyPlanStockUsage,
   normalizeStockUsage,
@@ -52,6 +55,132 @@ function slotHasContent(slot) {
   return Object.values(slot).some((arr) => Array.isArray(arr) && arr.length > 0)
 }
 
+const SLOT_EDIT_ACTIONS = new Set(['added', 'updated', 'deleted'])
+
+function normalizeSlotEdit(raw) {
+  if (!raw || typeof raw !== 'object') return null
+  const action = SLOT_EDIT_ACTIONS.has(raw.action) ? raw.action : null
+  const displayName =
+    typeof raw.displayName === 'string' ? raw.displayName.trim() : ''
+  if (!action || !displayName) return null
+  return {
+    action,
+    userId: typeof raw.userId === 'string' ? raw.userId : '',
+    displayName,
+    at: typeof raw.at === 'string' ? raw.at : '',
+  }
+}
+
+function normalizeSlotEdits(raw) {
+  if (!raw || typeof raw !== 'object') {
+    return { morning: null, evening: null }
+  }
+  return {
+    morning: normalizeSlotEdit(raw.morning),
+    evening: normalizeSlotEdit(raw.evening),
+  }
+}
+
+function slotIsEnabled(menu, slot) {
+  if (!menu) return false
+  return slot === 'morning' ? Boolean(menu.hasMorning) : Boolean(menu.hasEvening)
+}
+
+function notesForSlot(menu, slot) {
+  if (slot === 'morning') {
+    return {
+      note: (menu?.morningNote ?? '').trim(),
+      cook: (menu?.morningMaharajNote ?? '').trim(),
+    }
+  }
+  return {
+    note: (menu?.eveningNote ?? '').trim(),
+    cook: (menu?.eveningMaharajNote ?? '').trim(),
+  }
+}
+
+function stockMapsEqual(left, right) {
+  const a = left || {}
+  const b = right || {}
+  const keys = new Set([...Object.keys(a), ...Object.keys(b)])
+  for (const key of keys) {
+    if ((Number(a[key]) || 0) !== (Number(b[key]) || 0)) return false
+  }
+  return true
+}
+
+function slotPlanChanged(
+  existingMenu,
+  newData,
+  previousUsage,
+  nextUsage,
+  slot,
+  categoryIds,
+) {
+  if (slotIsEnabled(existingMenu, slot) !== slotIsEnabled(newData, slot)) {
+    return true
+  }
+  if (!slotIsEnabled(newData, slot)) return false
+  if (
+    slotMenuSignature(existingMenu?.[slot], categoryIds) !==
+    slotMenuSignature(newData[slot], categoryIds)
+  ) {
+    return true
+  }
+  const prevNotes = notesForSlot(existingMenu, slot)
+  const nextNotes = notesForSlot(newData, slot)
+  if (prevNotes.note !== nextNotes.note || prevNotes.cook !== nextNotes.cook) {
+    return true
+  }
+  return !stockMapsEqual(previousUsage?.[slot], nextUsage?.[slot])
+}
+
+function buildSlotEdit(existing, action, userId, displayName, at) {
+  return {
+    action,
+    userId: userId || existing?.userId || '',
+    displayName: displayName || existing?.displayName || 'Member',
+    at,
+  }
+}
+
+function nextSlotEdit(
+  existingMenu,
+  newData,
+  previousUsage,
+  nextUsage,
+  slot,
+  categoryIds,
+  userId,
+  displayName,
+  at,
+) {
+  const wasEnabled = slotIsEnabled(existingMenu, slot)
+  const isEnabled = slotIsEnabled(newData, slot)
+  const previous = existingMenu?.slotEdits?.[slot] ?? null
+
+  if (!wasEnabled && !isEnabled) return previous
+  if (!wasEnabled && isEnabled) {
+    return buildSlotEdit(previous, 'added', userId, displayName, at)
+  }
+  if (wasEnabled && !isEnabled) {
+    return buildSlotEdit(previous, 'deleted', userId, displayName, at)
+  }
+  if (
+    slotPlanChanged(
+      existingMenu,
+      newData,
+      previousUsage,
+      nextUsage,
+      slot,
+      categoryIds,
+    )
+  ) {
+    return buildSlotEdit(previous, 'updated', userId, displayName, at)
+  }
+  return previous
+}
+
 function parseMenuDoc(snap, categoryIds) {
   const data = snap.data()
   const hasMorning =
@@ -78,6 +207,7 @@ function parseMenuDoc(snap, categoryIds) {
     eveningMaharajNote: data.eveningMaharajNote ?? '',
     totalOverrides: normalizeTotalOverrides(data.totalOverrides),
     stockUsage: normalizeStockUsage(data.stockUsage),
+    slotEdits: normalizeSlotEdits(data.slotEdits),
     updatedAt: data.updatedAt,
     updatedBy: data.updatedBy,
   }
@@ -90,27 +220,42 @@ export async function getMenuByDate(dateId, categoryIds = []) {
   return parseMenuDoc(snap, categoryIds)
 }
 
+export async function listPlannedMenusFromDate(
+  startDateId,
+  categoryIds = [],
+  { limitDays } = {},
+) {
+  if (!isFirebaseConfigured || !db || !startDateId) return []
+  const snap = await getDocs(
+    query(
+      collection(db, COLLECTIONS.MENUS),
+      where('date', '>=', startDateId),
+      orderBy('date', 'desc'),
+    ),
+  )
+  const menus = snap.docs
+    .map((d) => parseMenuDoc(d, categoryIds))
+    .filter((m) => m.hasMorning || m.hasEvening)
+  if (limitDays) return menus.slice(0, limitDays)
+  return menus
+}
+
 export async function getMenusFromDate(
   startDateId,
   categoryIds = [],
   limitDays = 60,
 ) {
-  if (!isFirebaseConfigured || !db) return []
-  const snap = await getDocs(collection(db, COLLECTIONS.MENUS))
-  return snap.docs
-    .map((d) => parseMenuDoc(d, categoryIds))
-    .filter((m) => m.date >= startDateId && (m.hasMorning || m.hasEvening))
-    .sort((a, b) => b.date.localeCompare(a.date))
-    .slice(0, limitDays)
+  return listPlannedMenusFromDate(startDateId, categoryIds, { limitDays })
 }
 
 export async function getAllPlannedMenus(categoryIds = []) {
   if (!isFirebaseConfigured || !db) return []
-  const snap = await getDocs(collection(db, COLLECTIONS.MENUS))
+  const snap = await getDocs(
+    query(collection(db, COLLECTIONS.MENUS), orderBy('date', 'desc')),
+  )
   return snap.docs
     .map((d) => parseMenuDoc(d, categoryIds))
     .filter((m) => m.hasMorning || m.hasEvening)
-    .sort((a, b) => b.date.localeCompare(a.date))
 }
 
 export async function saveMenu(
@@ -128,6 +273,7 @@ export async function saveMenu(
   },
   userId,
   categoryIds,
+  { displayName } = {},
 ) {
   if (!isFirebaseConfigured || !db) {
     throw new Error('Firebase is not configured')
@@ -179,14 +325,50 @@ export async function saveMenu(
     totalOverrides = { ...totalOverrides, [slot]: {} }
   }
 
+  const savedAt = new Date().toISOString()
+  const actorName =
+    typeof displayName === 'string' && displayName.trim()
+      ? displayName.trim()
+      : 'Member'
+  const slotEdits = {
+    morning: nextSlotEdit(
+      existingMenu,
+      newData,
+      previousUsage,
+      nextUsage,
+      'morning',
+      categoryIds,
+      userId,
+      actorName,
+      savedAt,
+    ),
+    evening: nextSlotEdit(
+      existingMenu,
+      newData,
+      previousUsage,
+      nextUsage,
+      'evening',
+      categoryIds,
+      userId,
+      actorName,
+      savedAt,
+    ),
+  }
+
   const payload = {
     date: dateId,
     hasMorning: !!hasMorning,
     hasEvening: !!hasEvening,
     totalOverrides,
     stockUsage: nextUsage,
-    updatedAt: new Date().toISOString(),
+    updatedAt: savedAt,
     updatedBy: userId,
+  }
+
+  if (slotEdits.morning || slotEdits.evening) {
+    payload.slotEdits = {}
+    if (slotEdits.morning) payload.slotEdits.morning = slotEdits.morning
+    if (slotEdits.evening) payload.slotEdits.evening = slotEdits.evening
   }
 
   if (hasMorning) {

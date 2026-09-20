@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { MEAL_SLOTS } from '../../../config/menuItems'
 import { useMenuPlanForm } from '../../../hooks/useMenuPlanForm'
+import { MenuSlotLastEdit } from '../../MenuSlotLastEdit'
 import { PlanningCategorySection } from './PlanningCategorySection'
 import { PlanningSlotEmpty, PlanningSlotSegment } from './PlanningSlotSegment'
 import { PlanningStockMobilePanel } from './PlanningStockMobilePanel'
@@ -117,6 +118,11 @@ export function PlanningMobileForm({
         hasEvening={form.hasEvening}
         onSelectSlot={onActiveSlotChange}
         onToggleSlot={form.setSlotEnabled}
+      />
+
+      <MenuSlotLastEdit
+        edit={initialMenu?.slotEdits?.[slotKey]}
+        slotLabel={slotLabel}
       />
 
       {!form.hasMorning && !form.hasEvening && (

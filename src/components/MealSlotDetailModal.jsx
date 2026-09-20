@@ -181,6 +181,7 @@ export function MealSlotDetailModal({
   onSaveOverride,
   overrideSavingId,
   onClose,
+  artKey = 'votes',
 }) {
   const toast = useToast()
   if (!stats) return null
@@ -209,6 +210,7 @@ export function MealSlotDetailModal({
       wide
       fullScreenMobile
       className="slot-detail-dialog"
+      artKey={artKey}
     >
       {(everyoneNote?.trim() || cookNote?.trim()) && (
         <div className="slot-detail-modal-notes">

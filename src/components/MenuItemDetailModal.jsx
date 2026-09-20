@@ -14,6 +14,7 @@ export function MenuItemDetailModal({ item, onClose }) {
       onClose={onClose}
       title={item.gu}
       subtitle={item.en || undefined}
+      artKey="catalog"
     >
       {notes ? (
         <section className="cook-detail-section">

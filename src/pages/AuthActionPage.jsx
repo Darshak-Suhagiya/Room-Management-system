@@ -9,6 +9,7 @@ import { auth } from '../lib/firebase'
 import { formatActionCodeError } from '../utils/authErrors'
 import { parseAuthActionParams } from '../lib/parseAuthActionParams'
 import { ThemeSwitcher } from '../components/ThemeSwitcher'
+import { BlessingHero } from '../components/darshan'
 
 /**
  * Handles Firebase email links: ?mode=resetPassword|verifyEmail&oobCode=...
@@ -213,6 +214,12 @@ function AuthActionCard({
 }) {
   return (
     <div className="auth-page pt-safe pb-safe">
+      <BlessingHero
+        artKey="login"
+        size="tall"
+        title={title}
+        subtitle={subtitle}
+      />
       <div className="auth-card account-status-card">
         <h1>{title}</h1>
         {subtitle && <p className="subtitle">{subtitle}</p>}

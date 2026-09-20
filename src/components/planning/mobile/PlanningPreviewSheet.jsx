@@ -45,6 +45,7 @@ export function PlanningPreviewSheet({
         onClose={onClose}
         title="Preview & feedback"
         subtitle="Selected dishes and review history"
+        artKey="planning"
       >
         {slots.length === 0 ? (
           <p className="muted">Select dishes to preview feedback history.</p>

@@ -7,6 +7,7 @@ import { MealDayStrip } from '../components/meals/MealDayStrip'
 import { MealSlotTabs } from '../components/meals/MealSlotTabs'
 import { MealCalendarSheet } from '../components/meals/MealCalendarSheet'
 import { MealsOptionsSheet } from '../components/meals/MealsOptionsSheet'
+import { MealsBlessingHero } from '../components/meals/MealsBlessingHero'
 import { NoticeBannerSlot } from '../components/NoticeBannerSlot'
 import { PushPermissionPrompt } from '../components/PushPermissionPrompt'
 import { PwaInstallPrompt } from '../components/PwaInstallPrompt'
@@ -17,10 +18,12 @@ import { NOTICE_PAGES } from '../config/constants'
 import { useMenuCatalog } from '../hooks/useMenuCatalog'
 import { useMobileTabPanelActive } from '../contexts/MobileTabPanelContext'
 import { useRegisterPullToRefresh } from '../hooks/useRegisterPullToRefresh'
-import { getAllPlannedMenus, getMenuByDate } from '../services/menuService'
+import { getMenuByDate, listPlannedMenusFromDate } from '../services/menuService'
 import { subscribeVoteLock } from '../services/voteLockService'
 import { subscribeUserParticipations } from '../services/participationService'
 import { getPlannedMenuItems, hasMealVoteComplete } from '../utils/menuVoteUtils'
+import { MenuSlotLastEditList } from '../components/MenuSlotLastEdit'
+import { addDaysToDateId } from '../utils/menuReviewUtils'
 import {
   BarChart3 as IconChart,
   CalendarDays as IconPlanning,
@@ -29,7 +32,6 @@ import {
   ListChecks as IconCatalog,
   Sparkles as IconSeva,
   Table as IconTable,
-  UtensilsCrossed as IconUtensils,
 } from 'lucide-react'
 import {
   formatDateId,
@@ -186,6 +188,7 @@ export function UserDashboardPage() {
   const [selectedSlot, setSelectedSlot] = useState('morning')
   const [calendarOpen, setCalendarOpen] = useState(false)
   const [optionsOpen, setOptionsOpen] = useState(false)
+  const [clearedMenu, setClearedMenu] = useState(null)
   const [panelRefreshTick, setPanelRefreshTick] = useState(0)
   const mobileInitializedRef = useRef(false)
   const [participations, setParticipations] = useState([])
@@ -201,6 +204,7 @@ export function UserDashboardPage() {
 
   const categoryKey = categoryIds.join(',')
   const today = formatDateId(new Date())
+  const menusFromDateId = addDaysToDateId(today, -30)
   const isMobileLayout = useMediaQuery('(max-width: 899px)')
   const isTabActive = useMobileTabPanelActive()
   const wasTabActiveRef = useRef(isTabActive)
@@ -220,9 +224,9 @@ export function UserDashboardPage() {
   }
 
   const loadMenus = useCallback(async () => {
-    const data = await getAllPlannedMenus(categoryIds)
+    const data = await listPlannedMenusFromDate(menusFromDateId, categoryIds)
     setMenus(sortMenusByDateDesc(data))
-  }, [categoryKey])
+  }, [categoryKey, menusFromDateId])
 
   useRegisterPullToRefresh(async () => {
     await loadMenus()
@@ -301,8 +305,10 @@ export function UserDashboardPage() {
 
   useEffect(() => {
     if (!user?.uid) return undefined
-    return subscribeUserParticipations(user.uid, setParticipations)
-  }, [user?.uid])
+    return subscribeUserParticipations(user.uid, setParticipations, {
+      fromDateId: menusFromDateId,
+    })
+  }, [user?.uid, menusFromDateId])
 
   const participationByKey = useMemo(() => {
     const map = {}
@@ -353,6 +359,37 @@ export function UserDashboardPage() {
   }, [isMobileLayout, menusLoading, today])
 
   const selectedMenu = sortedMenus.find((m) => m.date === selectedDate) ?? null
+  const liveMenuDate = selectedMenu?.date ?? null
+
+  useEffect(() => {
+    if (!selectedDate || catalogLoading) return undefined
+    if (liveMenuDate === selectedDate) return undefined
+    let cancelled = false
+    getMenuByDate(selectedDate, categoryIds)
+      .then((data) => {
+        if (!cancelled) {
+          setClearedMenu(
+            data ?? { date: selectedDate, slotEdits: { morning: null, evening: null } },
+          )
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setClearedMenu({
+            date: selectedDate,
+            slotEdits: { morning: null, evening: null },
+          })
+        }
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [selectedDate, liveMenuDate, catalogLoading, categoryKey])
+
+  const emptyDateEdits =
+    liveMenuDate === selectedDate || clearedMenu?.date !== selectedDate
+      ? null
+      : clearedMenu?.slotEdits
 
   const availableSlots = useMemo(() => {
     if (!selectedMenu) return []
@@ -384,7 +421,7 @@ export function UserDashboardPage() {
   const showLoadSkeleton = useDelayedLoading(showInitialLoad)
 
   if (showInitialLoad && showLoadSkeleton) {
-    return <MobilePageSkeleton />
+    return <MobilePageSkeleton artKey="meals" size="tall" title="My meals" />
   }
 
   const displayError = catalogError || error
@@ -410,25 +447,32 @@ export function UserDashboardPage() {
       <PwaInstallPrompt />
       <PushPermissionPrompt />
 
-      {seeding && <p className="muted">Loading menus…</p>}
+      {seeding && sortedMenus.length === 0 && (
+        <p className="muted">Loading menus…</p>
+      )}
       {displayError && <p className="form-error">{displayError}</p>}
 
-      {/* Desktop layout — unchanged */}
-      <div className="meals-layout-desktop">
-        <header className="page-header page-header-icon">
-          <span className="page-header-icon-wrap" aria-hidden>
-            <IconUtensils size={22} />
-          </span>
-          <div>
-            <h2>My meals</h2>
-            <p>Pick a day on the calendar. Your vote appears next to each item.</p>
-          </div>
-        </header>
+      <MealsBlessingHero
+        actions={
+          <button
+            type="button"
+            className="btn btn-sm meals-blessing-options-btn"
+            onClick={() => setOptionsOpen(true)}
+          >
+            Options
+          </button>
+        }
+      />
 
+      {/* Desktop layout */}
+      <div className="meals-layout-desktop">
         <div className="meals-dashboard">
           <div className="meals-main">
             {sortedMenus.length === 0 || !selectedMenu ? (
-              <p className="muted">No menus planned yet.</p>
+              <div>
+                <p className="muted">No menus planned yet.</p>
+                <MenuSlotLastEditList slotEdits={emptyDateEdits} />
+              </div>
             ) : (
               <article className="menu-day-card">
                 <header className="menu-day-header">
@@ -493,27 +537,11 @@ export function UserDashboardPage() {
 
       {/* Mobile / PWA layout */}
       <div className="meals-layout-mobile">
-        <header className="meals-mobile-top-row">
-          <div className="meals-mobile-top-title">
-            <span className="meals-mobile-top-icon" aria-hidden>
-              <IconUtensils size={20} />
-            </span>
-            <div>
-              <h2>My meals</h2>
-              <p className="muted">Pick a day, vote morning or evening.</p>
-            </div>
-          </div>
-          <button
-            type="button"
-            className="btn btn-secondary btn-sm meals-mobile-options-btn"
-            onClick={() => setOptionsOpen(true)}
-          >
-            Options
-          </button>
-        </header>
-
         {sortedMenus.length === 0 ? (
-          <p className="muted">No menus planned yet.</p>
+          <div className="meals-mobile-empty">
+            <p className="meals-mobile-empty-title">No menus planned yet.</p>
+            <MenuSlotLastEditList slotEdits={emptyDateEdits} />
+          </div>
         ) : (
           <>
             <MealDayStrip
@@ -541,6 +569,7 @@ export function UserDashboardPage() {
                     ? 'No menu planned for today'
                     : 'No menu planned for this day'}
                 </p>
+                <MenuSlotLastEditList slotEdits={emptyDateEdits} />
                 <p className="muted">
                   Pick another date from the strip above or open Calendar to browse
                   all planned menus.

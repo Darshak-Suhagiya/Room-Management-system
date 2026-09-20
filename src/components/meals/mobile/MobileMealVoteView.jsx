@@ -1,7 +1,9 @@
 import { Save as IconSave } from 'lucide-react'
 import { MenuSlotNote } from '../../MenuSlotNote'
+import { MenuSlotLastEdit } from '../../MenuSlotLastEdit'
 import { MobileActionBar } from '../../ui/MobileActionBar'
 import { getVoteValue } from '../../../utils/menuVoteUtils'
+import { MealSlotArt } from '../MealSlotArt'
 import { MobileMealVoteHeader } from './MobileMealVoteHeader'
 import { MobileEatingSegment } from './MobileEatingSegment'
 import { MobileVoteCategorySection } from './MobileVoteCategorySection'
@@ -11,6 +13,7 @@ export function MobileMealVoteView({
   slot,
   slotLabel,
   slotNote,
+  lastEdit,
   grouped,
   hydrated,
   isComplete,
@@ -69,16 +72,20 @@ export function MobileMealVoteView({
     <article
       className={`meal-vote-mobile slot-panel-${slot} ${voteStatusClass} ${locked ? 'is-locked' : ''} ${past ? 'is-past' : ''}`}
     >
-      <MobileMealVoteHeader
-        slot={slot}
-        slotLabel={slotLabel}
-        hydrated={hydrated}
-        isComplete={isComplete}
-        locked={locked}
-        refreshing={refreshing}
-        onRefresh={onRefresh}
-      />
+      <div className="meal-slot-banner">
+        <MealSlotArt slot={slot} />
+        <MobileMealVoteHeader
+          slot={slot}
+          slotLabel={slotLabel}
+          hydrated={hydrated}
+          isComplete={isComplete}
+          locked={locked}
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+        />
+      </div>
 
+      <MenuSlotLastEdit edit={lastEdit} />
       <MenuSlotNote note={slotNote} slot={slot} />
 
       {blockReason && <p className="vote-block-notice">{blockReason}</p>}

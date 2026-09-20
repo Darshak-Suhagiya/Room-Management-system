@@ -1,5 +1,6 @@
 import { Moon, Sun } from 'lucide-react'
 import { MEAL_SLOTS } from '../../config/menuItems'
+import { MEALS_SLOT_ART } from '../../config/mealsArt'
 
 const SLOT_ICONS = {
   morning: Sun,
@@ -24,6 +25,7 @@ export function MealSlotTabs({
         const isSelected = slot === selectedSlot
         const complete = slotComplete[slot]
         const label = MEAL_SLOTS[slot]?.labelEn ?? slot
+        const art = MEALS_SLOT_ART[slot]
 
         return (
           <button
@@ -40,7 +42,19 @@ export function MealSlotTabs({
               .join(' ')}
             onClick={() => onSelect(slot)}
           >
-            <Icon size={16} className="meal-slot-tab-icon" aria-hidden />
+            {art ? (
+              <img
+                className="meal-slot-tab-art"
+                src={art.src}
+                alt=""
+                width={36}
+                height={36}
+                decoding="async"
+                style={{ objectPosition: art.position }}
+              />
+            ) : (
+              <Icon size={16} className="meal-slot-tab-icon" aria-hidden />
+            )}
             <span className="meal-slot-tab-label">{label}</span>
             {complete !== undefined && (
               <span

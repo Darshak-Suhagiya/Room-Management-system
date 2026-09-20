@@ -15,6 +15,7 @@ import {
   useLinkedStockForSlots,
   useStockUsageState,
 } from './stock/MenuPlanStockPanel'
+import { MenuSlotLastEdit } from './MenuSlotLastEdit'
 import { listStockItems } from '../services/stockService'
 import { Modal } from './ui/Modal'
 
@@ -165,11 +166,13 @@ function SlotEditor({
   onMaharajNoteChange,
   cookCounts,
   sentimentByItem,
+  lastEdit,
 }) {
   const slot = MEAL_SLOTS[slotKey]
   return (
     <section className="slot-editor">
       <h3>{slot.labelEn}</h3>
+      <MenuSlotLastEdit edit={lastEdit} />
       <SlotNoteFields
         everyoneNote={note}
         maharajNote={maharajNote}
@@ -393,22 +396,32 @@ export function MenuPlanningForm({
       onSubmit={handleSubmit}
     >
       <div className="slot-toggles">
-        <label className="slot-toggle">
-          <input
-            type="checkbox"
-            checked={hasMorning}
-            onChange={(e) => setHasMorning(e.target.checked)}
+        <div className="slot-toggle-block">
+          <label className="slot-toggle">
+            <input
+              type="checkbox"
+              checked={hasMorning}
+              onChange={(e) => setHasMorning(e.target.checked)}
+            />
+            <span>Morning</span>
+          </label>
+          <MenuSlotLastEdit
+            edit={hasMorning ? null : initialMenu?.slotEdits?.morning}
           />
-          <span>Morning</span>
-        </label>
-        <label className="slot-toggle">
-          <input
-            type="checkbox"
-            checked={hasEvening}
-            onChange={(e) => setHasEvening(e.target.checked)}
+        </div>
+        <div className="slot-toggle-block">
+          <label className="slot-toggle">
+            <input
+              type="checkbox"
+              checked={hasEvening}
+              onChange={(e) => setHasEvening(e.target.checked)}
+            />
+            <span>Evening</span>
+          </label>
+          <MenuSlotLastEdit
+            edit={hasEvening ? null : initialMenu?.slotEdits?.evening}
           />
-          <span>Evening</span>
-        </label>
+        </div>
       </div>
 
       {!hasMorning && !hasEvening && (
@@ -429,6 +442,7 @@ export function MenuPlanningForm({
           onMaharajNoteChange={setMorningMaharajNote}
           cookCounts={cookCounts}
           sentimentByItem={sentimentByItem}
+          lastEdit={initialMenu?.slotEdits?.morning}
         />
       )}
 
@@ -444,6 +458,7 @@ export function MenuPlanningForm({
           onMaharajNoteChange={setEveningMaharajNote}
           cookCounts={cookCounts}
           sentimentByItem={sentimentByItem}
+          lastEdit={initialMenu?.slotEdits?.evening}
         />
       )}
 
@@ -518,6 +533,7 @@ function ItemFeedbackHistoryModal({ item, history, onClose }) {
       title={item.gu}
       subtitle={`Last ${history.length || 0} cook${history.length === 1 ? '' : 's'} — person reviews`}
       wide
+      artKey="planning"
     >
       {history.length === 0 ? (
         <p className="muted">No past cook history for this dish yet.</p>
