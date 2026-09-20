@@ -30,6 +30,20 @@ export const COLLECTIONS = {
   STOCK_ITEMS: 'stockItems',
   STOCK_MOVEMENTS: 'stockMovements',
   SHOPPING_TICKETS: 'shoppingTickets',
+  FINANCE_SETTINGS: 'financeSettings',
+  DEPOSIT_ACCOUNTS: 'depositAccounts',
+  DEPOSIT_MOVEMENTS: 'depositMovements',
+  EXPENSE_TEMPLATES: 'expenseTemplates',
+  EXPENSES: 'expenses',
+  FINANCE_COLLECTIONS: 'financeCollections',
+  FINANCE_DUES: 'financeDues',
+  FINANCE_PAYMENTS: 'financePayments',
+  ROOM_WALLET: 'roomWallet',
+  ROOM_WALLET_MOVEMENTS: 'roomWalletMovements',
+  MEMBER_WALLETS: 'memberWallets',
+  MEMBER_WALLET_MOVEMENTS: 'memberWalletMovements',
+  FINANCE_FUND_REPAIRS: 'financeFundRepairs',
+  FINANCE_WALLET_REPAYMENTS: 'financeWalletRepayments',
 }
 
 export const STOCK_UNITS = {
@@ -108,6 +122,7 @@ export const PUSH_SOURCES = {
   SHOPPING: 'shopping',
   MENU_UPDATE: 'menu_update',
   SYSTEM: 'system',
+  FINANCE: 'finance',
 }
 
 export const PUSH_SOURCE_LABELS = {
@@ -117,6 +132,7 @@ export const PUSH_SOURCE_LABELS = {
   [PUSH_SOURCES.SHOPPING]: 'Shopping assign',
   [PUSH_SOURCES.MENU_UPDATE]: 'Menu update',
   [PUSH_SOURCES.SYSTEM]: 'Automatic',
+  [PUSH_SOURCES.FINANCE]: 'Finance dues',
 }
 
 export const PUSH_RECIPIENT_STATUS = {
@@ -166,3 +182,193 @@ export const LEAVE_PERIOD_LABELS = {
   [LEAVE_PERIODS.EVENING]: 'Evening',
   [LEAVE_PERIODS.FULL]: 'Full day',
 }
+
+export const FINANCE_SPLIT_MODES = {
+  EQUAL: 'equal',
+  SHARES: 'shares',
+  MANUAL: 'manual',
+}
+
+export const FINANCE_SPLIT_MODE_LABELS = {
+  [FINANCE_SPLIT_MODES.EQUAL]: 'Equal',
+  [FINANCE_SPLIT_MODES.SHARES]: 'Shares',
+  [FINANCE_SPLIT_MODES.MANUAL]: 'Manual',
+}
+
+export const DEPOSIT_MOVEMENT_TYPES = {
+  COLLECT: 'collect',
+  REPAY: 'repay',
+  TOPUP: 'topup',
+  ADJUST: 'adjust',
+}
+
+export const DEPOSIT_ACCOUNT_STATUS = {
+  ACTIVE: 'active',
+  PARTIAL: 'partial',
+  REFUNDED: 'refunded',
+}
+
+export const EXPENSE_STATUS = {
+  DRAFT: 'draft',
+  ISSUED: 'issued',
+}
+
+export const COLLECTION_STATUS = {
+  DRAFT: 'draft',
+  ISSUED: 'issued',
+  CLOSED: 'closed',
+}
+
+export const DUE_STATUS = {
+  UNPAID: 'unpaid',
+  PARTIAL: 'partial',
+  PAID: 'paid',
+  COVERED: 'covered',
+  WAIVED: 'waived',
+}
+
+export const WALLET_MOVEMENT_REASONS = {
+  ROUNDING: 'rounding',
+  CONTRIBUTION: 'contribution',
+  EXPENSE: 'expense',
+  REFUND: 'refund',
+  ADJUST: 'adjust',
+  COVER: 'cover',
+  RECOVER: 'recover',
+  REPAY: 'repay',
+  COOK_LEAVE: 'cook_leave',
+  FROM_FUND: 'from_fund',
+}
+
+export const WALLET_MOVEMENT_REASON_LABELS = {
+  [WALLET_MOVEMENT_REASONS.ROUNDING]: 'Rounding',
+  [WALLET_MOVEMENT_REASONS.CONTRIBUTION]: 'Contribution',
+  [WALLET_MOVEMENT_REASONS.EXPENSE]: 'Expense',
+  [WALLET_MOVEMENT_REASONS.REFUND]: 'Refund',
+  [WALLET_MOVEMENT_REASONS.ADJUST]: 'Adjust',
+  [WALLET_MOVEMENT_REASONS.COVER]: 'Covered unpaid share',
+  [WALLET_MOVEMENT_REASONS.RECOVER]: 'Recovered from payment',
+  [WALLET_MOVEMENT_REASONS.REPAY]: 'Wallet repayment',
+  [WALLET_MOVEMENT_REASONS.COOK_LEAVE]: 'Cook leave held back',
+  [WALLET_MOVEMENT_REASONS.FROM_FUND]: 'Paid from room fund',
+}
+
+export const MEMBER_WALLET_REASONS = {
+  CARRY_IN: 'carry_in',
+  SETTLE: 'settle',
+  WAIVE_RELEASE: 'waive_release',
+  UNWAIVE: 'unwaive',
+  ADJUST: 'adjust',
+  REPAY: 'repay',
+}
+
+export const MEMBER_WALLET_REASON_LABELS = {
+  [MEMBER_WALLET_REASONS.CARRY_IN]: 'Applied to collection',
+  [MEMBER_WALLET_REASONS.SETTLE]: 'Closed collection',
+  [MEMBER_WALLET_REASONS.WAIVE_RELEASE]: 'Released on waive',
+  [MEMBER_WALLET_REASONS.UNWAIVE]: 'Re-applied on restore',
+  [MEMBER_WALLET_REASONS.ADJUST]: 'Adjust',
+  [MEMBER_WALLET_REASONS.REPAY]: 'Paid to room fund',
+}
+
+export const PAYMENT_METHODS = {
+  UPI: 'upi',
+  CASH: 'cash',
+  BANK: 'bank',
+  OTHER: 'other',
+}
+
+export const PAYMENT_METHOD_LABELS = {
+  [PAYMENT_METHODS.UPI]: 'UPI',
+  [PAYMENT_METHODS.CASH]: 'Cash',
+  [PAYMENT_METHODS.BANK]: 'Bank',
+  [PAYMENT_METHODS.OTHER]: 'Other',
+}
+
+export const PAYMENT_SOURCES = {
+  MEMBER: 'member',
+  ROOM_FUND: 'room_fund',
+}
+
+export const PAYMENT_SOURCE_LABELS = {
+  [PAYMENT_SOURCES.MEMBER]: 'Member',
+  [PAYMENT_SOURCES.ROOM_FUND]: 'Room fund',
+}
+
+export const WALLET_REPAYMENT_STATUS = {
+  PENDING: 'pending',
+  APPROVED: 'approved',
+  REJECTED: 'rejected',
+  CANCELLED: 'cancelled',
+}
+
+export const ROUND_DIRECTIONS = {
+  UP: 'up',
+  DOWN: 'down',
+  NEAREST: 'nearest',
+}
+
+export const DEFAULT_ROUND_PRESETS = [
+  { id: 'exact', label: 'Exact', mode: 'exact' },
+  { id: 'up-1', label: 'Up to ₹1', mode: 'step', stepPaise: 100, direction: 'up' },
+  { id: 'up-5', label: 'Up to ₹5', mode: 'step', stepPaise: 500, direction: 'up' },
+  { id: 'up-10', label: 'Up to ₹10', mode: 'step', stepPaise: 1000, direction: 'up' },
+  { id: 'up-50', label: 'Up to ₹50', mode: 'step', stepPaise: 5000, direction: 'up' },
+  { id: 'up-100', label: 'Up to ₹100', mode: 'step', stepPaise: 10000, direction: 'up' },
+  { id: 'down-1', label: 'Down to ₹1', mode: 'step', stepPaise: 100, direction: 'down' },
+  { id: 'down-5', label: 'Down to ₹5', mode: 'step', stepPaise: 500, direction: 'down' },
+  { id: 'down-10', label: 'Down to ₹10', mode: 'step', stepPaise: 1000, direction: 'down' },
+]
+
+export const DEFAULT_FINANCE_SETTINGS = {
+  standardDepositPaise: 500000,
+  defaultDueDays: 7,
+  roundPresets: DEFAULT_ROUND_PRESETS,
+  reminderConfig: {
+    enabled: true,
+    daysBefore: 1,
+    remindOnDue: true,
+    overdueEveryDays: 3,
+    hourIst: 9,
+  },
+  allowNegativeWallet: false,
+}
+
+export const DEFAULT_EXPENSE_TEMPLATES = [
+  {
+    id: 'rent',
+    name: 'Rent',
+    defaultAmountPaise: 0,
+    defaultSplitMode: FINANCE_SPLIT_MODES.EQUAL,
+    recurring: true,
+    order: 0,
+    active: true,
+  },
+  {
+    id: 'cook',
+    name: 'Cook salary',
+    defaultAmountPaise: 0,
+    defaultSplitMode: FINANCE_SPLIT_MODES.EQUAL,
+    recurring: true,
+    order: 1,
+    active: true,
+  },
+  {
+    id: 'gas',
+    name: 'Gas',
+    defaultAmountPaise: 0,
+    defaultSplitMode: FINANCE_SPLIT_MODES.EQUAL,
+    recurring: true,
+    order: 2,
+    active: true,
+  },
+  {
+    id: 'light',
+    name: 'Light / electricity',
+    defaultAmountPaise: 0,
+    defaultSplitMode: FINANCE_SPLIT_MODES.EQUAL,
+    recurring: true,
+    order: 3,
+    active: true,
+  },
+]
