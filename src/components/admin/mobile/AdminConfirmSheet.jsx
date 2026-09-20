@@ -10,6 +10,7 @@ export function AdminConfirmSheet({
   destructive = false,
   busy = false,
   onConfirm,
+  artKey = 'sheet',
 }) {
   return (
     <Modal
@@ -18,6 +19,7 @@ export function AdminConfirmSheet({
       title={title}
       subtitle={message}
       busy={busy}
+      artKey={artKey}
     >
       <div className="admin-mobile-confirm-actions">
         <button

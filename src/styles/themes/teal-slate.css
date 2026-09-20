@@ -128,7 +128,7 @@
   --vote-qty-bg: #ecfdf5;
   --vote-qty-border: #6ee7b7;
 
-  --modal-overlay: rgba(15, 23, 42, 0.45);
+  --modal-overlay: rgba(15, 23, 42, 0.55);
   --modal-shadow: 0 16px 48px rgba(15, 23, 42, 0.12);
   --modal-close-bg: #f1f3f5;
   --modal-close-hover-bg: #e2e8f0;
@@ -316,7 +316,7 @@
   --vote-qty-bg: #152a24;
   --vote-qty-border: #2d6b58;
 
-  --modal-overlay: rgba(0, 0, 0, 0.55);
+  --modal-overlay: rgba(0, 0, 0, 0.62);
   --modal-shadow: 0 20px 56px rgba(0, 0, 0, 0.45);
   --modal-close-bg: #2a3346;
   --modal-close-hover-bg: #3d4a63;

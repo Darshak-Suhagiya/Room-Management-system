@@ -398,6 +398,8 @@
   background: var(--surface-muted);
   border-radius: var(--radius);
   border: 1px solid var(--border);
+  align-items: flex-start;
+  flex-wrap: wrap;
 }
 
 .slot-toggle {
@@ -414,10 +416,65 @@
   accent-color: var(--primary);
 }
 
+.slot-toggle-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.menu-slot-last-edit {
+  margin: 0.2rem 0 0;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.menu-slot-last-edit-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin-top: 0.65rem;
+}
+
+.slot-editor .menu-slot-last-edit {
+  margin: -0.15rem 0 0.75rem;
+}
+
+.meal-vote-panel > .menu-slot-last-edit,
+.meal-vote-mobile > .menu-slot-last-edit {
+  margin: 0 0 0.55rem;
+}
+
 .btn-sm {
   padding: 0.35rem 0.65rem;
   font-size: 0.85rem;
   min-height: var(--touch-min, 2.75rem);
+}
+
+table .btn-sm {
+  min-height: 2.1rem;
+  height: 2.1rem;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+th.table-actions-cell,
+td.table-actions-cell {
+  width: 1%;
+  text-align: right;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.table-actions-inner {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.25rem;
+  min-height: 2.1rem;
 }
 
 .btn-danger {
@@ -1700,6 +1757,15 @@
   line-height: 1.35;
 }
 
+.seva-def-actions,
+.seva-table td.seva-no-print,
+.seva-people-panel td:last-child {
+  width: 1%;
+  white-space: nowrap;
+  text-align: right;
+  vertical-align: middle;
+}
+
 .seva-desc-input {
   width: 100%;
   border: 1px dashed var(--border);
@@ -2317,14 +2383,21 @@
   padding: 0.65rem 0.75rem;
   border-bottom: 1px solid var(--border);
   text-align: left;
+  vertical-align: middle;
+}
+
+.admin-users-table th.table-actions-cell,
+.admin-users-table td.table-actions-cell {
+  text-align: right;
 }
 
 .admin-users-actions {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
+  justify-content: flex-end;
   gap: 0.35rem;
-  min-height: 1.75rem;
+  min-height: 2.1rem;
 }
 
 .status-pill {
@@ -4891,7 +4964,8 @@
 }
 
 .notif-inbox-sheet .modal-sheet-body {
-  padding-top: 0;
+  padding-top: 1rem;
+  background: var(--surface);
 }
 
 .notif-inbox-sheet .notif-inbox-list {

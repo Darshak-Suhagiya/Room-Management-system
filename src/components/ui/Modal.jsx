@@ -10,6 +10,7 @@ import {
   sheetTransition,
 } from '../../lib/motionPresets'
 import { IconButton } from './IconButton'
+import { getDarshanArt, getSheetSrc } from '../../config/darshanArt'
 
 const DISMISS_OFFSET = 120
 const DISMISS_VELOCITY = 650
@@ -21,22 +22,35 @@ export function Modal({
   subtitle,
   children,
   wide = false,
+  extraWide = false,
   fullScreenMobile = false,
   busy = false,
   className = '',
+  artKey = 'sheet',
 }) {
   const isMobile = useMediaQuery('(max-width: 899px)')
   const dragControls = useDragControls()
   /** Keep Dialog mounted until sheet exit animation finishes. */
   const [present, setPresent] = useState(open)
+  const darshan = getDarshanArt(artKey)
+  const sheetSrc = getSheetSrc(darshan, isMobile)
 
   useEffect(() => {
-    if (open) setPresent(true)
+    if (!open) return
+    // Keep Dialog mounted until the sheet exit animation finishes.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- present must stay true through close animation
+    setPresent(true)
   }, [open])
 
   const handleClose = () => {
     if (busy) return
     onClose?.()
+  }
+
+  const startSheetDrag = (e) => {
+    if (busy || !isMobile) return
+    if (e.target.closest('button')) return
+    dragControls.start(e)
   }
 
   const panelClassName = `modal-sheet relative flex flex-col w-full bg-surface text-text shadow-lg overflow-hidden ${
@@ -45,7 +59,13 @@ export function Modal({
     fullScreenMobile
       ? 'max-h-[100dvh] rounded-t-lg min-[900px]:rounded-default min-[900px]:max-h-[90dvh]'
       : 'max-h-[92dvh] rounded-t-lg min-[900px]:rounded-default min-[900px]:max-h-[90dvh]'
-  } ${wide ? 'min-[900px]:max-w-3xl' : 'min-[900px]:max-w-md'} ${className}`
+  } ${
+    extraWide
+      ? 'min-[900px]:max-w-6xl'
+      : wide
+        ? 'min-[900px]:max-w-3xl'
+        : 'min-[900px]:max-w-md'
+  } ${className}`
 
   return (
     <Dialog open={present} onClose={handleClose} className="relative z-[200]">
@@ -60,7 +80,7 @@ export function Modal({
             transition={fadeTransition}
           >
             <motion.div
-              className="modal-sheet-scrim backdrop-blur-[2px]"
+              className="modal-sheet-scrim"
               aria-hidden="true"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -103,38 +123,44 @@ export function Modal({
                 }
               }}
             >
-              <div
-                className="modal-sheet-grabber-hit"
-                onPointerDown={(e) => {
-                  if (busy || !isMobile) return
-                  dragControls.start(e)
-                }}
-              >
-                <div className="modal-sheet-grabber" aria-hidden />
-              </div>
               {title && (
                 <div
-                  className="modal-sheet-header"
-                  onPointerDown={(e) => {
-                    if (busy || !isMobile) return
-                    if (e.target.closest('button')) return
-                    dragControls.start(e)
+                  className="modal-sheet-darshan"
+                  style={{
+                    '--darshan-pos': darshan.stripPosition || darshan.position,
+                    '--darshan-pos-mobile':
+                      darshan.stripPosition || darshan.mobilePosition,
                   }}
+                  onPointerDown={startSheetDrag}
                 >
-                  <div className="modal-sheet-header-text">
-                    <DialogTitle className="modal-sheet-title">{title}</DialogTitle>
-                    {subtitle && (
-                      <p className="modal-sheet-subtitle">{subtitle}</p>
-                    )}
+                  <img
+                    className="modal-sheet-darshan-img"
+                    src={sheetSrc}
+                    alt=""
+                    width={1200}
+                    height={360}
+                    decoding="async"
+                  />
+                  <div className="modal-sheet-darshan-scrim" aria-hidden />
+                  <div className="modal-sheet-grabber-hit">
+                    <div className="modal-sheet-grabber" aria-hidden />
                   </div>
-                  <IconButton
-                    label="Close"
-                    onClick={handleClose}
-                    disabled={busy}
-                    className="modal-sheet-close"
-                  >
-                    <X size={20} />
-                  </IconButton>
+                  <div className="modal-sheet-header modal-sheet-header-on-darshan">
+                    <div className="modal-sheet-header-text">
+                      <DialogTitle className="modal-sheet-title">{title}</DialogTitle>
+                      {subtitle && (
+                        <p className="modal-sheet-subtitle">{subtitle}</p>
+                      )}
+                    </div>
+                    <IconButton
+                      label="Close"
+                      onClick={handleClose}
+                      disabled={busy}
+                      className="modal-sheet-close"
+                    >
+                      <X size={18} />
+                    </IconButton>
+                  </div>
                 </div>
               )}
               <div className="modal-sheet-body">{children}</div>
