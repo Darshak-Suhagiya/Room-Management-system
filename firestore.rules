@@ -35,8 +35,14 @@ service cloud.firestore {
       return isAdmin() || isMaharaj() || isKitchenLeader() || isRoomLeader();
     }
 
+    function isResident() {
+      return isSignedIn() && userDoc().data.role == 'resident';
+    }
+
     function canWriteMenus() {
-      return isAdmin() || isKitchenLeader();
+      return isApproved() && (
+        isAdmin() || isKitchenLeader() || isRoomLeader() || isResident()
+      );
     }
 
     function canWriteMenuCatalog() {
@@ -44,7 +50,7 @@ service cloud.firestore {
     }
 
     function canDeleteParticipations() {
-      return isAdmin() || isKitchenLeader();
+      return canWriteMenus();
     }
 
     function canManageSeva() {
@@ -73,6 +79,58 @@ service cloud.firestore {
 
     function canManageStocks() {
       return isAdmin() || isKitchenLeader();
+    }
+
+    function canManageFinance() {
+      return isAdmin() || isRoomLeader();
+    }
+
+    function isFinanceViewer() {
+      return isApproved() && !isMaharaj();
+    }
+
+    function ownFinanceDue(dueId) {
+      return dueId is string
+        && exists(/databases/$(database)/documents/financeDues/$(dueId))
+        && get(/databases/$(database)/documents/financeDues/$(dueId)).data.userId == request.auth.uid;
+    }
+
+    function dueRoundingPaise(dueId) {
+      return get(/databases/$(database)/documents/financeDues/$(dueId)).data.roundingDeltaPaise;
+    }
+
+    function isOwnRoundingMovement() {
+      return isFinanceViewer()
+        && request.resource.data.reason == 'rounding'
+        && request.resource.data.refType == 'financeDue'
+        && ownFinanceDue(request.resource.data.refId)
+        && request.resource.data.amountPaise is number
+        && (
+          request.resource.data.amountPaise == dueRoundingPaise(request.resource.data.refId)
+          || request.resource.data.amountPaise == -dueRoundingPaise(request.resource.data.refId)
+        );
+    }
+
+    function isOwnRoundingWalletUpdate() {
+      return isFinanceViewer()
+        && request.resource.data.lastRoundingDueId is string
+        && ownFinanceDue(request.resource.data.lastRoundingDueId)
+        && request.resource.data.balancePaise is number
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['balancePaise', 'updatedAt', 'lastRoundingDueId'])
+        && (
+          request.resource.data.balancePaise
+            == resource.data.balancePaise + dueRoundingPaise(request.resource.data.lastRoundingDueId)
+          || request.resource.data.balancePaise
+            == resource.data.balancePaise - dueRoundingPaise(request.resource.data.lastRoundingDueId)
+        );
+    }
+
+    function isOwnDueWalletAppliedUpdate() {
+      return isFinanceViewer()
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['walletApplied'])
+        && request.resource.data.walletApplied is bool;
     }
 
     function canEditStockGroupDoc(groupId) {
@@ -121,6 +179,7 @@ service cloud.firestore {
       allow read: if isSignedIn() && (
         request.auth.uid == userId
         || canReadAllUsers()
+        || isFinanceViewer()
         || resource.data.role == 'maharaj'
       );
       allow create: if isSignedIn() && request.auth.uid == userId;
@@ -259,6 +318,115 @@ service cloud.firestore {
       allow create: if canManageStocks();
       allow update: if canManageStocks() || isShoppingAssignee();
       allow delete: if canManageStocks();
+    }
+
+    match /financeSettings/{docId} {
+      allow read: if isFinanceViewer();
+      allow create, update, delete: if canManageFinance();
+    }
+
+    match /expenseTemplates/{docId} {
+      allow read: if isFinanceViewer();
+      allow create, update, delete: if canManageFinance();
+    }
+
+    match /expenses/{docId} {
+      allow read: if isFinanceViewer();
+      allow create, update, delete: if canManageFinance();
+    }
+
+    match /financeCollections/{docId} {
+      allow read: if isFinanceViewer();
+      allow create, update, delete: if canManageFinance();
+    }
+
+    match /roomWallet/{docId} {
+      allow read: if isFinanceViewer();
+      allow create, delete: if canManageFinance();
+      allow update: if canManageFinance() || isOwnRoundingWalletUpdate();
+    }
+
+    match /depositAccounts/{userId} {
+      allow read: if canManageFinance() || (isFinanceViewer() && request.auth.uid == userId);
+      allow create, update, delete: if canManageFinance();
+    }
+
+    match /financeDues/{dueId} {
+      allow read: if isFinanceViewer();
+      allow create, delete: if canManageFinance();
+      allow update: if canManageFinance() || isOwnDueWalletAppliedUpdate();
+    }
+
+    match /financePayments/{paymentId} {
+      allow read: if isFinanceViewer();
+      allow create: if canManageFinance()
+        || (
+          isFinanceViewer()
+          && request.resource.data.userId == request.auth.uid
+          && request.resource.data.recordedBy == request.auth.uid
+          && request.resource.data.dueId is string
+          && request.resource.data.amountPaise is number
+          && request.resource.data.amountPaise > 0
+          && request.resource.data.voided == false
+          && request.resource.data.source == 'member'
+          && get(/databases/$(database)/documents/financeDues/$(request.resource.data.dueId)).data.userId == request.auth.uid
+          && get(/databases/$(database)/documents/financeDues/$(request.resource.data.dueId)).data.collectionId == request.resource.data.collectionId
+        );
+      allow update: if canManageFinance();
+      allow delete: if canManageFinance();
+    }
+
+    match /depositMovements/{moveId} {
+      allow read: if canManageFinance()
+        || (isFinanceViewer() && resource.data.userId == request.auth.uid);
+      allow create: if canManageFinance();
+      allow update, delete: if false;
+    }
+
+    match /roomWalletMovements/{moveId} {
+      allow read: if isFinanceViewer();
+      allow create: if canManageFinance() || isOwnRoundingMovement();
+      allow update: if false;
+      allow delete: if canManageFinance();
+    }
+
+    match /memberWallets/{userId} {
+      allow read: if isFinanceViewer();
+      allow create, update, delete: if canManageFinance();
+    }
+
+    match /memberWalletMovements/{moveId} {
+      allow read: if isFinanceViewer();
+      allow create: if canManageFinance();
+      allow update: if false;
+      allow delete: if canManageFinance();
+    }
+
+    match /financeFundRepairs/{docId} {
+      allow read: if isFinanceViewer();
+      allow create: if canManageFinance();
+      allow update: if false;
+      allow delete: if canManageFinance();
+    }
+
+    match /financeWalletRepayments/{docId} {
+      allow read: if isFinanceViewer();
+      allow create: if isFinanceViewer()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.status == 'pending'
+        && request.resource.data.amountPaise is number
+        && request.resource.data.amountPaise > 0;
+      allow update: if canManageFinance()
+        || (
+          isFinanceViewer()
+          && resource.data.userId == request.auth.uid
+          && resource.data.status == 'pending'
+          && request.resource.data.status == 'cancelled'
+          && request.resource.data.userId == resource.data.userId
+          && request.resource.data.amountPaise == resource.data.amountPaise
+        );
+      allow delete: if canManageFinance();
     }
   }
 }
