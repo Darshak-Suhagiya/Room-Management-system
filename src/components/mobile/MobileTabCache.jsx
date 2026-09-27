@@ -14,6 +14,7 @@ const TAB_DARSHAN = {
   '/admin/votes': { artKey: 'votes', size: 'standard', title: 'Vote dashboard' },
   '/settings': { artKey: 'settings', size: 'compact', title: 'Settings' },
   '/finance': { artKey: 'finance', size: 'compact', title: 'Finance' },
+  '/reports': { artKey: 'reports', size: 'compact', title: 'Reports' },
 }
 
 function TabPanel({ tab, children }) {

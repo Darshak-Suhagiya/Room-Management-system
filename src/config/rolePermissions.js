@@ -157,6 +157,18 @@ export function canManageFinance(profile) {
   return isAdminRole(profile) || isRoomLeaderRole(profile)
 }
 
+/**
+ * Purpose: Reports is open to every admin, and to other people only by name.
+ * Why: Access is not a role. An admin grants or removes each person separately.
+ */
+export function canAccessReports(profile, allowedUserIds) {
+  if (!profile) return false
+  if (isAdminRole(profile)) return true
+  const uid = profile.id
+  if (!uid) return false
+  return (allowedUserIds ?? []).includes(uid)
+}
+
 /** Create groups, manage editors, create/assign shopping tickets. */
 export function canManageStocks(profile) {
   return isAdminRole(profile) || isKitchenLeaderRole(profile)

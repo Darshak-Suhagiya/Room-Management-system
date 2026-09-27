@@ -85,6 +85,18 @@ service cloud.firestore {
       return isAdmin() || isRoomLeader();
     }
 
+    /**
+     * Purpose: Reports is admin, or a person listed on reportAccess/default.
+     * Why: Grants are per person. A role such as room leader does not get this page.
+     */
+    function canAccessReports() {
+      return isAdmin() || (
+        isApproved() &&
+        exists(/databases/$(database)/documents/reportAccess/default) &&
+        request.auth.uid in get(/databases/$(database)/documents/reportAccess/default).data.allowedUserIds
+      );
+    }
+
     function isFinanceViewer() {
       return isApproved() && !isMaharaj();
     }
@@ -427,6 +439,33 @@ service cloud.firestore {
           && request.resource.data.amountPaise == resource.data.amountPaise
         );
       allow delete: if canManageFinance();
+    }
+
+    match /reportAccess/{docId} {
+      allow read: if isApproved() && docId == 'default';
+      allow create, update: if isAdmin()
+        && docId == 'default'
+        && request.resource.data.allowedUserIds is list;
+      allow delete: if false;
+    }
+
+    match /reportEvents/{eventId} {
+      allow read: if canAccessReports();
+      allow create, update: if canAccessReports()
+        && request.resource.data.date is string
+        && request.resource.data.title is string
+        && request.resource.data.time is string
+        && request.resource.data.attendance is list;
+      allow delete: if canAccessReports();
+    }
+
+    match /reportNotes/{noteId} {
+      allow read: if canAccessReports();
+      allow create, update: if canAccessReports()
+        && request.resource.data.date is string
+        && request.resource.data.userId is string
+        && request.resource.data.text is string;
+      allow delete: if canAccessReports();
     }
   }
 }

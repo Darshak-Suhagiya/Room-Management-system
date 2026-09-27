@@ -29,6 +29,7 @@ import {
   canManageStocks,
   canViewFinance,
   canManageFinance,
+  canAccessReports as canUserAccessReports,
   isKitchenLeaderRole,
   isMaharajRole,
   isRoomLeaderRole,
@@ -43,6 +44,9 @@ import {
 } from '../services/userService'
 import { getAuthActionUrl } from '../lib/authActionUrl'
 import { formatAuthError } from '../utils/authErrors'
+import { subscribeReportAccess } from '../services/reportService'
+
+const EMPTY_REPORT_IDS = []
 
 const AuthContext = createContext(null)
 
@@ -51,6 +55,11 @@ export function AuthProvider({ children }) {
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
   const [authNotice, setAuthNotice] = useState(null)
+  const [reportAccess, setReportAccess] = useState({
+    uid: null,
+    ids: [],
+    ready: false,
+  })
 
   useEffect(() => {
     if (!isFirebaseConfigured || !auth) {
@@ -95,6 +104,18 @@ export function AuthProvider({ children }) {
     return unsubscribe
   }, [])
 
+  useEffect(() => {
+    if (!user) return undefined
+    const uid = user.uid
+    return subscribeReportAccess((ids) => {
+      setReportAccess({ uid, ids, ready: true })
+    })
+  }, [user])
+
+  const reportIds =
+    reportAccess.uid === user?.uid ? reportAccess.ids : EMPTY_REPORT_IDS
+  const reportReady = reportAccess.uid === user?.uid && reportAccess.ready
+
   const value = useMemo(
     () => ({
       user,
@@ -126,6 +147,9 @@ export function AuthProvider({ children }) {
       canManageStocks: canManageStocks(profile),
       canViewFinance: canViewFinance(profile),
       canManageFinance: canManageFinance(profile),
+      canAccessReports: canUserAccessReports(profile, reportIds),
+      reportAllowedUserIds: reportIds,
+      reportAccessReady: Boolean(profile && (isAdmin(profile) || reportReady)),
       isApproved: profile
         ? !isUserPending(profile) && !isUserDeactivated(profile)
         : false,
@@ -197,7 +221,7 @@ export function AuthProvider({ children }) {
       },
       formatAuthError,
     }),
-    [user, profile, loading, authNotice],
+    [user, profile, loading, authNotice, reportIds, reportReady],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

@@ -82,6 +82,9 @@ const AdminPushPage = lazy(() =>
 const FinancePage = lazy(() =>
   import('./pages/FinancePage').then((m) => ({ default: m.FinancePage })),
 )
+const ReportsPage = lazy(() =>
+  import('./pages/ReportsPage').then((m) => ({ default: m.ReportsPage })),
+)
 
 function RouteFallback() {
   return <p className="page-loading">Loading…</p>
@@ -165,6 +168,14 @@ function App() {
               element={
                 <ProtectedRoute financeAccess>
                   <FinancePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="reports"
+              element={
+                <ProtectedRoute reportsAccess>
+                  <ReportsPage />
                 </ProtectedRoute>
               }
             />

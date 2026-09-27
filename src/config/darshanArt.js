@@ -156,6 +156,13 @@ export const DARSHAN_ART = {
     sheet: '/darshan/sheet-seva.jpg',
     stripPosition: 'center 8%',
   }),
+  reports: entry({
+    desktop: '/darshan/planning.jpg',
+    position: 'center 6%',
+    mobilePosition: 'center top',
+    sheet: '/darshan/sheet-planning.jpg',
+    stripPosition: 'center 16%',
+  }),
   sheet: entry({
     desktop: SHEET,
     sheet: SHEET,

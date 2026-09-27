@@ -44,7 +44,27 @@ export const COLLECTIONS = {
   MEMBER_WALLET_MOVEMENTS: 'memberWalletMovements',
   FINANCE_FUND_REPAIRS: 'financeFundRepairs',
   FINANCE_WALLET_REPAYMENTS: 'financeWalletRepayments',
+  REPORT_ACCESS: 'reportAccess',
+  REPORT_EVENTS: 'reportEvents',
+  REPORT_NOTES: 'reportNotes',
 }
+
+export const REPORT_ACCESS_DOC_ID = 'default'
+
+export const REPORT_ATTENDANCE_STATUS = {
+  PRESENT: 'present',
+  ABSENT: 'absent',
+  UNAVAILABLE: 'unavailable',
+}
+
+export const REPORT_ATTENDANCE_STATUS_LABELS = {
+  [REPORT_ATTENDANCE_STATUS.PRESENT]: 'Present',
+  [REPORT_ATTENDANCE_STATUS.ABSENT]: 'Not present',
+  [REPORT_ATTENDANCE_STATUS.UNAVAILABLE]: 'Not available',
+}
+
+/** One-tap reason for someone who could not attend. */
+export const REPORT_OUT_OF_CITY_REASON = 'Out of city'
 
 export const STOCK_UNITS = {
   G: 'g',
