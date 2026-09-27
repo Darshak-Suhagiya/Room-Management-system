@@ -12,6 +12,7 @@ import {
   Settings,
   ShoppingCart,
   Sparkles,
+  ClipboardList,
   Users,
   UtensilsCrossed,
   Wallet,
@@ -81,6 +82,9 @@ const NAV_COMPONENTS = {
     import('../pages/SevaPrintablePage').then((m) => ({
       default: m.SevaPrintablePage,
     })),
+  ),
+  reports: lazyPage(() =>
+    import('../pages/ReportsPage').then((m) => ({ default: m.ReportsPage })),
   ),
 }
 
@@ -275,6 +279,18 @@ const NAV_DEFS = [
     inDefaultNav: false,
     isVisible: (auth) => auth.canManageSeva,
   },
+  {
+    id: 'reports',
+    path: '/reports',
+    end: false,
+    sidebarLabel: 'Reports',
+    navLabel: 'Reports',
+    icon: ClipboardList,
+    group: 'manage',
+    guard: 'reportsAccess',
+    inDefaultNav: false,
+    isVisible: (auth) => auth.canAccessReports,
+  },
 ]
 
 export const ALL_NAV_PATHS = NAV_DEFS.map((def) => def.path)
@@ -289,6 +305,7 @@ export const NAV_GUARD_PROPS = {
   noticesAccess: { noticesAccess: true },
   pushAccess: { pushAccess: true },
   financeAccess: { financeAccess: true },
+  reportsAccess: { reportsAccess: true },
 }
 
 export function buildAuthSnapshot({
@@ -303,6 +320,7 @@ export function buildAuthSnapshot({
   canManagePush,
   canViewStocks,
   canViewFinance,
+  canAccessReports,
 }) {
   return {
     isMaharaj,
@@ -316,6 +334,7 @@ export function buildAuthSnapshot({
     canManagePush,
     canViewStocks,
     canViewFinance,
+    canAccessReports,
   }
 }
 

@@ -42,6 +42,7 @@ export function Layout() {
     canManagePush,
     canViewStocks,
     canViewFinance,
+    canAccessReports,
   } = authFromContext
 
   const auth = useMemo(
@@ -58,6 +59,7 @@ export function Layout() {
         canManagePush,
         canViewStocks,
         canViewFinance,
+        canAccessReports,
       }),
     [
       isMaharaj,
@@ -71,6 +73,7 @@ export function Layout() {
       canManagePush,
       canViewStocks,
       canViewFinance,
+      canAccessReports,
     ],
   )
 
