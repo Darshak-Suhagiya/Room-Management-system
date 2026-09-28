@@ -1,12 +1,9 @@
 import {
-  attendanceCounts,
-  countLine,
+  attendanceStatusLabel,
   formatReportDate,
   formatReportTime,
-  groupReportDays,
+  groupReportByPerson,
   loggedByName,
-  personLabel,
-  splitAttendance,
 } from './reportAttendance'
 
 const MARGIN = 40
@@ -253,18 +250,6 @@ function addSubhead(doc, text, y) {
   return next + lines.length * 14 + 2
 }
 
-function addParagraph(doc, text, y) {
-  const width = doc.internal.pageSize.getWidth() - MARGIN * 2
-  const lines = doc.splitTextToSize(text, width)
-  const height = lines.length * 12
-  const next = ensureSpace(doc, y, height + 8)
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(9)
-  doc.setTextColor(51, 65, 85)
-  doc.text(lines, MARGIN, next)
-  return next + height + 8
-}
-
 function tableOptions(doc, extra = {}) {
   return {
     margin: { left: MARGIN, right: MARGIN, top: CONT_CONTENT_TOP, bottom: FOOTER_RESERVE },
@@ -314,83 +299,53 @@ function drawNamedTable(doc, autoTable, y, title, head, body, columnStyles) {
   return next
 }
 
-function drawEvent(doc, autoTable, event, roster, y) {
-  const when = formatReportTime(event.time)
-  let next = addSubhead(
-    doc,
-    when ? `${event.title}  ·  ${when}` : event.title,
-    y,
-  )
-  next = addParagraph(
-    doc,
-    `Logged by ${loggedByName(event)}`,
-    next,
-  )
-  const split = splitAttendance(event.attendance, roster)
-  next = addParagraph(doc, countLine(attendanceCounts(split)), next)
-  if (event.note) next = addParagraph(doc, event.note, next)
+function drawPerson(doc, autoTable, person, y) {
+  let next = addSection(doc, person.displayName, y)
 
-  next = drawNamedTable(
-    doc,
-    autoTable,
-    next,
-    `Present (${split.present.length})`,
-    ['Name', 'Time'],
-    split.present.map((row) => [
-      personLabel(row),
-      formatReportTime(row.time) || '—',
-    ]),
-    { 1: { cellWidth: 90 } },
-  )
-  next = drawNamedTable(
-    doc,
-    autoTable,
-    next,
-    `Not present (${split.absent.length})`,
-    ['Name'],
-    split.absent.map((row) => [personLabel(row)]),
-  )
-  next = drawNamedTable(
-    doc,
-    autoTable,
-    next,
-    `Not available (${split.unavailable.length})`,
-    ['Name', 'Reason'],
-    split.unavailable.map((row) => [personLabel(row), row.reason || '—']),
-    { 1: { cellWidth: 140 } },
-  )
-  next = drawNamedTable(
-    doc,
-    autoTable,
-    next,
-    `Not recorded (${split.notRecorded.length})`,
-    ['Name'],
-    split.notRecorded.map((row) => [personLabel(row)]),
-  )
+  if (person.attendance.length) {
+    next = drawNamedTable(
+      doc,
+      autoTable,
+      next,
+      'Event attendance',
+      ['Date', 'Event', 'Arrival', 'Status'],
+      person.attendance.map((row) => [
+        formatReportDate(row.date) || row.date,
+        row.eventTitle,
+        formatReportTime(row.time) || '—',
+        attendanceStatusLabel(row),
+      ]),
+      {
+        0: { cellWidth: 90 },
+        2: { cellWidth: 70 },
+        3: { cellWidth: 110 },
+      },
+    )
+  }
+
+  // Skip notes table entirely when this person has none in the range.
+  if (person.notes.length) {
+    next = drawNamedTable(
+      doc,
+      autoTable,
+      next,
+      'Notes',
+      ['Date', 'Note', 'Logged by'],
+      person.notes.map((note) => [
+        formatReportDate(note.date) || note.date,
+        note.text || '',
+        loggedByName(note),
+      ]),
+      { 0: { cellWidth: 90 }, 2: { cellWidth: 100 } },
+    )
+  }
+
   return next + 4
 }
 
-function drawNotes(doc, autoTable, notes, y) {
-  if (!notes.length) return y
-  let next = addSubhead(doc, 'Person notes', y)
-  next = drawTable(
-    doc,
-    autoTable,
-    next,
-    ['Person', 'Note', 'Logged by'],
-    notes.map((note) => [
-      personLabel(note),
-      note.text || '',
-      loggedByName(note),
-    ]),
-    { 0: { cellWidth: 110 }, 2: { cellWidth: 100 } },
-  )
-  return next
-}
-
 export async function exportReportsPdf({ from, to, events, notes, roster }) {
-  const days = groupReportDays({ from, to, events, notes })
-  if (!days.length) {
+  const people = groupReportByPerson({ from, to, events, notes, roster })
+  if (!people.length) {
     throw new Error('Nothing was logged in that date range.')
   }
 
@@ -408,12 +363,8 @@ export async function exportReportsPdf({ from, to, events, notes, roster }) {
     meta: [`${rangeLabel}`, `Generated ${todayLabel()}`].join('  ·  '),
   })
 
-  for (const day of days) {
-    y = addSection(doc, formatReportDate(day.date) || day.date, y)
-    for (const event of day.events) {
-      y = drawEvent(doc, autoTable, event, roster, y)
-    }
-    y = drawNotes(doc, autoTable, day.notes, y)
+  for (const person of people) {
+    y = drawPerson(doc, autoTable, person, y)
   }
 
   applyPdfChrome(doc, art, {

@@ -19,8 +19,6 @@ import {
 } from '../config/constants'
 import { isDateId, normalizeTime } from '../utils/reportAttendance'
 
-const STATUSES = new Set(Object.values(REPORT_ATTENDANCE_STATUS))
-
 function assertConfigured() {
   if (!isFirebaseConfigured || !db) {
     throw new Error('Firebase is not configured')
@@ -98,19 +96,24 @@ function actorStamp(actor, { creating }) {
   }
 }
 
-/**
- * Purpose: Keep only people who were given a status.
- * Why: Anyone left out is shown as not recorded, so blank rows must not be stored.
- */
+/** Keep only people who were given a status — blank roster rows are not stored. */
 function normalizeAttendance(attendance) {
   const seen = new Set()
   const rows = []
+  const writable = new Set([
+    REPORT_ATTENDANCE_STATUS.PRESENT,
+    REPORT_ATTENDANCE_STATUS.ABSENT,
+  ])
   for (const row of attendance ?? []) {
     const userId = String(row?.userId || '').trim()
-    const status = String(row?.status || '').trim()
+    let status = String(row?.status || '').trim()
     if (!userId || !status) continue
-    if (!STATUSES.has(status)) {
-      throw new Error('Choose present, not present, or not available.')
+    // Legacy UI rows may still send unavailable; store as absent + reason.
+    if (status === REPORT_ATTENDANCE_STATUS.UNAVAILABLE) {
+      status = REPORT_ATTENDANCE_STATUS.ABSENT
+    }
+    if (!writable.has(status)) {
+      throw new Error('Choose present or not present.')
     }
     if (seen.has(userId)) continue
     seen.add(userId)
@@ -118,11 +121,11 @@ function normalizeAttendance(attendance) {
     const time =
       status === REPORT_ATTENDANCE_STATUS.PRESENT ? normalizeTime(row.time) : ''
     const reason =
-      status === REPORT_ATTENDANCE_STATUS.UNAVAILABLE
+      status === REPORT_ATTENDANCE_STATUS.ABSENT
         ? String(row.reason || '').trim()
         : ''
-    if (status === REPORT_ATTENDANCE_STATUS.UNAVAILABLE && !reason) {
-      throw new Error(`${displayName} needs a reason for not being available.`)
+    if (status === REPORT_ATTENDANCE_STATUS.ABSENT && !reason) {
+      throw new Error(`${displayName} needs a reason for not being present.`)
     }
     if (reason.length > 120) {
       throw new Error(`The reason for ${displayName} is too long.`)
