@@ -157,7 +157,7 @@ export function useReportsData() {
   }, [actorId])
 
   const exportRange = useCallback(
-    async (from, to) => {
+    async (from, to, layout) => {
       const range = normalizeDateRange(from, to)
       setExporting(true)
       try {
@@ -171,6 +171,7 @@ export function useReportsData() {
           events: rangeEvents,
           notes: rangeNotes,
           roster,
+          layout,
         })
       } finally {
         setExporting(false)

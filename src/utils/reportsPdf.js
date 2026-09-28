@@ -1,10 +1,16 @@
 import {
+  attendanceCounts,
   attendanceStatusLabel,
+  countLine,
   formatReportDate,
   formatReportTime,
   groupReportByPerson,
+  groupReportDays,
   loggedByName,
+  personLabel,
+  splitAttendance,
 } from './reportAttendance'
+import { REPORT_PDF_LAYOUT } from '../config/constants'
 
 const MARGIN = 40
 const HEAD_FILL = [15, 118, 110]
@@ -250,6 +256,18 @@ function addSubhead(doc, text, y) {
   return next + lines.length * 14 + 2
 }
 
+function addParagraph(doc, text, y) {
+  const width = doc.internal.pageSize.getWidth() - MARGIN * 2
+  const lines = doc.splitTextToSize(text, width)
+  const height = lines.length * 12
+  const next = ensureSpace(doc, y, height + 8)
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(9)
+  doc.setTextColor(51, 65, 85)
+  doc.text(lines, MARGIN, next)
+  return next + height + 8
+}
+
 function tableOptions(doc, extra = {}) {
   return {
     margin: { left: MARGIN, right: MARGIN, top: CONT_CONTENT_TOP, bottom: FOOTER_RESERVE },
@@ -343,11 +361,110 @@ function drawPerson(doc, autoTable, person, y) {
   return next + 4
 }
 
-export async function exportReportsPdf({ from, to, events, notes, roster }) {
+function drawEvent(doc, autoTable, event, roster, y) {
+  const when = formatReportTime(event.time)
+  let next = addSubhead(
+    doc,
+    when ? `${event.title}  ·  ${when}` : event.title,
+    y,
+  )
+  next = addParagraph(doc, `Logged by ${loggedByName(event)}`, next)
+  const split = splitAttendance(event.attendance, roster)
+  next = addParagraph(doc, countLine(attendanceCounts(split)), next)
+  if (event.note) next = addParagraph(doc, event.note, next)
+
+  next = drawNamedTable(
+    doc,
+    autoTable,
+    next,
+    `Present (${split.present.length})`,
+    ['Name', 'Time'],
+    split.present.map((row) => [
+      personLabel(row),
+      formatReportTime(row.time) || '—',
+    ]),
+    { 1: { cellWidth: 90 } },
+  )
+  next = drawNamedTable(
+    doc,
+    autoTable,
+    next,
+    `Not present (${split.absent.length})`,
+    ['Name', 'Reason'],
+    split.absent.map((row) => [
+      personLabel(row),
+      row.reason || '—',
+    ]),
+    { 1: { cellWidth: 140 } },
+  )
+  next = drawNamedTable(
+    doc,
+    autoTable,
+    next,
+    `Not recorded (${split.notRecorded.length})`,
+    ['Name'],
+    split.notRecorded.map((row) => [personLabel(row)]),
+  )
+  return next + 4
+}
+
+function drawDayNotes(doc, autoTable, notes, y) {
+  if (!notes.length) return y
+  return drawNamedTable(
+    doc,
+    autoTable,
+    y,
+    'Person notes',
+    ['Person', 'Note', 'Logged by'],
+    notes.map((note) => [
+      personLabel(note),
+      note.text || '',
+      loggedByName(note),
+    ]),
+    { 0: { cellWidth: 110 }, 2: { cellWidth: 100 } },
+  )
+}
+
+function renderPersonLayout(doc, autoTable, { from, to, events, notes, roster, y }) {
   const people = groupReportByPerson({ from, to, events, notes, roster })
   if (!people.length) {
     throw new Error('Nothing was logged in that date range.')
   }
+  let next = y
+  for (const person of people) {
+    next = drawPerson(doc, autoTable, person, next)
+  }
+  return next
+}
+
+function renderEventLayout(doc, autoTable, { from, to, events, notes, roster, y }) {
+  const days = groupReportDays({ from, to, events, notes })
+  if (!days.length) {
+    throw new Error('Nothing was logged in that date range.')
+  }
+  let next = y
+  for (const day of days) {
+    next = addSection(doc, formatReportDate(day.date) || day.date, next)
+    for (const event of day.events) {
+      next = drawEvent(doc, autoTable, event, roster, next)
+    }
+    next = drawDayNotes(doc, autoTable, day.notes, next)
+  }
+  return next
+}
+
+export async function exportReportsPdf({
+  from,
+  to,
+  events,
+  notes,
+  roster,
+  layout = REPORT_PDF_LAYOUT.PERSON,
+}) {
+  const mode =
+    layout === REPORT_PDF_LAYOUT.EVENT
+      ? REPORT_PDF_LAYOUT.EVENT
+      : REPORT_PDF_LAYOUT.PERSON
 
   const { jsPDF, autoTable } = await loadPdf()
   const art = await loadPdfArt()
@@ -356,20 +473,24 @@ export async function exportReportsPdf({ from, to, events, notes, roster }) {
   const toLabel = formatReportDate(to) || to
   const rangeLabel = from === to ? fromLabel : `${fromLabel} – ${toLabel}`
   const title = 'Room report'
+  const layoutLabel = mode === REPORT_PDF_LAYOUT.EVENT ? 'Event wise' : 'Person wise'
 
   let y = drawPage1Letterhead(doc, art, {
     kicker: KICKER,
     title,
-    meta: [`${rangeLabel}`, `Generated ${todayLabel()}`].join('  ·  '),
+    meta: [`${rangeLabel}`, layoutLabel, `Generated ${todayLabel()}`].join('  ·  '),
   })
 
-  for (const person of people) {
-    y = drawPerson(doc, autoTable, person, y)
+  const payload = { from, to, events, notes, roster, y }
+  if (mode === REPORT_PDF_LAYOUT.EVENT) {
+    renderEventLayout(doc, autoTable, payload)
+  } else {
+    renderPersonLayout(doc, autoTable, payload)
   }
 
   applyPdfChrome(doc, art, {
     title: `${title}  ·  ${rangeLabel}`,
-    subtitle: `Room reports  ·  ${rangeLabel}`,
+    subtitle: `Room reports  ·  ${layoutLabel}  ·  ${rangeLabel}`,
   })
-  doc.save(`room-reports-${fileSafe(from)}-to-${fileSafe(to)}.pdf`)
+  doc.save(`room-reports-${mode}-${fileSafe(from)}-to-${fileSafe(to)}.pdf`)
 }

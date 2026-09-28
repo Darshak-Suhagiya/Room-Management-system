@@ -92,8 +92,8 @@ export function ReportsPage() {
     }
   }
 
-  const exportPdf = async (from, to) => {
-    await data.exportRange(from, to)
+  const exportPdf = async (from, to, layout) => {
+    await data.exportRange(from, to, layout)
     setExportOpen(false)
     toast.success('Report downloaded')
   }
