@@ -66,6 +66,16 @@ export const REPORT_ATTENDANCE_STATUS_LABELS = {
 /** One-tap reason for someone who could not attend. */
 export const REPORT_OUT_OF_CITY_REASON = 'Out of city'
 
+export const REPORT_PDF_LAYOUT = {
+  EVENT: 'event',
+  PERSON: 'person',
+}
+
+export const REPORT_PDF_LAYOUT_LABELS = {
+  [REPORT_PDF_LAYOUT.EVENT]: 'Event wise',
+  [REPORT_PDF_LAYOUT.PERSON]: 'Person wise',
+}
+
 export const STOCK_UNITS = {
   G: 'g',
   KG: 'kg',
