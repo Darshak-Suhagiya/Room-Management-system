@@ -13,11 +13,6 @@ import {
 const STATUS_OPTIONS = [
   { id: REPORT_ATTENDANCE_STATUS.PRESENT, label: 'Present', className: 'is-present' },
   { id: REPORT_ATTENDANCE_STATUS.ABSENT, label: 'Not present', className: 'is-absent' },
-  {
-    id: REPORT_ATTENDANCE_STATUS.UNAVAILABLE,
-    label: 'Not available',
-    className: 'is-away',
-  },
 ]
 
 function createDraft(event, dateId, roster) {
@@ -45,7 +40,7 @@ export function ReportEventForm({
       open={open}
       onClose={onClose}
       title={event ? 'Edit event' : 'New event'}
-      subtitle="Mark who was present, who was not, and who was not available."
+      subtitle="Mark who was present (with time) or not present (with a reason)."
       wide
       busy={saving}
       artKey="reports"
@@ -95,16 +90,32 @@ function EventFields({ event, dateId, roster, saving, onClose, onSave }) {
     }))
   }
 
+  const setStatus = (userId, nextStatus) => {
+    setDraft((current) => ({
+      ...current,
+      rows: current.rows.map((row) => {
+        if (row.userId !== userId) return row
+        if (row.status === nextStatus) {
+          return { ...row, status: '', time: '', reason: '' }
+        }
+        if (nextStatus === REPORT_ATTENDANCE_STATUS.PRESENT) {
+          return { ...row, status: nextStatus, reason: '' }
+        }
+        return { ...row, status: nextStatus, time: '' }
+      }),
+    }))
+  }
+
   const submit = async (formEvent) => {
     formEvent.preventDefault()
     setFormError('')
     const missing = draft.rows.find(
       (row) =>
-        row.status === REPORT_ATTENDANCE_STATUS.UNAVAILABLE &&
+        row.status === REPORT_ATTENDANCE_STATUS.ABSENT &&
         !String(row.reason || '').trim(),
     )
     if (missing) {
-      setFormError(`${missing.displayName} needs a reason for not being available.`)
+      setFormError(`${missing.displayName} needs a reason for not being present.`)
       return
     }
     try {
@@ -202,9 +213,7 @@ function EventFields({ event, dateId, roster, saving, onClose, onSave }) {
                       type="button"
                       className={`reports-status-btn ${option.className}${active ? ' is-active' : ''}`}
                       aria-pressed={active}
-                      onClick={() =>
-                        patchRow(row.userId, { status: active ? '' : option.id })
-                      }
+                      onClick={() => setStatus(row.userId, option.id)}
                     >
                       {option.label}
                     </button>
@@ -222,7 +231,7 @@ function EventFields({ event, dateId, roster, saving, onClose, onSave }) {
                   />
                 </label>
               ) : null}
-              {row.status === REPORT_ATTENDANCE_STATUS.UNAVAILABLE ? (
+              {row.status === REPORT_ATTENDANCE_STATUS.ABSENT ? (
                 <div className="reports-extra-field reports-reason-row">
                   <button
                     type="button"
@@ -236,7 +245,7 @@ function EventFields({ event, dateId, roster, saving, onClose, onSave }) {
                     value={row.reason}
                     maxLength={120}
                     placeholder="Reason"
-                    aria-label={`Reason ${row.displayName} was not available`}
+                    aria-label={`Reason ${row.displayName} was not present`}
                     onChange={(input) => patchRow(row.userId, { reason: input.target.value })}
                   />
                 </div>

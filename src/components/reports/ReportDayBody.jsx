@@ -104,7 +104,7 @@ export function ReportDayBody({
         {!dayLoading && events.length === 0 ? (
           <AdminEmptyPanel
             title="No events this day"
-            hint="Log who was present, who was not, and who was not available."
+            hint="Log who was present (with time) or not present (with a reason)."
           />
         ) : null}
         {events.length > 0 ? (
