@@ -124,9 +124,6 @@ function normalizeAttendance(attendance) {
       status === REPORT_ATTENDANCE_STATUS.ABSENT
         ? String(row.reason || '').trim()
         : ''
-    if (status === REPORT_ATTENDANCE_STATUS.ABSENT && !reason) {
-      throw new Error(`${displayName} needs a reason for not being present.`)
-    }
     if (reason.length > 120) {
       throw new Error(`The reason for ${displayName} is too long.`)
     }

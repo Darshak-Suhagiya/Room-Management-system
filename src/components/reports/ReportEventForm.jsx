@@ -40,7 +40,7 @@ export function ReportEventForm({
       open={open}
       onClose={onClose}
       title={event ? 'Edit event' : 'New event'}
-      subtitle="Mark who was present (with time) or not present (with a reason)."
+      subtitle="Mark who was present (with time) or not present (optional reason)."
       wide
       busy={saving}
       artKey="reports"
@@ -109,15 +109,6 @@ function EventFields({ event, dateId, roster, saving, onClose, onSave }) {
   const submit = async (formEvent) => {
     formEvent.preventDefault()
     setFormError('')
-    const missing = draft.rows.find(
-      (row) =>
-        row.status === REPORT_ATTENDANCE_STATUS.ABSENT &&
-        !String(row.reason || '').trim(),
-    )
-    if (missing) {
-      setFormError(`${missing.displayName} needs a reason for not being present.`)
-      return
-    }
     try {
       await onSave({
         id: draft.id,
@@ -244,7 +235,7 @@ function EventFields({ event, dateId, roster, saving, onClose, onSave }) {
                     className="app-input"
                     value={row.reason}
                     maxLength={120}
-                    placeholder="Reason"
+                    placeholder="Reason (optional)"
                     aria-label={`Reason ${row.displayName} was not present`}
                     onChange={(input) => patchRow(row.userId, { reason: input.target.value })}
                   />
