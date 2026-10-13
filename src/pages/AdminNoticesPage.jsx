@@ -13,7 +13,7 @@ import { AdminConfirmSheet } from '../components/admin/mobile'
 import { useMediaQuery } from '../hooks/useMediaQuery'
 import { useSaveMutation } from '../hooks/useSaveMutation'
 import {
-  ALL_ROLES,
+  ROOM_ROLES,
   ROLE_LABELS,
 } from '../config/rolePermissions'
 import {
@@ -609,7 +609,7 @@ export function AdminNoticesPage() {
                 <span className="field-stack-label">Audience roles</span>
                 <span className="field-hint">Leave empty to show to everyone</span>
                 <div className="checkbox-grid">
-                  {ALL_ROLES.map((role) => (
+                  {ROOM_ROLES.map((role) => (
                     <label key={role} className="checkbox-chip">
                       <input
                         type="checkbox"

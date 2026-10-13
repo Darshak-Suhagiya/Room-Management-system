@@ -9,7 +9,7 @@ import {
   pushLogListSubtitle,
 } from '../components/push/PushLogDetailContent'
 import { useMediaQuery } from '../hooks/useMediaQuery'
-import { ALL_ROLES, ROLE_LABELS } from '../config/rolePermissions'
+import { ROOM_ROLES, ROLE_LABELS } from '../config/rolePermissions'
 import {
   PUSH_AUDIENCE_TYPES,
   PUSH_JOB_KINDS,
@@ -705,7 +705,7 @@ export function AdminPushPage() {
 
             {compose.audienceType === PUSH_AUDIENCE_TYPES.ROLES && (
               <div className="chip-row">
-                {ALL_ROLES.map((role) => (
+                {ROOM_ROLES.map((role) => (
                   <label key={role} className="checkbox-chip">
                     <input
                       type="checkbox"
