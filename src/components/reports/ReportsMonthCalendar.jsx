@@ -66,11 +66,12 @@ export function ReportsMonthCalendar({
             .slice(0, 4)
           const selected = cell.dateId === selectedDate
           const isToday = cell.dateId === today
+          const isFuture = cell.dateId > today
           return (
             <button
               key={cell.dateId}
               type="button"
-              className={`reports-cal-cell${selected ? ' is-selected' : ''}${isToday ? ' is-today' : ''}${cell.outside ? ' is-outside' : ''}`}
+              className={`reports-cal-cell${selected ? ' is-selected' : ''}${isToday ? ' is-today' : ''}${cell.outside ? ' is-outside' : ''}${isFuture ? ' is-future' : ''}`}
               onClick={() => onSelect(cell.dateId)}
             >
               <span>{Number(cell.dateId.slice(8))}</span>

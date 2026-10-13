@@ -258,24 +258,26 @@ export function ReportsHome({
   focusEventId,
 }) {
   const everyone = scope === 'everyone'
-  const [selectedDate, setSelectedDate] = useState(focusDate || today)
+  const fillDate = focusDate && focusDate <= today ? focusDate : today
+  const [selectedDate, setSelectedDate] = useState(fillDate)
   const [view, setView] = useState(() => {
-    const [year, month] = (focusDate || today).split('-').map(Number)
+    const [year, month] = fillDate.split('-').map(Number)
     return { year, month: month - 1 }
   })
   const [expandedKey, setExpandedKey] = useState(
-    focusEventId && focusDate ? `${focusEventId}_${focusDate}` : '',
+    focusEventId && focusDate && focusDate <= today ? `${focusEventId}_${focusDate}` : '',
   )
   const [showAllUpcoming, setShowAllUpcoming] = useState(false)
 
   const bounds = visibleBounds(view.year, view.month)
-  const horizon = addDaysToDateId(selectedDate, 45)
+  const monthEnd = bounds.end > today ? today : bounds.end
 
   const monthRows = useMemo(() => {
     const rows = []
+    if (monthEnd < bounds.start) return rows
     for (const raw of events ?? []) {
       const event = normalizeReportEvent(raw)
-      for (const date of occurrenceDates(event, { from: bounds.start, to: bounds.end })) {
+      for (const date of occurrenceDates(event, { from: bounds.start, to: monthEnd })) {
         rows.push({
           event,
           date,
@@ -284,14 +286,15 @@ export function ReportsHome({
       }
     }
     return rows
-  }, [events, bounds.start, bounds.end, everyone, actorId, responseMap])
+  }, [events, bounds.start, monthEnd, everyone, actorId, responseMap])
 
   const upcomingRows = useMemo(() => {
     const rows = []
     const from = addDaysToDateId(selectedDate, 1)
+    if (from > today) return rows
     for (const raw of events ?? []) {
       const event = normalizeReportEvent(raw)
-      for (const date of occurrenceDates(event, { from, to: horizon })) {
+      for (const date of occurrenceDates(event, { from, to: today })) {
         rows.push({
           event,
           date,
@@ -301,7 +304,7 @@ export function ReportsHome({
     }
     rows.sort((a, b) => a.date.localeCompare(b.date) || String(a.event.time).localeCompare(String(b.event.time)))
     return rows
-  }, [events, selectedDate, horizon, everyone, actorId, responseMap])
+  }, [events, selectedDate, today, everyone, actorId, responseMap])
 
   const dotsByDate = useMemo(() => {
     const map = {}
@@ -362,9 +365,11 @@ export function ReportsHome({
   const upcoming = showAllUpcoming ? upcomingRows : upcomingRows.slice(0, 4)
 
   const selectDate = (dateId, expandKey = '') => {
-    setSelectedDate(dateId)
-    setExpandedKey(expandKey)
-    const [year, month] = dateId.split('-').map(Number)
+    const next = dateId > today ? today : dateId
+    setSelectedDate(next)
+    setExpandedKey(next === dateId ? expandKey : '')
+    if (dateId > today) return
+    const [year, month] = next.split('-').map(Number)
     setView((current) => (
       current.year === year && current.month === month - 1
         ? current
@@ -408,6 +413,7 @@ export function ReportsHome({
             type="button"
             className="btn btn-icon btn-ghost"
             aria-label="Next day"
+            disabled={selectedDate >= today}
             onClick={() => selectDate(addDaysToDateId(selectedDate, 1))}
           >
             <ChevronRight size={18} />
@@ -508,7 +514,7 @@ export function ReportsHome({
           ) : null}
         </div>
         {upcoming.length === 0 ? (
-          <p className="muted">Nothing scheduled after this day.</p>
+          <p className="muted">No later events through today.</p>
         ) : (
           <ul className="reports-upcoming-list">
             {upcoming.map((row) => {
