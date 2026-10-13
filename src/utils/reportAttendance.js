@@ -4,6 +4,7 @@ import {
   REPORT_EVENT_TYPE,
   REPORT_OUT_OF_CITY_REASON,
 } from '../config/constants'
+import { formatDateId } from './mealDateUtils'
 import { addDaysToDateId } from './menuReviewUtils'
 
 const DATE_ID = /^(\d{4})-(\d{2})-(\d{2})$/
@@ -25,6 +26,12 @@ export function isDateId(value) {
     date.getMonth() === month - 1 &&
     date.getDate() === day
   )
+}
+
+export function assertReportFillDate(date, today = formatDateId(new Date())) {
+  if (isDateId(date) && date > today) {
+    throw new Error('You can only fill today or past days.')
+  }
 }
 
 /** Collapse whitespace/newlines, then trim — empty after this means blank. */
