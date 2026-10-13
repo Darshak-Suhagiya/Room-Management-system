@@ -23,6 +23,7 @@ import {
   REPORT_EVENT_TYPE,
 } from '../config/constants'
 import {
+  assertReportFillDate,
   cleanAnswerText,
   clampRequirePriorDays,
   isDateId,
@@ -421,6 +422,7 @@ export async function saveReportResponse(input, actor) {
   const userId = String(input?.userId || '').trim()
   if (!eventId) throw new Error('Missing event.')
   if (!isDateId(date)) throw new Error('Choose a valid date.')
+  assertReportFillDate(date)
   if (!userId) throw new Error('Choose a person.')
   const displayName = String(input?.displayName || '').trim() || 'Member'
   const answerType = Object.values(REPORT_ANSWER_TYPE).includes(input?.answerType)
@@ -501,6 +503,7 @@ export async function saveReportResponse(input, actor) {
 
 export async function deleteReportResponse(eventId, date, userId) {
   assertConfigured()
+  assertReportFillDate(date)
   const id = responseDocId(eventId, date, userId)
   if (!id || id.startsWith('_')) throw new Error('Missing answer.')
   await deleteDoc(doc(db, COLLECTIONS.REPORT_RESPONSES, id))

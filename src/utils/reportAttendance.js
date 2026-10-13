@@ -4,6 +4,7 @@ import {
   REPORT_EVENT_TYPE,
   REPORT_OUT_OF_CITY_REASON,
 } from '../config/constants'
+import { formatDateId } from './mealDateUtils'
 import { addDaysToDateId } from './menuReviewUtils'
 
 const DATE_ID = /^(\d{4})-(\d{2})-(\d{2})$/
@@ -25,6 +26,12 @@ export function isDateId(value) {
     date.getMonth() === month - 1 &&
     date.getDate() === day
   )
+}
+
+export function assertReportFillDate(date, today = formatDateId(new Date())) {
+  if (isDateId(date) && date > today) {
+    throw new Error('You can only fill today or past days.')
+  }
 }
 
 /** Collapse whitespace/newlines, then trim — empty after this means blank. */
@@ -647,29 +654,24 @@ export function answerFor(eventId, date, userId, responseMap) {
 
 /**
  * Missing is every unanswered date before today.
- * Open keeps the next few weeks, plus the soonest later date so a far once-event still shows.
+ * Open is today's occurrences only — future dates are not fillable.
  */
-export function buildReportBoard({ events, responseMap, userId, today, horizonDays = 21 }) {
+export function buildReportBoard({ events, responseMap, userId, today }) {
   const missing = []
   const open = []
   const filled = []
-  const horizon = addDaysToDateId(today, horizonDays)
   const normalized = (events ?? []).map(normalizeReportEvent).filter((event) => event.startDate)
 
   for (const event of normalized) {
     const dates = occurrenceDates(event)
-    let keptLater = false
     for (const date of dates) {
       const answer = userId ? answerFor(event.id, date, userId, responseMap) : null
       const row = { event, date, answer }
       if (date < today) {
         if (!answer) missing.push(row)
         else filled.push(row)
-        continue
-      }
-      if (date <= horizon || !keptLater) {
+      } else if (date === today) {
         open.push(row)
-        if (date > horizon) keptLater = true
       }
     }
   }

@@ -998,8 +998,14 @@
   cursor: pointer;
 }
 
-.reports-cal-cell.is-outside:not(.is-selected) {
+.reports-cal-cell.is-outside:not(.is-selected),
+.reports-cal-cell.is-future:not(.is-selected) {
   color: var(--muted);
+}
+
+.reports-cal-cell.is-future {
+  cursor: default;
+  opacity: 0.45;
 }
 
 .reports-cal-cell.is-selected {

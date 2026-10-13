@@ -25,6 +25,7 @@ import {
 } from '../services/userService'
 import { formatDateId } from '../utils/mealDateUtils'
 import {
+  assertReportFillDate,
   buildDatedRows,
   buildPdfModel,
   buildReportBoard,
@@ -177,6 +178,7 @@ export function useReportsData() {
       if (event && isEventCancelledOn(event, input?.date)) {
         throw new Error('This event is cancelled on that day.')
       }
+      assertReportFillDate(input?.date)
       setSaving(true)
       try {
         await saveReportResponse(input, { id: actorId, name: actorName })
@@ -190,6 +192,7 @@ export function useReportsData() {
 
   const clearResponse = useCallback(
     async (input) => {
+      assertReportFillDate(input?.date)
       setSaving(true)
       try {
         await deleteReportResponse(input.eventId, input.date, input.userId)
