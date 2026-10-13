@@ -11,7 +11,7 @@ import {
 } from 'firebase/firestore'
 import { db, isFirebaseConfigured } from '../lib/firebase'
 import { COLLECTIONS, ROLES, USER_STATUS } from '../config/constants'
-import { ALL_ROLES, isAdminRole } from '../config/rolePermissions'
+import { ALL_ROLES, isAdminRole, isRoomParticipant } from '../config/rolePermissions'
 
 function normalizeUserDoc(id, data) {
   const status =
@@ -67,11 +67,11 @@ export async function listAllUsers() {
     )
 }
 
-/** Users who may vote and appear in vote stats (members + admins; not maharaj). */
+/** Users who may vote and appear in vote stats (room members; not maharaj or observers). */
 export async function listApprovedUsers() {
   const all = await listAllUsers()
   return all.filter(
-    (u) => isUserApproved(u) && u.role !== ROLES.MAHARAJ,
+    (u) => isUserApproved(u) && isRoomParticipant(u),
   )
 }
 

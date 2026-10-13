@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Search } from 'lucide-react'
 import { useMediaQuery } from '../../hooks/useMediaQuery'
 import { Modal } from '../ui/Modal'
-import { ALL_ROLES, ROLE_LABELS } from '../../config/rolePermissions'
+import { ROLE_LABELS } from '../../config/rolePermissions'
 
 function UserPickerList({ users, selectedIds, onToggle }) {
   return (

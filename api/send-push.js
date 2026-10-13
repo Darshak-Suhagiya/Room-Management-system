@@ -41,6 +41,7 @@ function todayId() {
 
 function isApprovedUser(u) {
   if (!u) return false
+  if (u.role === 'observer') return false
   if (u.role === 'admin') return true
   return u.status === 'approved' || u.status == null
 }

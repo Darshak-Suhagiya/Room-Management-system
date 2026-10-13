@@ -91,12 +91,15 @@ const NAV_COMPONENTS = {
 /** Default bottom-nav ids (excludes settings and manage-group pages). */
 const DEFAULT_BOTTOM_NAV_IDS = [
   'meals',
+  'reports',
   'votes',
   'seva',
   'leaves',
   'stocks',
   'shopping',
 ]
+
+const OBSERVER_BOTTOM_NAV_IDS = ['votes', 'seva', 'finance', 'reports']
 
 const NAV_DEFS = [
   {
@@ -109,7 +112,7 @@ const NAV_DEFS = [
     group: 'main',
     guard: null,
     inDefaultNav: true,
-    isVisible: (auth) => !auth.isMaharaj,
+    isVisible: (auth) => !auth.isMaharaj && !auth.isObserver,
   },
   {
     id: 'seva',
@@ -133,7 +136,7 @@ const NAV_DEFS = [
     group: 'main',
     guard: null,
     inDefaultNav: true,
-    isVisible: () => true,
+    isVisible: (auth) => !auth.isObserver,
   },
   {
     id: 'stocks',
@@ -289,7 +292,7 @@ const NAV_DEFS = [
     group: 'manage',
     guard: 'reportsAccess',
     inDefaultNav: false,
-    isVisible: (auth) => auth.canAccessReports,
+    isVisible: (auth) => auth.isApproved,
   },
 ]
 
@@ -310,6 +313,7 @@ export const NAV_GUARD_PROPS = {
 
 export function buildAuthSnapshot({
   isMaharaj,
+  isObserver,
   canAccessVoteDashboard,
   canPlanMenus,
   canEditMenuCatalog,
@@ -321,9 +325,11 @@ export function buildAuthSnapshot({
   canViewStocks,
   canViewFinance,
   canAccessReports,
+  isApproved = false,
 }) {
   return {
     isMaharaj,
+    isObserver,
     canAccessVoteDashboard,
     canPlanMenus,
     canEditMenuCatalog,
@@ -335,6 +341,7 @@ export function buildAuthSnapshot({
     canViewStocks,
     canViewFinance,
     canAccessReports,
+    isApproved,
   }
 }
 
@@ -384,9 +391,10 @@ function toTabObject(def) {
 export function getDefaultBottomNavIds(auth) {
   const pool = getNavPool(auth)
   const poolIds = new Set(pool.map((def) => def.id))
+  const preferred = auth.isObserver ? OBSERVER_BOTTOM_NAV_IDS : DEFAULT_BOTTOM_NAV_IDS
   const ids = []
 
-  for (const id of DEFAULT_BOTTOM_NAV_IDS) {
+  for (const id of preferred) {
     if (poolIds.has(id)) ids.push(id)
     if (ids.length >= 5) break
   }

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Navigate } from 'react-router-dom'
 import { CalendarDays, CalendarOff } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { MealCalendar } from '../components/MealCalendar'
@@ -277,7 +278,7 @@ function renderLeaveDayChip(item) {
 }
 
 export function LeaveCalendarPage() {
-  const { user, profile, canManageLeaves, canCreateLeaves, isApproved } = useAuth()
+  const { user, profile, canManageLeaves, canCreateLeaves, isApproved, isObserver } = useAuth()
   const [maharajs, setMaharajs] = useState([])
   const [leaves, setLeaves] = useState([])
   const [loading, setLoading] = useState(true)
@@ -573,6 +574,9 @@ export function LeaveCalendarPage() {
 
   const showInitialLoad = loading && !initialLoadDone.current
   const showLoadSkeleton = useDelayedLoading(showInitialLoad)
+  if (isObserver) {
+    return <Navigate to="/admin/votes" replace />
+  }
   if (showInitialLoad && showLoadSkeleton) {
     return <MobilePageSkeleton artKey="leave" size="tall" title="Leave" />
   }

@@ -32,6 +32,7 @@ export function Layout() {
     profile,
     logout,
     isMaharaj,
+    isObserver,
     canAccessVoteDashboard,
     canPlanMenus,
     canEditMenuCatalog,
@@ -43,12 +44,14 @@ export function Layout() {
     canViewStocks,
     canViewFinance,
     canAccessReports,
+    isApproved,
   } = authFromContext
 
   const auth = useMemo(
     () =>
       buildAuthSnapshot({
         isMaharaj,
+        isObserver,
         canAccessVoteDashboard,
         canPlanMenus,
         canEditMenuCatalog,
@@ -60,9 +63,11 @@ export function Layout() {
         canViewStocks,
         canViewFinance,
         canAccessReports,
+        isApproved,
       }),
     [
       isMaharaj,
+      isObserver,
       canAccessVoteDashboard,
       canPlanMenus,
       canEditMenuCatalog,
@@ -74,6 +79,7 @@ export function Layout() {
       canViewStocks,
       canViewFinance,
       canAccessReports,
+      isApproved,
     ],
   )
 
