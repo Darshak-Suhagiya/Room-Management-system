@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { useToast } from '../contexts/ToastContext'
 import { MealVotePanel } from '../components/MealVotePanel'
 import { MealCalendar } from '../components/MealCalendar'
 import { MealDayStrip } from '../components/meals/MealDayStrip'
@@ -8,6 +9,9 @@ import { MealSlotTabs } from '../components/meals/MealSlotTabs'
 import { MealCalendarSheet } from '../components/meals/MealCalendarSheet'
 import { MealsOptionsSheet } from '../components/meals/MealsOptionsSheet'
 import { MealsBlessingHero } from '../components/meals/MealsBlessingHero'
+import { MissingReportsBanner } from '../components/reports/MissingReportsBanner'
+import { OverdueMealReportsNotice } from '../components/reports/PriorReportsGateModal'
+import { ReportResponseSheet } from '../components/reports/ReportResponseSheet'
 import { NoticeBannerSlot } from '../components/NoticeBannerSlot'
 import { PushPermissionPrompt } from '../components/PushPermissionPrompt'
 import { PwaInstallPrompt } from '../components/PwaInstallPrompt'
@@ -18,7 +22,9 @@ import { NOTICE_PAGES } from '../config/constants'
 import { useMenuCatalog } from '../hooks/useMenuCatalog'
 import { useMobileTabPanelActive } from '../contexts/MobileTabPanelContext'
 import { useRegisterPullToRefresh } from '../hooks/useRegisterPullToRefresh'
+import { useMissingReports } from '../hooks/useMissingReports'
 import { getMenuByDate, listPlannedMenusFromDate } from '../services/menuService'
+import { saveReportResponse } from '../services/reportService'
 import { subscribeVoteLock } from '../services/voteLockService'
 import { subscribeUserParticipations } from '../services/participationService'
 import { getPlannedMenuItems, hasMealVoteComplete } from '../utils/menuVoteUtils'
@@ -53,6 +59,7 @@ function SlotWithLock({
   showOthersFeedback,
   onToggleOthersFeedback,
   mobile = false,
+  reportsBlocked = false,
 }) {
   const [locked, setLocked] = useState(false)
   const [refreshTick, setRefreshTick] = useState(0)
@@ -90,6 +97,7 @@ function SlotWithLock({
       showOthersFeedback={showOthersFeedback}
       onToggleOthersFeedback={onToggleOthersFeedback}
       mobile={mobile}
+      reportsBlocked={reportsBlocked}
     />
   )
 }
@@ -174,6 +182,15 @@ const SHOW_FEEDBACK_KEY = 'rm-show-everyone-feedback'
 export function UserDashboardPage() {
   const { user, profile, isMaharaj, canAccessVoteDashboard, canPlanMenus, canEditMenuCatalog, canSeeMealReviews, canSeeMenuAnalytics } =
     useAuth()
+  const toast = useToast()
+  const {
+    items: missingReports,
+    blockingItems,
+    graceDays,
+    reload: reloadMissingReports,
+  } = useMissingReports()
+  const [fillTarget, setFillTarget] = useState(null)
+  const [savingReport, setSavingReport] = useState(false)
   const {
     catalog,
     loading: catalogLoading,
@@ -210,6 +227,20 @@ export function UserDashboardPage() {
   const wasTabActiveRef = useRef(isTabActive)
   const displayName =
     profile?.displayName || user?.displayName || user?.email?.split('@')[0] || 'Member'
+
+  const saveMissingReport = async (input) => {
+    setSavingReport(true)
+    try {
+      await saveReportResponse(input, { id: user.uid, name: displayName })
+      toast.success('Report saved')
+      setFillTarget(null)
+      await reloadMissingReports()
+    } catch (err) {
+      toast.error(err.message || 'Could not save that report.')
+    } finally {
+      setSavingReport(false)
+    }
+  }
 
   const toggleOthersFeedback = () => {
     setShowOthersFeedback((prev) => {
@@ -439,6 +470,7 @@ export function UserDashboardPage() {
     canReview: canSeeMealReviews,
     showOthersFeedback,
     onToggleOthersFeedback: toggleOthersFeedback,
+    reportsBlocked: blockingItems.length > 0,
   }
 
   return (
@@ -468,6 +500,12 @@ export function UserDashboardPage() {
       <div className="meals-layout-desktop">
         <div className="meals-dashboard">
           <div className="meals-main">
+            <OverdueMealReportsNotice
+              items={blockingItems}
+              graceDays={graceDays}
+              onFill={setFillTarget}
+            />
+            <MissingReportsBanner items={missingReports} onFill={setFillTarget} />
             {sortedMenus.length === 0 || !selectedMenu ? (
               <div>
                 <p className="muted">No menus planned yet.</p>
@@ -538,10 +576,18 @@ export function UserDashboardPage() {
       {/* Mobile / PWA layout */}
       <div className="meals-layout-mobile">
         {sortedMenus.length === 0 ? (
-          <div className="meals-mobile-empty">
-            <p className="meals-mobile-empty-title">No menus planned yet.</p>
-            <MenuSlotLastEditList slotEdits={emptyDateEdits} />
-          </div>
+          <>
+            <OverdueMealReportsNotice
+              items={blockingItems}
+              graceDays={graceDays}
+              onFill={setFillTarget}
+            />
+            <MissingReportsBanner items={missingReports} onFill={setFillTarget} />
+            <div className="meals-mobile-empty">
+              <p className="meals-mobile-empty-title">No menus planned yet.</p>
+              <MenuSlotLastEditList slotEdits={emptyDateEdits} />
+            </div>
+          </>
         ) : (
           <>
             <MealDayStrip
@@ -561,6 +607,13 @@ export function UserDashboardPage() {
                 )}
               </span>
             </header>
+
+            <OverdueMealReportsNotice
+              items={blockingItems}
+              graceDays={graceDays}
+              onFill={setFillTarget}
+            />
+            <MissingReportsBanner items={missingReports} onFill={setFillTarget} />
 
             {!selectedMenu ? (
               <div className="meals-mobile-empty">
@@ -619,6 +672,20 @@ export function UserDashboardPage() {
           dateStatus={dateStatus}
         />
       </div>
+
+      <ReportResponseSheet
+        open={Boolean(fillTarget)}
+        onClose={() => {
+          if (!savingReport) setFillTarget(null)
+        }}
+        event={fillTarget?.event}
+        date={fillTarget?.date}
+        userId={user?.uid}
+        displayName={displayName}
+        answer={null}
+        saving={savingReport}
+        onSave={saveMissingReport}
+      />
     </div>
   )
 }

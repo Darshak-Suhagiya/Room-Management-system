@@ -118,6 +118,7 @@ export function MealVotePanel({
   menu,
   catalog,
   locked = false,
+  reportsBlocked = false,
   refreshing = false,
   onRefresh,
   displayName = '',
@@ -138,12 +139,14 @@ export function MealVotePanel({
   )
 
   const past = isPastDate(dateId)
-  const readOnly = past || locked
-  const blockReason = past
-    ? 'Past date — votes cannot be changed'
-    : locked
-      ? 'Votes locked by admin'
-      : null
+  const readOnly = past || locked || reportsBlocked
+  const blockReason = reportsBlocked
+    ? 'Fill older reports before voting'
+    : past
+      ? 'Past date — votes cannot be changed'
+      : locked
+        ? 'Votes locked by admin'
+        : null
 
   const [participation, setParticipation] = useState(null)
   const [slotParticipations, setSlotParticipations] = useState([])
@@ -428,7 +431,7 @@ export function MealVotePanel({
 
   return (
     <article
-      className={`meal-vote-panel slot-panel-${slot} ${voteStatusClass} ${locked ? 'is-locked' : ''} ${past ? 'is-past' : ''}`}
+      className={`meal-vote-panel slot-panel-${slot} ${voteStatusClass} ${locked || reportsBlocked ? 'is-locked' : ''} ${past ? 'is-past' : ''}`}
     >
       <div className="meal-slot-banner">
         <MealSlotArt slot={slot} />
@@ -445,10 +448,16 @@ export function MealVotePanel({
             )}
           </div>
           <div className="slot-card-actions">
-            {locked && (
+            {locked && !reportsBlocked && (
               <span className="lock-badge">
                 <IconLock size={14} />
                 Locked
+              </span>
+            )}
+            {reportsBlocked && (
+              <span className="lock-badge">
+                <IconLock size={14} />
+                Reports
               </span>
             )}
             {onRefresh && (
