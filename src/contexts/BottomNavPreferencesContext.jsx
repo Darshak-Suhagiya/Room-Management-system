@@ -29,6 +29,7 @@ export function BottomNavPreferencesProvider({ children }) {
     () => buildAuthSnapshot(authFromContext),
     [
       authFromContext.isMaharaj,
+      authFromContext.isObserver,
       authFromContext.canAccessVoteDashboard,
       authFromContext.canPlanMenus,
       authFromContext.canEditMenuCatalog,

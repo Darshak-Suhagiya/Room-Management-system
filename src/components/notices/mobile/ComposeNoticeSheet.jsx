@@ -6,7 +6,7 @@ import {
   NOTICE_TONE_LABELS,
   NOTICE_TONES,
 } from '../../../config/constants'
-import { ALL_ROLES, ROLE_LABELS } from '../../../config/rolePermissions'
+import { ROOM_ROLES, ROLE_LABELS } from '../../../config/rolePermissions'
 
 export function ComposeNoticeSheet({
   open,
@@ -117,7 +117,7 @@ export function ComposeNoticeSheet({
           <span className="field-stack-label">Audience roles</span>
           <span className="field-hint">Leave empty for everyone</span>
           <div className="checkbox-grid">
-            {ALL_ROLES.map((role) => (
+            {ROOM_ROLES.map((role) => (
               <label key={role} className="checkbox-chip">
                 <input
                   type="checkbox"

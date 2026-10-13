@@ -27,7 +27,6 @@ export function ProtectedRoute({
   pushAccess = false,
   stocksAccess = false,
   financeAccess = false,
-  reportsAccess = false,
 }) {
   const {
     user,
@@ -35,8 +34,6 @@ export function ProtectedRoute({
     loading,
     isConfigured,
     needsEmailVerification,
-    canAccessReports,
-    reportAccessReady,
   } = useAuth()
 
   if (!isConfigured) {
@@ -108,18 +105,6 @@ export function ProtectedRoute({
   }
 
   if (financeAccess && !canViewFinance(profile)) {
-    return <Navigate to="/" replace />
-  }
-
-  if (reportsAccess && !reportAccessReady) {
-    return (
-      <div className="page-loading">
-        <p>Loading…</p>
-      </div>
-    )
-  }
-
-  if (reportsAccess && !canAccessReports) {
     return <Navigate to="/" replace />
   }
 

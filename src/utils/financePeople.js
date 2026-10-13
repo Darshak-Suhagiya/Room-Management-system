@@ -1,4 +1,5 @@
 import { ROLES, USER_STATUS } from '../config/constants'
+import { isObserverRole } from '../config/rolePermissions'
 
 export function displayName(user) {
   if (!user) return ''
@@ -78,7 +79,7 @@ export function financePersonName(
 }
 
 export function isSelectableFinanceUser(user) {
-  if (!user || user.role === ROLES.MAHARAJ) return false
+  if (!user || user.role === ROLES.MAHARAJ || isObserverRole(user)) return false
   if (user.status === USER_STATUS.PENDING) return false
   return true
 }

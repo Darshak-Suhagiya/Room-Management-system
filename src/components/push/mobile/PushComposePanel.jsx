@@ -1,7 +1,7 @@
 import { MobileActionBar } from '../../ui/MobileActionBar'
 import { AdminConfirmSheet, AdminEmptyPanel } from '../../admin/mobile'
 import { PushUserPickerField } from '../PushUserPicker'
-import { ALL_ROLES, ROLE_LABELS } from '../../../config/rolePermissions'
+import { ROOM_ROLES, ROLE_LABELS } from '../../../config/rolePermissions'
 import { PUSH_AUDIENCE_TYPES, PUSH_JOB_KINDS } from '../../../config/constants'
 import { useState } from 'react'
 
@@ -164,7 +164,7 @@ export function PushComposePanel({
 
             {compose.audienceType === PUSH_AUDIENCE_TYPES.ROLES && (
               <div className="chip-row">
-                {ALL_ROLES.map((role) => (
+                {ROOM_ROLES.map((role) => (
                   <label key={role} className="checkbox-chip">
                     <input
                       type="checkbox"

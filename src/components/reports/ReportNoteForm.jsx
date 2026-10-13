@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Modal } from '../ui/Modal'
+import { AdminSearchField } from '../admin/mobile'
 import { personLabel } from '../../utils/reportAttendance'
 
 function noteOptions(note, roster) {
@@ -30,7 +31,7 @@ export function ReportNoteForm({
       open={open}
       onClose={onClose}
       title={note ? 'Edit note' : 'New note'}
-      subtitle="A note about one person on this day."
+      subtitle="Written by you. Only you, an admin, or someone allowed to see everyone's records can read it."
       busy={saving}
       artKey="reports"
       className="reports-sheet"
@@ -53,9 +54,15 @@ export function ReportNoteForm({
 function NoteFields({ note, dateId, roster, saving, onClose, onSave }) {
   const options = noteOptions(note, roster)
   const [date, setDate] = useState(note?.date || dateId)
-  const [userId, setUserId] = useState(note?.userId || options[0]?.id || '')
+  const [userId, setUserId] = useState(note?.userId || '')
   const [text, setText] = useState(note?.text || '')
+  const [query, setQuery] = useState('')
   const [formError, setFormError] = useState('')
+  const needle = query.trim().toLowerCase()
+  const visible = useMemo(
+    () => options.filter((person) => person.displayName.toLowerCase().includes(needle)),
+    [options, needle],
+  )
 
   const submit = async (formEvent) => {
     formEvent.preventDefault()
@@ -87,27 +94,31 @@ function NoteFields({ note, dateId, roster, saving, onClose, onSave }) {
           required
         />
       </label>
-      <label className="field-stack">
+      <div className="field-stack">
         <span className="field-stack-label">Person</span>
-        <select
-          className="app-input"
-          value={userId}
-          onChange={(event) => setUserId(event.target.value)}
-          required
-        >
-          <option value="" disabled>
-            Choose a person
-          </option>
-          {options.map((person) => (
-            <option key={person.id} value={person.id}>
-              {person.displayName}
-            </option>
-          ))}
-        </select>
-      </label>
-      {options.length === 0 ? (
-        <p className="muted">No approved members to write about.</p>
-      ) : null}
+        <AdminSearchField value={query} onChange={setQuery} placeholder="Find a person" />
+        {visible.length === 0 ? (
+          <p className="muted">No one matches.</p>
+        ) : (
+          <div className="reports-note-people">
+            {visible.map((person) => {
+              const active = userId === person.id
+              return (
+                <button
+                  key={person.id}
+                  type="button"
+                  className={`reports-note-person${active ? ' is-active' : ''}`}
+                  aria-pressed={active}
+                  onClick={() => setUserId(person.id)}
+                >
+                  {person.displayName}
+                </button>
+              )
+            })}
+          </div>
+        )}
+        {!userId ? <p className="muted">Choose a person.</p> : null}
+      </div>
       <label className="field-stack">
         <span className="field-stack-label">Note</span>
         <textarea

@@ -30,8 +30,10 @@ import {
   canViewFinance,
   canManageFinance,
   canAccessReports as canUserAccessReports,
+  canWriteReports as canUserWriteReports,
   isKitchenLeaderRole,
   isMaharajRole,
+  isObserverRole,
   isRoomLeaderRole,
   showVoteCountBreakdown,
 } from '../config/rolePermissions'
@@ -125,6 +127,7 @@ export function AuthProvider({ children }) {
       clearAuthNotice: () => setAuthNotice(null),
       isAdmin: isAdmin(profile),
       isMaharaj: isMaharajRole(profile),
+      isObserver: isObserverRole(profile),
       isKitchenLeader: isKitchenLeaderRole(profile),
       isRoomLeader: isRoomLeaderRole(profile),
       canAccessVoteDashboard: canAccessVoteDashboard(profile),
@@ -148,6 +151,7 @@ export function AuthProvider({ children }) {
       canViewFinance: canViewFinance(profile),
       canManageFinance: canManageFinance(profile),
       canAccessReports: canUserAccessReports(profile, reportIds),
+      canWriteReports: canUserWriteReports(profile),
       reportAllowedUserIds: reportIds,
       reportAccessReady: Boolean(profile && (isAdmin(profile) || reportReady)),
       isApproved: profile

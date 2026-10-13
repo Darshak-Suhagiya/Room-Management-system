@@ -4,6 +4,7 @@ export const ROLES = {
   RESIDENT: 'resident',
   KITCHEN_LEADER: 'kitchen_leader',
   ROOM_LEADER: 'room_leader',
+  OBSERVER: 'observer',
 }
 
 export const USER_STATUS = {
@@ -47,6 +48,7 @@ export const COLLECTIONS = {
   REPORT_ACCESS: 'reportAccess',
   REPORT_EVENTS: 'reportEvents',
   REPORT_NOTES: 'reportNotes',
+  REPORT_RESPONSES: 'reportResponses',
 }
 
 export const REPORT_ACCESS_DOC_ID = 'default'
@@ -58,13 +60,43 @@ export const REPORT_ATTENDANCE_STATUS = {
 }
 
 export const REPORT_ATTENDANCE_STATUS_LABELS = {
-  [REPORT_ATTENDANCE_STATUS.PRESENT]: 'Present',
-  [REPORT_ATTENDANCE_STATUS.ABSENT]: 'Not present',
+  [REPORT_ATTENDANCE_STATUS.PRESENT]: 'Yes',
+  [REPORT_ATTENDANCE_STATUS.ABSENT]: 'No',
   [REPORT_ATTENDANCE_STATUS.UNAVAILABLE]: 'Not available',
 }
 
 /** One-tap reason for someone who could not attend. */
 export const REPORT_OUT_OF_CITY_REASON = 'Out of city'
+
+export const REPORT_EVENT_TYPE = {
+  ONCE: 'once',
+  DAILY: 'daily',
+  WEEKLY: 'weekly',
+  MONTHLY: 'monthly',
+}
+
+export const REPORT_EVENT_TYPE_LABELS = {
+  [REPORT_EVENT_TYPE.ONCE]: 'Once',
+  [REPORT_EVENT_TYPE.DAILY]: 'Daily',
+  [REPORT_EVENT_TYPE.WEEKLY]: 'Weekly',
+  [REPORT_EVENT_TYPE.MONTHLY]: 'Monthly',
+}
+
+export const REPORT_ANSWER_TYPE = {
+  ATTENDANCE: 'attendance',
+  NUMBER: 'number',
+  YES_NO: 'yesno',
+  SINGLE: 'single',
+  MULTI: 'multi',
+}
+
+export const REPORT_ANSWER_TYPE_LABELS = {
+  [REPORT_ANSWER_TYPE.ATTENDANCE]: 'Attendance',
+  [REPORT_ANSWER_TYPE.NUMBER]: 'Number',
+  [REPORT_ANSWER_TYPE.YES_NO]: 'Yes or No',
+  [REPORT_ANSWER_TYPE.SINGLE]: 'One choice',
+  [REPORT_ANSWER_TYPE.MULTI]: 'Several choices',
+}
 
 export const REPORT_PDF_LAYOUT = {
   EVENT: 'event',

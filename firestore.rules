@@ -26,13 +26,17 @@ service cloud.firestore {
       return isSignedIn() && userDoc().data.role == 'room_leader';
     }
 
+    function isObserver() {
+      return isSignedIn() && userDoc().data.role == 'observer';
+    }
+
     function canManageVoteLocks() {
       return isAdmin() || isMaharaj() || isKitchenLeader();
     }
 
     /** Vote dashboard + Users/Seva management need member names. */
     function canReadAllUsers() {
-      return isAdmin() || isMaharaj() || isKitchenLeader() || isRoomLeader();
+      return isAdmin() || isMaharaj() || isKitchenLeader() || isRoomLeader() || isObserver();
     }
 
     function isResident() {
@@ -62,7 +66,7 @@ service cloud.firestore {
     }
 
     function canCreateLeaves() {
-      return isApproved() && !isMaharaj();
+      return isApproved() && !isMaharaj() && !isObserver();
     }
 
     function canManageNotices() {
@@ -86,11 +90,10 @@ service cloud.firestore {
     }
 
     /**
-     * Purpose: Reports is admin, or a person listed on reportAccess/default.
-     * Why: Grants are per person. A role such as room leader does not get this page.
+     * Viewers see every member's answers and notes. Everyone else fills only their own.
      */
-    function canAccessReports() {
-      return isAdmin() || (
+    function canViewOthersReports() {
+      return isAdmin() || isObserver() || (
         isApproved() &&
         exists(/databases/$(database)/documents/reportAccess/default) &&
         request.auth.uid in get(/databases/$(database)/documents/reportAccess/default).data.allowedUserIds
@@ -98,7 +101,11 @@ service cloud.firestore {
     }
 
     function isFinanceViewer() {
-      return isApproved() && !isMaharaj();
+      return isApproved() && !isMaharaj() && !isObserver();
+    }
+
+    function canReadFinance() {
+      return isFinanceViewer() || isObserver();
     }
 
     function ownFinanceDue(dueId) {
@@ -229,7 +236,7 @@ service cloud.firestore {
 
     match /mealParticipation/{docId} {
       allow read: if isSignedIn();
-      allow create, update: if isApproved() &&
+      allow create, update: if isApproved() && !isObserver() &&
         request.resource.data.userId == request.auth.uid &&
         !slotLocked(request.resource.data.date, request.resource.data.slot);
       allow delete: if canDeleteParticipations();
@@ -333,44 +340,44 @@ service cloud.firestore {
     }
 
     match /financeSettings/{docId} {
-      allow read: if isFinanceViewer();
+      allow read: if canReadFinance();
       allow create, update, delete: if canManageFinance();
     }
 
     match /expenseTemplates/{docId} {
-      allow read: if isFinanceViewer();
+      allow read: if canReadFinance();
       allow create, update, delete: if canManageFinance();
     }
 
     match /expenses/{docId} {
-      allow read: if isFinanceViewer();
+      allow read: if canReadFinance();
       allow create, update, delete: if canManageFinance();
     }
 
     match /financeCollections/{docId} {
-      allow read: if isFinanceViewer();
+      allow read: if canReadFinance();
       allow create, update, delete: if canManageFinance();
     }
 
     match /roomWallet/{docId} {
-      allow read: if isFinanceViewer();
+      allow read: if canReadFinance();
       allow create, delete: if canManageFinance();
       allow update: if canManageFinance() || isOwnRoundingWalletUpdate();
     }
 
     match /depositAccounts/{userId} {
-      allow read: if canManageFinance() || (isFinanceViewer() && request.auth.uid == userId);
+      allow read: if canManageFinance() || (canReadFinance() && request.auth.uid == userId);
       allow create, update, delete: if canManageFinance();
     }
 
     match /financeDues/{dueId} {
-      allow read: if isFinanceViewer();
+      allow read: if canReadFinance();
       allow create, delete: if canManageFinance();
       allow update: if canManageFinance() || isOwnDueWalletAppliedUpdate();
     }
 
     match /financePayments/{paymentId} {
-      allow read: if isFinanceViewer();
+      allow read: if canReadFinance();
       allow create: if canManageFinance()
         || (
           isFinanceViewer()
@@ -390,39 +397,39 @@ service cloud.firestore {
 
     match /depositMovements/{moveId} {
       allow read: if canManageFinance()
-        || (isFinanceViewer() && resource.data.userId == request.auth.uid);
+        || (canReadFinance() && resource.data.userId == request.auth.uid);
       allow create: if canManageFinance();
       allow update, delete: if false;
     }
 
     match /roomWalletMovements/{moveId} {
-      allow read: if isFinanceViewer();
+      allow read: if canReadFinance();
       allow create: if canManageFinance() || isOwnRoundingMovement();
       allow update: if false;
       allow delete: if canManageFinance();
     }
 
     match /memberWallets/{userId} {
-      allow read: if isFinanceViewer();
+      allow read: if canReadFinance();
       allow create, update, delete: if canManageFinance();
     }
 
     match /memberWalletMovements/{moveId} {
-      allow read: if isFinanceViewer();
+      allow read: if canReadFinance();
       allow create: if canManageFinance();
       allow update: if false;
       allow delete: if canManageFinance();
     }
 
     match /financeFundRepairs/{docId} {
-      allow read: if isFinanceViewer();
+      allow read: if canReadFinance();
       allow create: if canManageFinance();
       allow update: if false;
       allow delete: if canManageFinance();
     }
 
     match /financeWalletRepayments/{docId} {
-      allow read: if isFinanceViewer();
+      allow read: if canReadFinance();
       allow create: if isFinanceViewer()
         && request.resource.data.userId == request.auth.uid
         && request.resource.data.createdBy == request.auth.uid
@@ -450,22 +457,60 @@ service cloud.firestore {
     }
 
     match /reportEvents/{eventId} {
-      allow read: if canAccessReports();
-      allow create, update: if canAccessReports()
+      allow read: if isApproved();
+      allow create, update: if isAdmin()
         && request.resource.data.date is string
+        && request.resource.data.startDate is string
+        && request.resource.data.endDate is string
         && request.resource.data.title is string
         && request.resource.data.time is string
-        && request.resource.data.attendance is list;
-      allow delete: if canAccessReports();
+        && request.resource.data.type in ['once', 'daily', 'weekly', 'monthly'];
+      allow delete: if isAdmin();
     }
 
     match /reportNotes/{noteId} {
-      allow read: if canAccessReports();
-      allow create, update: if canAccessReports()
+      allow read: if isApproved() && (
+        canViewOthersReports() || resource.data.createdBy == request.auth.uid
+      );
+      allow create: if isApproved() && !isObserver()
+        && request.resource.data.createdBy == request.auth.uid
         && request.resource.data.date is string
         && request.resource.data.userId is string
         && request.resource.data.text is string;
-      allow delete: if canAccessReports();
+      allow update: if isApproved() && !isObserver()
+        && (isAdmin() || resource.data.createdBy == request.auth.uid)
+        && request.resource.data.createdBy == resource.data.createdBy
+        && request.resource.data.date is string
+        && request.resource.data.userId is string
+        && request.resource.data.text is string;
+      allow delete: if isAdmin() || (isApproved() && !isObserver() && resource.data.createdBy == request.auth.uid);
+    }
+
+    match /reportResponses/{responseId} {
+      allow read: if isApproved() && (
+        canViewOthersReports() || resource.data.userId == request.auth.uid
+      );
+      allow create: if isApproved() && !isObserver()
+        && request.resource.data.eventId is string
+        && request.resource.data.date is string
+        && request.resource.data.userId is string
+        && (
+          request.resource.data.status in ['present', 'absent']
+          || request.resource.data.numberValue is number
+          || request.resource.data.selected is list
+        )
+        && (isAdmin() || request.resource.data.userId == request.auth.uid);
+      allow update: if isApproved() && !isObserver()
+        && (isAdmin() || resource.data.userId == request.auth.uid)
+        && request.resource.data.userId == resource.data.userId
+        && request.resource.data.eventId == resource.data.eventId
+        && request.resource.data.date == resource.data.date
+        && (
+          request.resource.data.status in ['present', 'absent']
+          || request.resource.data.numberValue is number
+          || request.resource.data.selected is list
+        );
+      allow delete: if isAdmin() || (isApproved() && !isObserver() && resource.data.userId == request.auth.uid);
     }
   }
 }
