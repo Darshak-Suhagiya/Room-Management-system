@@ -1,16 +1,19 @@
 import {
-  attendanceCounts,
-  attendanceStatusLabel,
-  countLine,
+  formatAnswerLabel,
   formatReportDate,
   formatReportTime,
   groupReportByPerson,
   groupReportDays,
   loggedByName,
   personLabel,
-  splitAttendance,
 } from './reportAttendance'
-import { REPORT_PDF_LAYOUT } from '../config/constants'
+import {
+  REPORT_ANSWER_TYPE,
+  REPORT_ANSWER_TYPE_LABELS,
+  REPORT_ATTENDANCE_STATUS,
+  REPORT_OUT_OF_CITY_REASON,
+  REPORT_PDF_LAYOUT,
+} from '../config/constants'
 
 const MARGIN = 40
 const HEAD_FILL = [15, 118, 110]
@@ -26,6 +29,8 @@ const FOOTER_RESERVE = 54
 const PDF_BANNER_SRC = '/darshan/finance.jpg'
 const PDF_STAMP_SRC = '/darshan/stamp.jpg'
 const KICKER = 'JAY SWAMINARAYAN  ·  ROOM REPORTS'
+const cellPaints = new WeakMap()
+const paintCache = new Map()
 
 function fileSafe(text) {
   return String(text || 'room-reports')
@@ -41,6 +46,121 @@ function todayLabel() {
     month: 'short',
     year: 'numeric',
   })
+}
+
+// Helvetica cannot draw Gujarati, and the file must not embed a Gujarati font. The browser paints those strings.
+function needsPaint(text) {
+  return /[\u0A80-\u0AFF]/.test(String(text ?? ''))
+}
+
+function pageFont() {
+  if (typeof document === 'undefined') return 'sans-serif'
+  return getComputedStyle(document.body).fontFamily || 'sans-serif'
+}
+
+function rgbOf(color) {
+  if (Array.isArray(color)) return color.slice(0, 3)
+  if (typeof color === 'number') return [color, color, color]
+  return INK
+}
+
+function graphemes(text) {
+  if (typeof Intl !== 'undefined' && Intl.Segmenter) {
+    return [...new Intl.Segmenter('gu', { granularity: 'grapheme' }).segment(text)].map((part) => part.segment)
+  }
+  return [...text]
+}
+
+function wrapPainted(ctx, text, maxPx) {
+  const lines = []
+  const pushFitted = (value) => {
+    let line = ''
+    for (const piece of graphemes(value)) {
+      const next = line + piece
+      if (line && ctx.measureText(next).width > maxPx) {
+        lines.push(line)
+        line = piece
+      } else {
+        line = next
+      }
+    }
+    return line
+  }
+  for (const para of String(text).replace(/\r/g, '').split('\n')) {
+    if (!para) {
+      lines.push('')
+      continue
+    }
+    let line = ''
+    for (const word of para.split(/(\s+)/)) {
+      if (word.trim() && ctx.measureText(word).width > maxPx) {
+        if (line.trim()) lines.push(line.trimEnd())
+        line = pushFitted(word)
+        continue
+      }
+      const next = line + word
+      if (line.trim() && ctx.measureText(next).width > maxPx) {
+        lines.push(line.trimEnd())
+        line = word.trimStart()
+      } else {
+        line = next
+      }
+    }
+    if (line.trim()) lines.push(line.trimEnd())
+  }
+  return lines.length ? lines : ['']
+}
+
+function paintBlock(text, { fontSize = 9, bold = false, maxWidth = 200, color = INK } = {}) {
+  const key = [text, fontSize, bold, maxWidth, color.join(',')].join('\u0001')
+  const cached = paintCache.get(key)
+  if (cached) return cached
+  const scale = 3
+  const fontPx = fontSize * (96 / 72) * scale
+  const maxPx = Math.max(24, maxWidth * (96 / 72) * scale)
+  const scratch = document.createElement('canvas').getContext('2d')
+  const font = `${bold ? '600' : '400'} ${fontPx}px ${pageFont()}`
+  scratch.font = font
+  const lines = wrapPainted(scratch, text, maxPx)
+  const lineH = fontPx * 1.35
+  const widthPx = Math.max(...lines.map((line) => scratch.measureText(line).width), 1)
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.ceil(widthPx + 6)
+  canvas.height = Math.ceil(lines.length * lineH + 6)
+  const ctx = canvas.getContext('2d')
+  ctx.font = font
+  ctx.fillStyle = `rgb(${color.join(',')})`
+  ctx.textBaseline = 'top'
+  lines.forEach((line, index) => ctx.fillText(line, 2, 2 + index * lineH))
+  const painted = {
+    dataUrl: canvas.toDataURL('image/png'),
+    width: (canvas.width * 72) / (96 * scale),
+    height: (canvas.height * 72) / (96 * scale),
+  }
+  paintCache.set(key, painted)
+  return painted
+}
+
+function writeBlock(doc, text, x, y, { size = 9, style = 'normal', color = INK, maxWidth, gap = 4 } = {}) {
+  const value = String(text ?? '')
+  const width = maxWidth || doc.internal.pageSize.getWidth() - x - MARGIN
+  if (!needsPaint(value)) {
+    doc.setFont('helvetica', style)
+    doc.setFontSize(size)
+    doc.setTextColor(...color)
+    const lines = doc.splitTextToSize(value, width)
+    doc.text(lines, x, y)
+    return y + lines.length * (size + 3) + gap
+  }
+  const painted = paintBlock(value, {
+    fontSize: size,
+    bold: style === 'bold',
+    maxWidth: width,
+    color,
+  })
+  const top = y - size * 0.82
+  doc.addImage(painted.dataUrl, 'PNG', x, top, painted.width, painted.height)
+  return top + painted.height + gap
 }
 
 async function loadPdf() {
@@ -232,40 +352,40 @@ function applyPdfChrome(doc, art, { title, subtitle }) {
 
 function addSection(doc, text, y) {
   const next = ensureSpace(doc, y, 36)
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(12)
-  doc.setTextColor(...INK)
-  doc.text(text, MARGIN, next)
+  const after = writeBlock(doc, text, MARGIN, next, {
+    size: 12,
+    style: 'bold',
+    color: INK,
+    gap: 2,
+  })
   doc.setDrawColor(...TEAL)
   doc.setLineWidth(0.8)
-  doc.line(MARGIN, next + 4, MARGIN + 120, next + 4)
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(9)
-  doc.setTextColor(51, 65, 85)
-  return next + 16
+  doc.line(MARGIN, after, MARGIN + 120, after)
+  return after + 14
 }
 
 function addSubhead(doc, text, y) {
   const width = doc.internal.pageSize.getWidth() - MARGIN * 2
-  const lines = doc.splitTextToSize(text, width)
-  const next = ensureSpace(doc, y, lines.length * 14 + 8)
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(11)
-  doc.setTextColor(...INK)
-  doc.text(lines, MARGIN, next)
-  return next + lines.length * 14 + 2
+  const next = ensureSpace(doc, y, 28)
+  return writeBlock(doc, text, MARGIN, next, {
+    size: 11,
+    style: 'bold',
+    color: INK,
+    maxWidth: width,
+    gap: 6,
+  })
 }
 
 function addParagraph(doc, text, y) {
   const width = doc.internal.pageSize.getWidth() - MARGIN * 2
-  const lines = doc.splitTextToSize(text, width)
-  const height = lines.length * 12
-  const next = ensureSpace(doc, y, height + 8)
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(9)
-  doc.setTextColor(51, 65, 85)
-  doc.text(lines, MARGIN, next)
-  return next + height + 8
+  const next = ensureSpace(doc, y, 24)
+  return writeBlock(doc, text, MARGIN, next, {
+    size: 9,
+    style: 'normal',
+    color: [51, 65, 85],
+    maxWidth: width,
+    gap: 8,
+  })
 }
 
 function tableOptions(doc, extra = {}) {
@@ -288,6 +408,40 @@ function tableOptions(doc, extra = {}) {
       fontSize: 8,
     },
     alternateRowStyles: { fillColor: [248, 250, 252] },
+    didParseCell(data) {
+      const raw = (data.cell.text || []).join('\n')
+      if (!needsPaint(raw)) return
+      const padX = data.cell.padding('horizontal')
+      const styledWidth = data.cell.styles.cellWidth
+      const limit = typeof styledWidth === 'number' ? styledWidth - padX : 188
+      const painted = paintBlock(raw, {
+        fontSize: data.cell.styles.fontSize || 8.5,
+        bold: data.cell.styles.fontStyle === 'bold',
+        maxWidth: Math.max(48, limit),
+        color: rgbOf(data.cell.styles.textColor),
+      })
+      cellPaints.set(data.cell, painted)
+      data.cell.text = ['']
+      data.cell.styles.minCellWidth = painted.width + padX
+      data.cell.styles.minCellHeight = painted.height + data.cell.padding('vertical')
+    },
+    willDrawCell(data) {
+      if (cellPaints.has(data.cell)) data.cell.text = ['']
+    },
+    didDrawCell(data) {
+      const painted = cellPaints.get(data.cell)
+      if (!painted) return
+      const maxW = data.cell.width - data.cell.padding('horizontal')
+      const scale = painted.width > maxW && maxW > 8 ? maxW / painted.width : 1
+      doc.addImage(
+        painted.dataUrl,
+        'PNG',
+        data.cell.x + data.cell.padding('left'),
+        data.cell.y + data.cell.padding('top'),
+        painted.width * scale,
+        painted.height * scale,
+      )
+    },
     ...extra,
   }
 }
@@ -317,6 +471,11 @@ function drawNamedTable(doc, autoTable, y, title, head, body, columnStyles) {
   return next
 }
 
+function eventLine(title, time) {
+  const clock = formatReportTime(time)
+  return clock ? `${title || 'Event'} · ${clock}` : (title || 'Event')
+}
+
 function drawPerson(doc, autoTable, person, y) {
   let next = addSection(doc, person.displayName, y)
 
@@ -325,19 +484,14 @@ function drawPerson(doc, autoTable, person, y) {
       doc,
       autoTable,
       next,
-      'Event attendance',
-      ['Date', 'Event', 'Arrival', 'Status'],
+      'Answers',
+      ['Date', 'Event', 'Answer'],
       person.attendance.map((row) => [
         formatReportDate(row.date) || row.date,
-        row.eventTitle,
-        formatReportTime(row.time) || '—',
-        attendanceStatusLabel(row),
+        eventLine(row.eventTitle, row.eventTime),
+        formatAnswerLabel(row) || '—',
       ]),
-      {
-        0: { cellWidth: 90 },
-        2: { cellWidth: 70 },
-        3: { cellWidth: 110 },
-      },
+      { 0: { cellWidth: 108 } },
     )
   }
 
@@ -361,49 +515,100 @@ function drawPerson(doc, autoTable, person, y) {
   return next + 4
 }
 
-function drawEvent(doc, autoTable, event, roster, y) {
-  const when = formatReportTime(event.time)
-  let next = addSubhead(
-    doc,
-    when ? `${event.title}  ·  ${when}` : event.title,
-    y,
-  )
-  next = addParagraph(doc, `Logged by ${loggedByName(event)}`, next)
-  const split = splitAttendance(event.attendance, roster)
-  next = addParagraph(doc, countLine(attendanceCounts(split)), next)
-  if (event.note) next = addParagraph(doc, event.note, next)
+function peopleFor(event, roster) {
+  const answers = new Map()
+  for (const row of event.attendance || []) {
+    if (row?.userId) answers.set(row.userId, row)
+  }
+  const source = roster?.length
+    ? roster
+    : [...answers.values()].map((row) => ({ id: row.userId, displayName: row.displayName }))
+  return source
+    .map((person) => ({
+      name: personLabel(person),
+      answer: answers.get(person.id) || null,
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name))
+}
 
+function dash(value) {
+  const text = String(value ?? '').trim()
+  return text || '—'
+}
+
+function eventAnswerRows(event, roster) {
+  const type = event.answerType || REPORT_ANSWER_TYPE.ATTENDANCE
+  const people = peopleFor(event, roster)
+  if (type === REPORT_ANSWER_TYPE.NUMBER) {
+    return {
+      title: 'Numbers',
+      head: ['Name', 'Number', 'Note'],
+      body: people.map(({ name, answer }) => [
+        name,
+        answer && answer.numberValue != null && answer.numberValue !== ''
+          ? String(answer.numberValue)
+          : 'Not filled yet',
+        dash(answer?.note),
+      ]),
+    }
+  }
+  if (type === REPORT_ANSWER_TYPE.YES_NO) {
+    return {
+      title: 'Yes or No',
+      head: ['Name', 'Answer', 'Note'],
+      body: people.map(({ name, answer }) => {
+        let label = 'Not filled yet'
+        if (answer?.status === REPORT_ATTENDANCE_STATUS.PRESENT) label = 'Yes'
+        else if (answer?.status === REPORT_ATTENDANCE_STATUS.ABSENT) label = 'No'
+        return [name, label, dash(answer?.note)]
+      }),
+    }
+  }
+  if (type === REPORT_ANSWER_TYPE.SINGLE || type === REPORT_ANSWER_TYPE.MULTI) {
+    return {
+      title: REPORT_ANSWER_TYPE_LABELS[type] || 'Choices',
+      head: ['Name', 'Choice', 'Written answer'],
+      body: people.map(({ name, answer }) => {
+        const picked = Array.isArray(answer?.selected) ? answer.selected.filter(Boolean) : []
+        const written = String(answer?.customText || '').trim()
+        if (!picked.length && !written) return [name, 'Not filled yet', '—']
+        return [name, picked.join(', ') || '—', written || '—']
+      }),
+    }
+  }
+  return {
+    title: 'Attendance',
+    head: ['Name', 'Answer', 'Detail'],
+    body: people.map(({ name, answer }) => {
+      if (!answer) return [name, 'Not filled yet', '—']
+      if (answer.status === REPORT_ATTENDANCE_STATUS.PRESENT) {
+        return [name, 'Yes', formatReportTime(answer.time) || '—']
+      }
+      const reason = String(answer.reason || '').trim()
+      if (reason.startsWith(REPORT_OUT_OF_CITY_REASON)) {
+        const extra = reason.slice(REPORT_OUT_OF_CITY_REASON.length).replace(/^[\s—-]+/, '').trim()
+        return [name, 'Out of city', extra || '—']
+      }
+      if (answer.status === REPORT_ATTENDANCE_STATUS.ABSENT) return [name, 'No', reason || '—']
+      return [name, formatAnswerLabel(answer) || 'Not filled yet', '—']
+    }),
+  }
+}
+
+function drawEvent(doc, autoTable, event, roster, y) {
+  let next = addSubhead(doc, eventLine(event.title, event.time), y)
+  const typeLabel = REPORT_ANSWER_TYPE_LABELS[event.answerType || REPORT_ANSWER_TYPE.ATTENDANCE]
+  if (typeLabel) next = addParagraph(doc, typeLabel, next)
+  if (event.note) next = addParagraph(doc, event.note, next)
+  const sheet = eventAnswerRows(event, roster)
   next = drawNamedTable(
     doc,
     autoTable,
     next,
-    `Present (${split.present.length})`,
-    ['Name', 'Time'],
-    split.present.map((row) => [
-      personLabel(row),
-      formatReportTime(row.time) || '—',
-    ]),
-    { 1: { cellWidth: 90 } },
-  )
-  next = drawNamedTable(
-    doc,
-    autoTable,
-    next,
-    `Not present (${split.absent.length})`,
-    ['Name', 'Reason'],
-    split.absent.map((row) => [
-      personLabel(row),
-      row.reason || '—',
-    ]),
-    { 1: { cellWidth: 140 } },
-  )
-  next = drawNamedTable(
-    doc,
-    autoTable,
-    next,
-    `Not recorded (${split.notRecorded.length})`,
-    ['Name'],
-    split.notRecorded.map((row) => [personLabel(row)]),
+    sheet.title,
+    sheet.head,
+    sheet.body,
+    { 0: { cellWidth: 140 } },
   )
   return next + 4
 }
