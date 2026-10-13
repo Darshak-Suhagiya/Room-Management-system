@@ -20,12 +20,22 @@ export function isRoomLeaderRole(profile) {
   return profile?.role === ROLES.ROOM_LEADER
 }
 
+export function isObserverRole(profile) {
+  return profile?.role === ROLES.OBSERVER
+}
+
+/** Lives in the room: votes, reports, meals, billing. Observers and Maharaj do not. */
+export function isRoomParticipant(profile) {
+  return Boolean(profile?.role) && !isMaharajRole(profile) && !isObserverRole(profile)
+}
+
 export const ROLE_LABELS = {
   [ROLES.ADMIN]: 'Admin',
   [ROLES.MAHARAJ]: 'Maharaj',
   [ROLES.RESIDENT]: 'Member',
   [ROLES.KITCHEN_LEADER]: 'Kitchen leader',
   [ROLES.ROOM_LEADER]: 'Room leader',
+  [ROLES.OBSERVER]: 'Observer',
 }
 
 export const ALL_ROLES = [
@@ -34,7 +44,11 @@ export const ALL_ROLES = [
   ROLES.RESIDENT,
   ROLES.KITCHEN_LEADER,
   ROLES.ROOM_LEADER,
+  ROLES.OBSERVER,
 ]
+
+/** Roles that live in the room. Notices and push target these, not observers. */
+export const ROOM_ROLES = ALL_ROLES.filter((role) => role !== ROLES.OBSERVER)
 
 /** Vote dashboard: every approved role. Lock / total-edit stay separate. */
 export function canAccessVoteDashboard(profile) {
@@ -55,13 +69,14 @@ export function canAdjustVoteTotals(profile) {
   return isAdminRole(profile) || isKitchenLeaderRole(profile)
 }
 
-/** Show raw vote sum alongside adjusted total (admin + member + kitchen/room leader). */
+/** Show raw vote sum alongside adjusted total (admin + member + kitchen/room leader + observer). */
 export function showVoteCountBreakdown(profile) {
   return (
     isAdminRole(profile) ||
     isResidentRole(profile) ||
     isKitchenLeaderRole(profile) ||
-    isRoomLeaderRole(profile)
+    isRoomLeaderRole(profile) ||
+    isObserverRole(profile)
   )
 }
 
@@ -70,14 +85,14 @@ export function showsAdjustedTotalOnly(profile) {
   return isMaharajRole(profile)
 }
 
-/** Meal item reviews (Good/Okay/Bad + text) — hidden from Maharaj. */
+/** Meal item reviews (Good/Okay/Bad + text) — hidden from Maharaj and observers. */
 export function canSeeMealReviews(profile) {
-  return !isMaharajRole(profile)
+  return !isMaharajRole(profile) && !isObserverRole(profile)
 }
 
-/** Menu analytics page — hidden from Maharaj. */
+/** Menu analytics page — hidden from Maharaj and observers. */
 export function canSeeMenuAnalytics(profile) {
-  return !isMaharajRole(profile)
+  return !isMaharajRole(profile) && !isObserverRole(profile)
 }
 
 /** Catalog notes/recipe and cook-only meal notes on the vote dashboard. */
@@ -87,7 +102,7 @@ export function canSeeMaharajMenuDetails(profile) {
 
 /** Menu planning page: admin, kitchen leader, room leader, or member. */
 export function canPlanMenus(profile) {
-  return Boolean(profile?.role) && !isMaharajRole(profile)
+  return isRoomParticipant(profile)
 }
 
 /** Menu catalog editing: admin or kitchen leader. */
@@ -105,9 +120,9 @@ export function canManageSeva(profile) {
   return isAdminRole(profile) || isRoomLeaderRole(profile)
 }
 
-/** Create leave entries: approved users except Maharaj (view-only). */
+/** Create leave entries: approved room members. */
 export function canCreateLeaves(profile) {
-  return Boolean(profile?.role) && !isMaharajRole(profile)
+  return isRoomParticipant(profile)
 }
 
 /** Update/delete Maharaj leave entries: admin, kitchen lead, or room lead. */
@@ -142,12 +157,12 @@ export function canViewNoticeAnalytics(profile) {
   )
 }
 
-/** Stocks + shopping pages: any approved role except Maharaj. */
+/** Stocks + shopping pages: any approved room member. */
 export function canViewStocks(profile) {
-  return Boolean(profile?.role) && !isMaharajRole(profile)
+  return isRoomParticipant(profile)
 }
 
-/** Finance pages: any approved role except Maharaj. */
+/** Finance pages: any approved role except Maharaj. Observers are view-only. */
 export function canViewFinance(profile) {
   return Boolean(profile?.role) && !isMaharajRole(profile)
 }
@@ -158,15 +173,20 @@ export function canManageFinance(profile) {
 }
 
 /**
- * Purpose: Reports is open to every admin, and to other people only by name.
- * Why: Access is not a role. An admin grants or removes each person separately.
+ * Who can see every member's report answers and notes.
+ * Opening Reports is separate: every approved member can fill their own.
  */
 export function canAccessReports(profile, allowedUserIds) {
   if (!profile) return false
-  if (isAdminRole(profile)) return true
+  if (isAdminRole(profile) || isObserverRole(profile)) return true
   const uid = profile.id
   if (!uid) return false
   return (allowedUserIds ?? []).includes(uid)
+}
+
+/** Fill answers and write person notes. Observers watch only. */
+export function canWriteReports(profile) {
+  return Boolean(profile?.role) && !isObserverRole(profile)
 }
 
 /** Create groups, manage editors, create/assign shopping tickets. */
