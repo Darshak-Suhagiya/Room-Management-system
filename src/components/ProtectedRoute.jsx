@@ -10,6 +10,7 @@ import {
   canManagePush,
   canViewStocks,
   canViewFinance,
+  canSetDefaultVotes,
 } from '../config/rolePermissions'
 import { useAuth } from '../contexts/AuthContext'
 import { isUserApproved } from '../services/userService'
@@ -27,6 +28,7 @@ export function ProtectedRoute({
   pushAccess = false,
   stocksAccess = false,
   financeAccess = false,
+  defaultVotesAccess = false,
 }) {
   const {
     user,
@@ -105,6 +107,10 @@ export function ProtectedRoute({
   }
 
   if (financeAccess && !canViewFinance(profile)) {
+    return <Navigate to="/" replace />
+  }
+
+  if (defaultVotesAccess && !canSetDefaultVotes(profile)) {
     return <Navigate to="/" replace />
   }
 
