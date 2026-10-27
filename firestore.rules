@@ -31,7 +31,7 @@ service cloud.firestore {
     }
 
     function canManageVoteLocks() {
-      return isAdmin() || isMaharaj() || isKitchenLeader();
+      return isAdmin() || isMaharaj() || isKitchenLeader() || isRoomLeader();
     }
 
     /** Vote dashboard + Users/Seva management need member names. */
@@ -234,12 +234,22 @@ service cloud.firestore {
       allow write: if canManageVoteLocks();
     }
 
+    match /mealDefaults/{userId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isApproved() && !isObserver() && !isMaharaj() &&
+        request.auth.uid == userId;
+    }
+
     match /mealParticipation/{docId} {
       allow read: if isSignedIn();
       allow create, update: if isApproved() && !isObserver() &&
         request.resource.data.userId == request.auth.uid &&
         !slotLocked(request.resource.data.date, request.resource.data.slot);
-      allow delete: if canDeleteParticipations();
+      // Leaders fill defaults for members who have not voted (never overwrite).
+      allow create: if isApproved() && canManageVoteLocks() &&
+        request.resource.data.isDefault == true;
+      allow delete: if canDeleteParticipations() ||
+        (isApproved() && canManageVoteLocks() && resource.data.isDefault == true);
     }
 
     match /menus/{menuId} {
