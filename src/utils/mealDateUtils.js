@@ -61,6 +61,16 @@ export function sortSlotsTodayThenTomorrow(slots) {
   })
 }
 
+/** e.g. "27 Oct, 4:04 pm" */
+export function formatVoteTimestamp(iso) {
+  if (!iso) return ''
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return ''
+  const day = date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+  const time = date.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })
+  return `${day}, ${time}`
+}
+
 export function formatDisplayDateGu(dateId) {
   const [y, m, d] = dateId.split('-').map(Number)
   return new Date(y, m - 1, d).toLocaleDateString('en-US', {

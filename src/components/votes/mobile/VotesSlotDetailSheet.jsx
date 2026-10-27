@@ -3,6 +3,8 @@ import { MenuSlotNote } from '../../MenuSlotNote'
 import { CookItemInfoButton } from '../../MenuItemDetailModal'
 import { groupPlannedByCategory } from '../../../utils/groupMenuByCategory'
 import { VotesDishAdjustRow } from './VotesDishAdjustRow'
+import { DefaultAppliedLine } from '../../defaults/DefaultChip'
+import { DefaultVotesList } from '../../defaults/DefaultVotesList'
 
 function AttendanceSection({ title, people, tone }) {
   const count = people?.length ?? 0
@@ -17,8 +19,12 @@ function AttendanceSection({ title, people, tone }) {
       ) : (
         <div className="votes-mobile-who-chips">
           {people.map((p) => (
-            <span key={p.userId} className="votes-mobile-who-chip">
+            <span
+              key={p.userId}
+              className={`votes-mobile-who-chip${p.isDefault ? ' is-default' : ''}`}
+            >
               {p.name}
+              {p.isDefault ? <span className="votes-mobile-who-tag">Default</span> : null}
             </span>
           ))}
         </div>
@@ -42,6 +48,11 @@ export function VotesSlotDetailSheet({
   overrideSavingId,
   onSaveOverride,
   onOpenItemDetail,
+  lockDoc = null,
+  menu = null,
+  canRemoveDefaults = false,
+  onRemoveDefault,
+  removingUserId = null,
 }) {
   if (!stats) return null
 
@@ -75,6 +86,8 @@ export function VotesSlotDetailSheet({
           </div>
         )}
 
+        <DefaultAppliedLine lock={lockDoc} menu={menu} slot={slot} />
+
         <div className="votes-mobile-attend-list">
           <AttendanceSection
             title="Not eating"
@@ -92,6 +105,14 @@ export function VotesSlotDetailSheet({
             tone="success"
           />
         </div>
+
+        <DefaultVotesList
+          variant="mobile"
+          people={stats.mealSummary.defaulted}
+          canRemove={canRemoveDefaults}
+          onRemove={onRemoveDefault}
+          removingUserId={removingUserId}
+        />
 
         {canAdjustTotals && (
           <p className="muted votes-mobile-adjust-hint">

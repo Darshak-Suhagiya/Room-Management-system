@@ -1,15 +1,17 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { BarChart3 } from 'lucide-react'
 import { MEAL_SLOTS } from '../../../config/menuItems'
 import { formatDisplayDateGu, isTodayDate } from '../../../utils/mealDateUtils'
 import { MobilePageHeader } from '../../mobile'
 import { MealDayStrip } from '../../meals/MealDayStrip'
 import { MealCalendarSheet } from '../../meals/MealCalendarSheet'
+import { subscribeVoteLock } from '../../../services/voteLockService'
 import { AdminConfirmSheet, AdminEmptyPanel } from '../../admin/mobile'
 import { VotesSlotSegment } from './VotesSlotSegment'
 import { VotesSummaryStrip } from './VotesSummaryStrip'
 import { VotesSlotCard } from './VotesSlotCard'
 import { VotesSlotDetailSheet } from './VotesSlotDetailSheet'
+import { VoteTimesSheet } from './VoteTimesSheet'
 
 export function VotesMobileView({
   todayId,
@@ -35,10 +37,24 @@ export function VotesMobileView({
   onSaveOverride,
   onOpenItemDetail,
   description,
+  canApplyDefaults = false,
+  onApplyDefaults,
+  onRemoveDefault,
 }) {
   const [calendarOpen, setCalendarOpen] = useState(false)
+  const [voteTimesEntry, setVoteTimesEntry] = useState(null)
   const [detail, setDetail] = useState(null)
   const [lockConfirm, setLockConfirm] = useState(null)
+  const [applyConfirm, setApplyConfirm] = useState(null)
+  const [removeConfirm, setRemoveConfirm] = useState(null)
+  const [detailLock, setDetailLock] = useState(null)
+
+  const detailDate = detail?.entry?.date
+  const detailSlot = detail?.entry?.slot
+  useEffect(() => {
+    if (!detailDate || !detailSlot) return undefined
+    return subscribeVoteLock(detailDate, detailSlot, setDetailLock)
+  }, [detailDate, detailSlot])
 
   const stripIds = useMemo(() => {
     const ids = new Set([todayId, selectedDate, ...plannedDateIds])
@@ -124,8 +140,14 @@ export function VotesMobileView({
               showEveryoneNote={!isMaharaj}
               showMaharajNote={canSeeMaharajMenuDetails}
               onRequestLock={(e, locked) => setLockConfirm({ entry: e, locked })}
+              canApplyDefaults={canApplyDefaults}
+              applyBusy={busyKey === `apply-${entry.key}`}
+              onRequestApplyDefaults={(e, count) =>
+                setApplyConfirm({ entry: e, count })
+              }
               onRefresh={onRefresh}
               onOpenDetail={openDetail}
+              onOpenVoteTimes={setVoteTimesEntry}
             />
           ))}
         </div>
@@ -144,6 +166,17 @@ export function VotesMobileView({
           onSelectDate(id)
           setCalendarOpen(false)
         }}
+      />
+
+      <VoteTimesSheet
+        open={Boolean(voteTimesEntry)}
+        onClose={() => setVoteTimesEntry(null)}
+        subtitle={voteTimesEntry ? formatDisplayDateGu(voteTimesEntry.date) : ''}
+        entries={
+          voteTimesEntry && statsByKey[voteTimesEntry.key]
+            ? [{ entry: voteTimesEntry, stats: statsByKey[voteTimesEntry.key] }]
+            : []
+        }
       />
 
       <VotesSlotDetailSheet
@@ -165,6 +198,56 @@ export function VotesMobileView({
             : undefined
         }
         onOpenItemDetail={onOpenItemDetail}
+        lockDoc={detailLock}
+        menu={detail?.entry?.menu}
+        canRemoveDefaults={canApplyDefaults}
+        removingUserId={
+          removeConfirm && busyKey === `remove-${detail?.entry?.key}-${removeConfirm.person.userId}`
+            ? removeConfirm.person.userId
+            : null
+        }
+        onRemoveDefault={(person) =>
+          setRemoveConfirm({ entry: detail.entry, person })
+        }
+      />
+
+      <AdminConfirmSheet
+        open={Boolean(applyConfirm)}
+        onClose={() => setApplyConfirm(null)}
+        artKey="votes"
+        title="Apply default votes?"
+        message={
+          applyConfirm
+            ? `Fill default votes for ${applyConfirm.count} ${applyConfirm.count === 1 ? 'member' : 'members'} who haven't voted on ${MEAL_SLOTS[applyConfirm.entry.slot].labelEn}, then lock voting.`
+            : ''
+        }
+        confirmLabel="Apply and lock"
+        busy={busyKey === `apply-${applyConfirm?.entry?.key}`}
+        onConfirm={async () => {
+          if (!applyConfirm) return
+          await onApplyDefaults?.(applyConfirm.entry)
+          setApplyConfirm(null)
+        }}
+      />
+
+      <AdminConfirmSheet
+        open={Boolean(removeConfirm)}
+        onClose={() => setRemoveConfirm(null)}
+        artKey="votes"
+        title="Remove default vote?"
+        message={
+          removeConfirm
+            ? `${removeConfirm.person.name} will show as not voted for ${MEAL_SLOTS[removeConfirm.entry.slot].labelEn}.`
+            : ''
+        }
+        confirmLabel="Remove"
+        destructive
+        busy={busyKey === `remove-${removeConfirm?.entry?.key}-${removeConfirm?.person?.userId}`}
+        onConfirm={async () => {
+          if (!removeConfirm) return
+          await onRemoveDefault?.(removeConfirm.entry, removeConfirm.person.userId)
+          setRemoveConfirm(null)
+        }}
       />
 
       <AdminConfirmSheet
