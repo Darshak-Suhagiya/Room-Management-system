@@ -42,6 +42,12 @@ const AdminVotesDashboardPage = lazy(() =>
   })),
 )
 
+const DefaultVotesPage = lazy(() =>
+  import('./pages/DefaultVotesPage').then((m) => ({
+    default: m.DefaultVotesPage,
+  })),
+)
+
 const AdminMenuPlanningPage = lazy(() =>
   import('./pages/AdminMenuPlanningPage').then((m) => ({
     default: m.AdminMenuPlanningPage,
@@ -120,6 +126,14 @@ function App() {
           >
             <Route index element={<HomePage />} />
             <Route path="menus" element={<AllMenusPage />} />
+            <Route
+              path="defaults"
+              element={
+                <ProtectedRoute defaultVotesAccess>
+                  <DefaultVotesPage />
+                </ProtectedRoute>
+              }
+            />
             <Route path="leaves" element={<LeaveCalendarPage />} />
             <Route path="settings" element={<SettingsPage />} />
             <Route

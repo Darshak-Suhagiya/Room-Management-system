@@ -3,6 +3,7 @@ import { MealDashboardSlotCard } from '../components/MealDashboardSlotCard'
 import { MealSlotDetailModal } from '../components/MealSlotDetailModal'
 import { MenuItemDetailModal } from '../components/MenuItemDetailModal'
 import { VotesMobileView } from '../components/votes/mobile'
+import { AdminConfirmSheet } from '../components/admin/mobile'
 import { BlessingHero } from '../components/darshan'
 import { MEAL_SLOTS } from '../config/menuItems'
 import { VOTE_TYPES } from '../config/voteTypes'
@@ -21,7 +22,8 @@ import {
 import { useToast } from '../contexts/ToastContext'
 import { getParticipationsForDate } from '../services/participationService'
 import { listApprovedUsers } from '../services/userService'
-import { setVoteLock } from '../services/voteLockService'
+import { setVoteLock, subscribeVoteLock } from '../services/voteLockService'
+import { applyDefaultVotes, removeDefaultVote } from '../services/defaultVoteService'
 import {
   expandMenusToMealSlots,
   filterSlotsByDate,
@@ -37,6 +39,7 @@ import { buildVoteStats, getPlannedMenuItems } from '../utils/menuVoteUtils'
 import { addDaysToDateId } from '../utils/menuReviewUtils'
 import { VoteSummary } from '../components/VoteSummary'
 import { MealCalendar } from '../components/MealCalendar'
+import { VoteTimesModal } from '../components/votes/VoteTimesModal'
 
 const MEALS_PER_PAGE = 4
 
@@ -64,6 +67,10 @@ function VoteDayGroups({
   onToggleLock,
   onRefresh,
   onCardClick,
+  canApplyDefaults,
+  applyBusyKey,
+  onRequestApplyDefaults,
+  onOpenVoteTimes,
 }) {
   return (
     <div className="menu-list dashboard-by-date">
@@ -107,6 +114,10 @@ function VoteDayGroups({
                   }
                   onRefresh={() => onRefresh(entry)}
                   onCardClick={(s) => onCardClick(s, entry)}
+                  canApplyDefaults={canApplyDefaults}
+                  applyBusy={applyBusyKey === `apply-${entry.key}`}
+                  onRequestApplyDefaults={onRequestApplyDefaults}
+                  onOpenVoteTimes={onOpenVoteTimes}
                 />
               ))}
             </div>
@@ -121,7 +132,9 @@ export function AdminVotesDashboardPage() {
   const {
     user,
     isMaharaj,
+    profile,
     canLockVotes,
+    canApplyDefaultVotes,
     canAdjustVoteTotals,
     showVoteCountBreakdown,
     canSeeMaharajMenuDetails,
@@ -140,9 +153,13 @@ export function AdminVotesDashboardPage() {
   const [slotFilter, setSlotFilter] = useState('all')
   const [page, setPage] = useState(0)
   const [modalSlot, setModalSlot] = useState(null)
+  const [voteTimesEntry, setVoteTimesEntry] = useState(null)
   const [itemDetail, setItemDetail] = useState(null)
   const [busyKey, setBusyKey] = useState(null)
   const [overrideSavingId, setOverrideSavingId] = useState(null)
+  const [applyConfirm, setApplyConfirm] = useState(null)
+  const [removeConfirm, setRemoveConfirm] = useState(null)
+  const [modalLock, setModalLock] = useState(null)
   const todayRef = useRef(null)
   const scrolledRef = useRef(false)
   const didInitDateRef = useRef(false)
@@ -477,6 +494,63 @@ export function AdminVotesDashboardPage() {
     }
   }
 
+  const actorName =
+    profile?.displayName || user?.displayName || user?.email?.split('@')[0] || 'Member'
+
+  const refreshEntryStats = async (entry) => {
+    const stats = await loadSlotStats(entry, entry.menu)
+    setStatsByKey((prev) => ({ ...prev, [entry.key]: stats }))
+    setModalSlot((prev) =>
+      prev && prev.entry?.key === entry.key ? { ...prev, stats } : prev,
+    )
+  }
+
+  const handleApplyDefaults = async (entry) => {
+    if (!canApplyDefaultVotes) return
+    setBusyKey(`apply-${entry.key}`)
+    try {
+      const { added } = await applyDefaultVotes({
+        dateId: entry.date,
+        slot: entry.slot,
+        menu: entry.menu,
+        catalog,
+        users,
+        actor: { userId: user?.uid, displayName: actorName },
+      })
+      toast.success(
+        added === 0
+          ? 'Everyone already has a vote. Slot locked.'
+          : `Default votes applied for ${added} ${added === 1 ? 'member' : 'members'}. Slot locked.`,
+      )
+      await refreshEntryStats(entry)
+    } catch (err) {
+      toast.error(err.message || 'Could not apply default votes.')
+    } finally {
+      setBusyKey(null)
+    }
+  }
+
+  const handleRemoveDefault = async (entry, userId) => {
+    if (!canApplyDefaultVotes) return
+    setBusyKey(`remove-${entry.key}-${userId}`)
+    try {
+      await removeDefaultVote(entry.date, entry.slot, userId)
+      toast.success('Default vote removed')
+      await refreshEntryStats(entry)
+    } catch (err) {
+      toast.error(err.message || 'Could not remove that default vote.')
+    } finally {
+      setBusyKey(null)
+    }
+  }
+
+  const modalDate = modalSlot?.entry?.date
+  const modalSlotName = modalSlot?.entry?.slot
+  useEffect(() => {
+    if (!modalDate || !modalSlotName) return undefined
+    return subscribeVoteLock(modalDate, modalSlotName, setModalLock)
+  }, [modalDate, modalSlotName])
+
   const handleSaveOverride = async (entry, itemId, rawTotal) => {
     if (!canAdjustVoteTotals) return
     const slotKey = entry.key
@@ -571,6 +645,10 @@ export function AdminVotesDashboardPage() {
     onToggleLock: handleToggleLock,
     onRefresh: handleRefreshSlot,
     onCardClick: openCardModal,
+    canApplyDefaults: canApplyDefaultVotes,
+    applyBusyKey: busyKey,
+    onRequestApplyDefaults: (entry, count) => setApplyConfirm({ entry, count }),
+    onOpenVoteTimes: setVoteTimesEntry,
   }
 
   const emptyMessage =
@@ -625,6 +703,9 @@ export function AdminVotesDashboardPage() {
           onSaveOverride={handleSaveOverride}
           onOpenItemDetail={setItemDetail}
           description={mobileDescription}
+          canApplyDefaults={canApplyDefaultVotes}
+          onApplyDefaults={handleApplyDefaults}
+          onRemoveDefault={handleRemoveDefault}
         />
         {itemDetail && (
           <MenuItemDetailModal
@@ -729,6 +810,16 @@ export function AdminVotesDashboardPage() {
         </div>
       </div>
 
+      <VoteTimesModal
+        open={Boolean(voteTimesEntry)}
+        onClose={() => setVoteTimesEntry(null)}
+        subtitle={voteTimesEntry ? formatDisplayDateGu(voteTimesEntry.date) : ''}
+        entries={
+          voteTimesEntry && statsByKey[voteTimesEntry.key]
+            ? [{ entry: voteTimesEntry, stats: statsByKey[voteTimesEntry.key] }]
+            : []
+        }
+      />
       {modalSlot && (
         <MealSlotDetailModal
           stats={modalSlot.stats}
@@ -747,6 +838,17 @@ export function AdminVotesDashboardPage() {
                   handleSaveOverride(modalSlot.entry, itemId, total)
               : undefined
           }
+          lockDoc={modalLock}
+          menu={modalSlot.entry?.menu}
+          canRemoveDefaults={canApplyDefaultVotes}
+          removingUserId={
+            busyKey?.startsWith(`remove-${modalSlot.entry?.key}-`)
+              ? busyKey.slice(`remove-${modalSlot.entry?.key}-`.length)
+              : null
+          }
+          onRemoveDefault={(person) =>
+            setRemoveConfirm({ entry: modalSlot.entry, person })
+          }
           onClose={() => setModalSlot(null)}
         />
       )}
@@ -756,6 +858,43 @@ export function AdminVotesDashboardPage() {
           onClose={() => setItemDetail(null)}
         />
       )}
+      <AdminConfirmSheet
+        open={Boolean(applyConfirm)}
+        onClose={() => setApplyConfirm(null)}
+        artKey="votes"
+        title="Apply default votes?"
+        message={
+          applyConfirm
+            ? `Fill default votes for ${applyConfirm.count} ${applyConfirm.count === 1 ? 'member' : 'members'} who haven't voted on ${MEAL_SLOTS[applyConfirm.entry.slot].labelEn}, then lock voting.`
+            : ''
+        }
+        confirmLabel="Apply and lock"
+        busy={busyKey === `apply-${applyConfirm?.entry?.key}`}
+        onConfirm={async () => {
+          if (!applyConfirm) return
+          await handleApplyDefaults(applyConfirm.entry)
+          setApplyConfirm(null)
+        }}
+      />
+      <AdminConfirmSheet
+        open={Boolean(removeConfirm)}
+        onClose={() => setRemoveConfirm(null)}
+        artKey="votes"
+        title="Remove default vote?"
+        message={
+          removeConfirm
+            ? `${removeConfirm.person.name} will show as not voted for ${MEAL_SLOTS[removeConfirm.entry.slot].labelEn}.`
+            : ''
+        }
+        confirmLabel="Remove"
+        destructive
+        busy={busyKey === `remove-${removeConfirm?.entry?.key}-${removeConfirm?.person?.userId}`}
+        onConfirm={async () => {
+          if (!removeConfirm) return
+          await handleRemoveDefault(removeConfirm.entry, removeConfirm.person.userId)
+          setRemoveConfirm(null)
+        }}
+      />
     </div>
   )
 }

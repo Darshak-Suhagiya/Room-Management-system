@@ -30,12 +30,18 @@ No Cloud Functions / Blaze required for push.
 ### Permissions
 
 Vote dashboard: any approved role  
-Lock / unlock votes: `admin` | `maharaj` | `kitchen_leader`  
+Lock / unlock votes: `admin` | `maharaj` | `kitchen_leader` | `room_leader`  
+Apply / remove default votes (applying also locks the slot): `admin` | `maharaj` | `kitchen_leader` | `room_leader`  
+Set own default votes (`/defaults`): any room member (not Maharaj or observer)  
 Adjust vote totals: `admin` | `kitchen_leader`  
 Menu planning: `admin` | `kitchen_leader` | `room_leader` | `resident` (not Maharaj)  
 Send push: `admin` | `kitchen_leader` | `room_leader`  
 Manage finance: `admin` | `room_leader`  
 View finance: any approved role except Maharaj
+
+### Default votes
+
+Each member has a `mealDefaults/{userId}` doc: a default of Eating or Not eating (starts as Not eating), a default vote per dish, and calendar overrides for dates. When a member's default is Eating, My Meals voting stays closed until every planned dish on open menus has a default vote. On the Vote dashboard, **Apply defaults** fills a default vote for everyone who has not voted on a slot and locks it; the vote is tagged **Default** and shows who applied it. A member can edit it once the slot is unlocked, and leaders can remove a default vote per person. Deploy the updated `firestore.rules` for this to work.
 
 ## Scripts
 

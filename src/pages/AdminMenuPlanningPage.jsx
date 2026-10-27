@@ -15,6 +15,7 @@ import { MobilePageHeader, MobilePageSkeleton } from '../components/mobile'
 import { BlessingHero } from '../components/darshan'
 import { MobileActionBar } from '../components/ui/MobileActionBar'
 import { useDelayedLoading } from '../hooks/useDelayedLoading'
+import { useMediaQuery } from '../hooks/useMediaQuery'
 import { useSaveMutation } from '../hooks/useSaveMutation'
 import { useMenuCatalog } from '../hooks/useMenuCatalog'
 import { useRegisterPullToRefresh } from '../hooks/useRegisterPullToRefresh'
@@ -48,6 +49,7 @@ const PLAN_FORM_ID = 'admin-menu-plan-form'
 export function AdminMenuPlanningPage() {
   const { user, profile } = useAuth()
   const toast = useToast()
+  const isMobile = useMediaQuery('(max-width: 899px)')
   const {
     catalog,
     loading: catalogLoading,
@@ -270,7 +272,7 @@ export function AdminMenuPlanningPage() {
 
   return (
     <div className="page admin-page admin-plan-page">
-      <div className="layout-desktop">
+      {!isMobile && <div className="layout-desktop">
         <BlessingHero
           artKey="planning"
           size="tall"
@@ -314,9 +316,9 @@ export function AdminMenuPlanningPage() {
             />
           </aside>
         </div>
-      </div>
+      </div>}
 
-      <div className="layout-mobile admin-plan-mobile admin-mobile-page-with-bar">
+      {isMobile && <div className="layout-mobile admin-plan-mobile admin-mobile-page-with-bar">
         <MobilePageHeader
           artKey="planning"
           size="standard"
@@ -395,7 +397,7 @@ export function AdminMenuPlanningPage() {
                 : 'Clear plan'}
           </button>
         </MobileActionBar>
-      </div>
+      </div>}
     </div>
   )
 }

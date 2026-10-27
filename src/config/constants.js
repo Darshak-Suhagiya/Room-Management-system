@@ -21,6 +21,7 @@ export const COLLECTIONS = {
   MENU_ITEMS: 'menuItems',
   SEVA_ROOM: 'sevaRoom',
   VOTE_LOCKS: 'voteLocks',
+  MEAL_DEFAULTS: 'mealDefaults',
   LEAVE_ENTRIES: 'leaveEntries',
   NOTICES: 'notices',
   PUSH_SETTINGS: 'pushSettings',
@@ -49,6 +50,12 @@ export const COLLECTIONS = {
   REPORT_EVENTS: 'reportEvents',
   REPORT_NOTES: 'reportNotes',
   REPORT_RESPONSES: 'reportResponses',
+}
+
+/** Default meal attendance for members who have not voted. */
+export const DEFAULT_MEAL_MODE = {
+  EATING: 'eating',
+  NOT_EATING: 'not_eating',
 }
 
 export const REPORT_ACCESS_DOC_ID = 'default'

@@ -1015,54 +1015,91 @@ td.table-actions-cell {
 
 .slot-card-header {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.35rem 0.5rem;
-  margin-bottom: 0.5rem;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.55rem;
+  margin-bottom: 0.65rem;
+}
+
+.slot-card-header .slot-card-title {
+  min-width: 0;
 }
 
 .slot-card-header h3 {
   margin: 0;
-  flex: 1;
-  min-width: 4rem;
+  min-width: 0;
 }
 
-.slot-card-toolbar {
+.slot-action-rail {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface-muted, var(--bg)) 70%, var(--surface));
+  overflow: hidden;
+}
+
+.slot-action-rail-btn {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 0.25rem;
-  margin-left: auto;
-}
-
-.card-tap-btn {
+  justify-content: center;
+  gap: 0.15rem;
+  min-width: 0;
+  min-height: 2.7rem;
+  padding: 0.4rem 0.15rem;
   border: none;
+  border-right: 1px solid var(--border);
   background: transparent;
+  color: var(--text);
   cursor: pointer;
-  padding: 0.15rem 0.35rem;
+  font: inherit;
 }
 
-@media (max-width: 899px) {
-  .card-tap-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    min-height: var(--touch-min, 2.75rem);
-    margin-top: 0.5rem;
-    padding: 0.5rem 0.75rem;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    background: var(--surface-muted);
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: var(--primary);
-  }
+.slot-action-rail-btn:last-child {
+  border-right: none;
 }
 
-.card-tap-hint {
-  font-size: 0.75rem;
+.slot-action-rail-btn:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+
+.slot-action-rail-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.slot-action-rail-icon {
+  display: inline-flex;
+  color: var(--text);
+}
+
+.slot-action-rail-label {
+  font-size: 0.65rem;
+  font-weight: 650;
+  line-height: 1.1;
   color: var(--muted);
-  font-weight: 500;
+}
+
+.slot-action-rail-btn.is-danger {
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+}
+
+.slot-action-rail-btn.is-danger .slot-action-rail-icon,
+.slot-action-rail-btn.is-danger .slot-action-rail-label {
+  color: var(--danger);
+}
+
+.slot-action-rail .is-spinning {
+  animation: slot-card-spin 0.8s linear infinite;
+}
+
+@keyframes slot-card-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .slot-card-body-btn {
@@ -1394,9 +1431,22 @@ td.table-actions-cell {
 }
 
 .slot-card-footer {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
   margin-top: 0.85rem;
   padding-top: 0.75rem;
   border-top: 2px solid var(--border);
+}
+
+.slot-card-footer-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.slot-card-chevron {
+  flex-shrink: 0;
+  color: var(--muted);
 }
 
 .not-voted-footer {
