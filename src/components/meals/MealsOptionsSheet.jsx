@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import {
   BarChart3 as IconAnalytics,
   ChevronRight,
+  SlidersHorizontal as IconDefaults,
   Table as IconTable,
 } from 'lucide-react'
 import { Modal } from '../ui/Modal'
@@ -18,6 +19,12 @@ export function MealsOptionsSheet({
   onToggleOthersFeedback,
 }) {
   const links = [
+    {
+      to: '/defaults',
+      label: 'Default votes',
+      description: 'Eating or not eating when you haven’t voted',
+      icon: IconDefaults,
+    },
     { to: '/menus', label: 'All menus', description: 'Browse every planned menu', icon: IconTable },
     canSeeMenuAnalytics && {
       to: '/analytics',

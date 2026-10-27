@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { ChevronRight } from 'lucide-react'
 import { MEAL_SLOTS } from '../config/menuItems'
 import { subscribeVoteLock } from '../services/voteLockService'
 import { groupPlannedByCategory } from '../utils/groupMenuByCategory'
@@ -6,6 +7,8 @@ import { formatItemVoteSummary } from '../utils/voteDisplayUtils'
 import { MenuSlotNote } from './MenuSlotNote'
 import { SlotCardToolbar } from './SlotCardToolbar'
 import { CookItemInfoButton } from './MenuItemDetailModal'
+import { DefaultAppliedLine } from './defaults/DefaultChip'
+import { isPastDate } from '../utils/mealDateUtils'
 
 export function MealDashboardSlotCard({
   entry,
@@ -23,6 +26,10 @@ export function MealDashboardSlotCard({
   showMaharajNote = false,
   showCookItemDetails = false,
   onOpenItemDetail,
+  canApplyDefaults = false,
+  applyBusy = false,
+  onRequestApplyDefaults,
+  onOpenVoteTimes,
 }) {
   const slotInfo = MEAL_SLOTS[entry.slot]
   const everyoneNote =
@@ -33,13 +40,21 @@ export function MealDashboardSlotCard({
     entry.slot === 'morning'
       ? entry.menu?.morningMaharajNote
       : entry.menu?.eveningMaharajNote
-  const [locked, setLocked] = useState(false)
+  const [lockDoc, setLockDoc] = useState(null)
+  const locked = Boolean(lockDoc?.locked)
 
   useEffect(() => {
-    return subscribeVoteLock(entry.date, entry.slot, (data) => {
-      setLocked(Boolean(data?.locked))
-    })
+    return subscribeVoteLock(entry.date, entry.slot, setLockDoc)
   }, [entry.date, entry.slot])
+
+  const notVotedCount = stats?.mealSummary?.notVotedMeal?.length ?? 0
+  const showApplyDefaults =
+    canApplyDefaults && notVotedCount > 0 && !isPastDate(entry.date)
+  const applyProps = {
+    showApplyDefaults,
+    applyBusy,
+    onApplyDefaults: () => onRequestApplyDefaults?.(entry, notVotedCount),
+  }
 
   const grouped = groupPlannedByCategory(
     stats?.plannedItems ?? [],
@@ -52,7 +67,9 @@ export function MealDashboardSlotCard({
         className={`meal-vote-panel slot-panel-${entry.slot} ${locked ? 'is-locked' : ''}`}
       >
         <div className="slot-card-header">
-          <h3>{slotInfo.labelEn}</h3>
+          <div className="slot-card-title">
+            <h3>{slotInfo.labelEn}</h3>
+          </div>
           {showSlotToolbar && onRefresh && (
             <SlotCardToolbar
               locked={locked}
@@ -61,6 +78,8 @@ export function MealDashboardSlotCard({
               canLock={canLock}
               onToggleLock={() => onToggleLock?.(locked)}
               onRefresh={onRefresh}
+              canOpenTimes={false}
+              {...applyProps}
             />
           )}
         </div>
@@ -88,7 +107,9 @@ export function MealDashboardSlotCard({
       className={`meal-vote-panel slot-panel-${entry.slot} meal-card-clickable ${isToday ? 'slot-today' : ''} ${locked ? 'is-locked' : ''}`}
     >
       <div className="slot-card-header">
-        <h3>{slotInfo.labelEn}</h3>
+        <div className="slot-card-title">
+          <h3>{slotInfo.labelEn}</h3>
+        </div>
         {showSlotToolbar && onRefresh && (
           <SlotCardToolbar
             locked={locked}
@@ -97,16 +118,13 @@ export function MealDashboardSlotCard({
             canLock={canLock}
             onToggleLock={() => onToggleLock?.(locked)}
             onRefresh={onRefresh}
+            canOpenTimes={Boolean(stats)}
+            onOpenTimes={() => onOpenVoteTimes?.(entry)}
+            {...applyProps}
           />
         )}
-        <button
-          type="button"
-          className="card-tap-hint card-tap-btn"
-          onClick={() => onCardClick(stats)}
-        >
-          Details →
-        </button>
       </div>
+      <DefaultAppliedLine lock={lockDoc} menu={entry.menu} slot={entry.slot} />
       {showEveryoneNote && (
         <MenuSlotNote note={everyoneNote} slot={entry.slot} />
       )}
@@ -158,6 +176,7 @@ export function MealDashboardSlotCard({
         ))}
 
         <footer className="slot-card-footer">
+          <div className="slot-card-footer-copy">
           {stats.mealSummary.notVotedMeal.length > 0 ? (
             <div className="not-voted-footer">
               <strong>Not voted ({stats.mealSummary.notVotedMeal.length}):</strong>
@@ -168,6 +187,14 @@ export function MealDashboardSlotCard({
           ) : (
             <p className="not-voted-footer all-voted">Everyone voted</p>
           )}
+          {stats.mealSummary.defaulted?.length > 0 && (
+            <div className="not-voted-footer default-voted-footer">
+              <strong>By default ({stats.mealSummary.defaulted.length}):</strong>
+              <span>
+                {stats.mealSummary.defaulted.map((p) => p.name).join(', ')}
+              </span>
+            </div>
+          )}
           {stats.mealSummary.notEating.length > 0 && (
             <div className="not-voted-footer not-eating-footer">
               <strong>Not eating ({stats.mealSummary.notEating.length}):</strong>
@@ -176,6 +203,8 @@ export function MealDashboardSlotCard({
               </span>
             </div>
           )}
+          </div>
+          <ChevronRight size={18} className="slot-card-chevron" aria-hidden />
         </footer>
       </button>
     </article>

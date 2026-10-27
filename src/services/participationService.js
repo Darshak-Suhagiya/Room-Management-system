@@ -157,9 +157,12 @@ export async function saveMealParticipation({
     isVoted: true,
     updatedAt: new Date().toISOString(),
   }
-  await setDoc(doc(db, COLLECTIONS.MEAL_PARTICIPATION, id), payload, {
-    merge: true,
-  })
+  // A member's own save replaces any default vote and removes the chip.
+  await setDoc(
+    doc(db, COLLECTIONS.MEAL_PARTICIPATION, id),
+    { ...payload, isDefault: deleteField(), defaultAppliedBy: deleteField() },
+    { merge: true },
+  )
   return { id, ...payload }
 }
 

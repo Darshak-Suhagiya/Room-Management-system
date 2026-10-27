@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
-import { ChevronRight, Lock, LockOpen, RefreshCw } from 'lucide-react'
+import { ChevronRight, Clock, Lock, LockOpen, RefreshCw, WandSparkles } from 'lucide-react'
 import { MEAL_SLOTS } from '../../../config/menuItems'
 import { subscribeVoteLock } from '../../../services/voteLockService'
 import { groupPlannedByCategory } from '../../../utils/groupMenuByCategory'
 import { formatItemVoteSummary } from '../../../utils/voteDisplayUtils'
 import { triggerSelectionHaptic } from '../../../utils/haptics'
 import { MenuSlotNote } from '../../MenuSlotNote'
+import { DefaultAppliedLine } from '../../defaults/DefaultChip'
+import { isPastDate } from '../../../utils/mealDateUtils'
 
 export function VotesSlotCard({
   entry,
@@ -19,6 +21,10 @@ export function VotesSlotCard({
   onRequestLock,
   onRefresh,
   onOpenDetail,
+  canApplyDefaults = false,
+  applyBusy = false,
+  onRequestApplyDefaults,
+  onOpenVoteTimes,
 }) {
   const slotInfo = MEAL_SLOTS[entry.slot]
   const everyoneNote =
@@ -29,12 +35,11 @@ export function VotesSlotCard({
     entry.slot === 'morning'
       ? entry.menu?.morningMaharajNote
       : entry.menu?.eveningMaharajNote
-  const [locked, setLocked] = useState(false)
+  const [lockDoc, setLockDoc] = useState(null)
+  const locked = Boolean(lockDoc?.locked)
 
   useEffect(() => {
-    return subscribeVoteLock(entry.date, entry.slot, (data) => {
-      setLocked(Boolean(data?.locked))
-    })
+    return subscribeVoteLock(entry.date, entry.slot, setLockDoc)
   }, [entry.date, entry.slot])
 
   const grouped = groupPlannedByCategory(
@@ -47,25 +52,49 @@ export function VotesSlotCard({
 
   const notVotedCount = stats?.mealSummary?.notVotedMeal?.length ?? 0
   const notEatingCount = stats?.mealSummary?.notEating?.length ?? 0
+  const defaultedCount = stats?.mealSummary?.defaulted?.length ?? 0
+  const showApplyDefaults =
+    canApplyDefaults && notVotedCount > 0 && !isPastDate(entry.date)
 
   return (
     <article
       className={`votes-mobile-slot-card rail-card slot-panel-${entry.slot}${locked ? ' is-locked' : ''}`}
     >
       <header className="votes-mobile-slot-card-head">
-        <div className="votes-mobile-slot-card-title-row">
-          <h3 className="votes-mobile-slot-card-title">{slotInfo.labelEn}</h3>
-          {locked && (
-            <span className="votes-mobile-lock-badge">
-              <Lock size={12} aria-hidden /> Locked
-            </span>
+        <h3 className="votes-mobile-slot-card-title">{slotInfo.labelEn}</h3>
+        <div className="votes-mobile-action-rail" role="group" aria-label="Slot actions">
+          <button
+            type="button"
+            className="votes-mobile-action-btn"
+            disabled={!stats}
+            aria-label="Vote times for this menu"
+            onClick={() => {
+              triggerSelectionHaptic()
+              onOpenVoteTimes?.(entry)
+            }}
+          >
+            <Clock size={18} aria-hidden />
+            <span>Times</span>
+          </button>
+          {showApplyDefaults && (
+            <button
+              type="button"
+              className="votes-mobile-action-btn"
+              disabled={applyBusy}
+              aria-label="Apply default votes"
+              onClick={() => {
+                triggerSelectionHaptic()
+                onRequestApplyDefaults?.(entry, notVotedCount)
+              }}
+            >
+              <WandSparkles size={18} aria-hidden />
+              <span>Defaults</span>
+            </button>
           )}
-        </div>
-        <div className="votes-mobile-slot-card-actions">
           {canLock && (
             <button
               type="button"
-              className={`btn btn-sm ${locked ? 'btn-danger' : 'btn-secondary'}`}
+              className={`votes-mobile-action-btn${locked ? ' is-danger' : ''}`}
               disabled={lockBusy}
               aria-label={locked ? 'Unlock votes' : 'Lock votes'}
               onClick={() => {
@@ -73,12 +102,13 @@ export function VotesSlotCard({
                 onRequestLock?.(entry, locked)
               }}
             >
-              {lockBusy ? '…' : locked ? <Lock size={16} /> : <LockOpen size={16} />}
+              {locked ? <Lock size={18} aria-hidden /> : <LockOpen size={18} aria-hidden />}
+              <span>{locked ? 'Unlock' : 'Lock'}</span>
             </button>
           )}
           <button
             type="button"
-            className="btn btn-ghost btn-sm"
+            className="votes-mobile-action-btn"
             disabled={refreshing}
             aria-label="Refresh slot"
             onClick={() => {
@@ -86,11 +116,13 @@ export function VotesSlotCard({
               onRefresh?.(entry)
             }}
           >
-            <RefreshCw size={16} className={refreshing ? 'is-spinning' : ''} aria-hidden />
+            <RefreshCw size={18} className={refreshing ? 'is-spinning' : ''} aria-hidden />
+            <span>Refresh</span>
           </button>
         </div>
       </header>
 
+      <DefaultAppliedLine lock={lockDoc} menu={entry.menu} slot={entry.slot} />
       {showEveryoneNote && everyoneNote?.trim() && (
         <MenuSlotNote note={everyoneNote} slot={entry.slot} />
       )}
@@ -136,6 +168,7 @@ export function VotesSlotCard({
                   ? `${notVotedCount} not voted`
                   : 'Everyone voted'}
                 {notEatingCount > 0 ? ` · ${notEatingCount} not eating` : ''}
+                {defaultedCount > 0 ? ` · ${defaultedCount} by default` : ''}
               </span>
               <ChevronRight size={18} className="votes-mobile-slot-chevron" aria-hidden />
             </div>

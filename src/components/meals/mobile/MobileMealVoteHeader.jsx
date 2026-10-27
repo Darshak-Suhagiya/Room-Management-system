@@ -8,6 +8,7 @@ export function MobileMealVoteHeader({
   locked,
   refreshing,
   onRefresh,
+  defaultChip = null,
 }) {
   const SlotIcon = slot === 'morning' ? IconSun : IconMoon
 
@@ -25,6 +26,7 @@ export function MobileMealVoteHeader({
             {isComplete ? 'Voted' : 'Not voted'}
           </span>
         )}
+        {defaultChip}
       </div>
       <div className="meal-vote-mobile-header-actions">
         {locked && (

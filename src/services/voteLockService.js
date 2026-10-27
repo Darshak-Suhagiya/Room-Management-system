@@ -1,4 +1,12 @@
-import { doc, getDoc, onSnapshot, setDoc } from 'firebase/firestore'
+import {
+  collection,
+  doc,
+  getDoc,
+  onSnapshot,
+  query,
+  setDoc,
+  where,
+} from 'firebase/firestore'
 import { db, isFirebaseConfigured } from '../lib/firebase'
 import { COLLECTIONS } from '../config/constants'
 
@@ -53,6 +61,25 @@ export function subscribeVoteLocksForDate(dateId, callback) {
     unsubMorning()
     unsubEvening()
   }
+}
+
+/** Live map of locked slots from a date onward: { 'YYYY-MM-DD_slot': true } */
+export function subscribeVoteLocksFromDate(fromDateId, callback) {
+  if (!isFirebaseConfigured || !db || !fromDateId) {
+    callback({})
+    return () => {}
+  }
+  const q = query(
+    collection(db, COLLECTIONS.VOTE_LOCKS),
+    where('date', '>=', fromDateId),
+  )
+  return onSnapshot(q, (snap) => {
+    const map = {}
+    for (const d of snap.docs) {
+      if (d.data().locked) map[d.id] = true
+    }
+    callback(map)
+  })
 }
 
 export async function setVoteLock(dateId, slot, locked, adminUserId) {

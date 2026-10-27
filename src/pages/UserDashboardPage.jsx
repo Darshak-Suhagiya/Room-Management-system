@@ -11,6 +11,7 @@ import { MealsOptionsSheet } from '../components/meals/MealsOptionsSheet'
 import { MealsBlessingHero } from '../components/meals/MealsBlessingHero'
 import { MissingReportsBanner } from '../components/reports/MissingReportsBanner'
 import { OverdueMealReportsNotice } from '../components/reports/PriorReportsGateModal'
+import { DefaultsGateNotice } from '../components/defaults/DefaultsGateNotice'
 import { ReportResponseSheet } from '../components/reports/ReportResponseSheet'
 import { NoticeBannerSlot } from '../components/NoticeBannerSlot'
 import { PushPermissionPrompt } from '../components/PushPermissionPrompt'
@@ -23,6 +24,7 @@ import { useMenuCatalog } from '../hooks/useMenuCatalog'
 import { useMobileTabPanelActive } from '../contexts/MobileTabPanelContext'
 import { useRegisterPullToRefresh } from '../hooks/useRegisterPullToRefresh'
 import { useMissingReports } from '../hooks/useMissingReports'
+import { useDefaultsGate } from '../hooks/useDefaultsGate'
 import { getMenuByDate, listPlannedMenusFromDate } from '../services/menuService'
 import { saveReportResponse } from '../services/reportService'
 import { subscribeVoteLock } from '../services/voteLockService'
@@ -36,6 +38,7 @@ import {
   Calendar as IconCalendar,
   ChartPie as IconAnalytics,
   ListChecks as IconCatalog,
+  SlidersHorizontal as IconDefaults,
   Sparkles as IconSeva,
   Table as IconTable,
 } from 'lucide-react'
@@ -60,15 +63,15 @@ function SlotWithLock({
   onToggleOthersFeedback,
   mobile = false,
   reportsBlocked = false,
+  defaultsBlocked = false,
 }) {
-  const [locked, setLocked] = useState(false)
+  const [lockDoc, setLockDoc] = useState(null)
+  const locked = Boolean(lockDoc?.locked)
   const [refreshTick, setRefreshTick] = useState(0)
   const [refreshing, setRefreshing] = useState(false)
 
   useEffect(() => {
-    return subscribeVoteLock(dateId, slot, (data) => {
-      setLocked(Boolean(data?.locked))
-    })
+    return subscribeVoteLock(dateId, slot, setLockDoc)
   }, [dateId, slot])
 
   const handleRefresh = async () => {
@@ -90,6 +93,7 @@ function SlotWithLock({
       menu={menu}
       catalog={catalog}
       locked={locked}
+      lockDoc={lockDoc}
       refreshing={refreshing}
       onRefresh={handleRefresh}
       displayName={displayName}
@@ -98,6 +102,7 @@ function SlotWithLock({
       onToggleOthersFeedback={onToggleOthersFeedback}
       mobile={mobile}
       reportsBlocked={reportsBlocked}
+      defaultsBlocked={defaultsBlocked}
     />
   )
 }
@@ -113,6 +118,11 @@ function QuickLinks({
   onToggleOthersFeedback,
 }) {
   const links = [
+    !isMaharaj && {
+      to: '/defaults',
+      label: 'Default votes',
+      icon: IconDefaults,
+    },
     !isMaharaj && { to: '/menus', label: 'All menus', icon: IconTable },
     !isMaharaj && { to: '/seva', label: 'Room Seva', icon: IconSeva },
     canSeeMenuAnalytics && {
@@ -316,6 +326,12 @@ export function UserDashboardPage() {
     [menus],
   )
 
+  const { gate: defaultsGate, blocked: defaultsBlocked } = useDefaultsGate({
+    menus: sortedMenus,
+    catalog,
+    enabled: !catalogLoading,
+  })
+
   const plannedDates = useMemo(
     () => new Set(sortedMenus.map((m) => m.date)),
     [sortedMenus],
@@ -471,6 +487,7 @@ export function UserDashboardPage() {
     showOthersFeedback,
     onToggleOthersFeedback: toggleOthersFeedback,
     reportsBlocked: blockingItems.length > 0,
+    defaultsBlocked,
   }
 
   return (
@@ -506,6 +523,7 @@ export function UserDashboardPage() {
               onFill={setFillTarget}
             />
             <MissingReportsBanner items={missingReports} onFill={setFillTarget} />
+            <DefaultsGateNotice gate={defaultsGate} />
             {sortedMenus.length === 0 || !selectedMenu ? (
               <div>
                 <p className="muted">No menus planned yet.</p>
@@ -583,6 +601,7 @@ export function UserDashboardPage() {
               onFill={setFillTarget}
             />
             <MissingReportsBanner items={missingReports} onFill={setFillTarget} />
+            <DefaultsGateNotice gate={defaultsGate} />
             <div className="meals-mobile-empty">
               <p className="meals-mobile-empty-title">No menus planned yet.</p>
               <MenuSlotLastEditList slotEdits={emptyDateEdits} />
@@ -614,6 +633,7 @@ export function UserDashboardPage() {
               onFill={setFillTarget}
             />
             <MissingReportsBanner items={missingReports} onFill={setFillTarget} />
+            <DefaultsGateNotice gate={defaultsGate} />
 
             {!selectedMenu ? (
               <div className="meals-mobile-empty">

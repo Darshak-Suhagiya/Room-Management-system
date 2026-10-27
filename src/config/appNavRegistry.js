@@ -11,6 +11,7 @@ import {
   Printer,
   Settings,
   ShoppingCart,
+  SlidersHorizontal,
   Sparkles,
   ClipboardList,
   Users,
@@ -26,6 +27,11 @@ const lazyPage = (importFn) => lazy(importFn)
 const NAV_COMPONENTS = {
   meals: lazyPage(() =>
     import('../pages/HomePage').then((m) => ({ default: m.HomePage })),
+  ),
+  'meal-defaults': lazyPage(() =>
+    import('../pages/DefaultVotesPage').then((m) => ({
+      default: m.DefaultVotesPage,
+    })),
   ),
   seva: lazyPage(() =>
     import('../pages/SevaOverviewPage').then((m) => ({
@@ -112,6 +118,18 @@ const NAV_DEFS = [
     group: 'main',
     guard: null,
     inDefaultNav: true,
+    isVisible: (auth) => !auth.isMaharaj && !auth.isObserver,
+  },
+  {
+    id: 'meal-defaults',
+    path: '/defaults',
+    end: false,
+    sidebarLabel: 'Default votes',
+    navLabel: 'Defaults',
+    icon: SlidersHorizontal,
+    group: 'main',
+    guard: 'defaultVotesAccess',
+    inDefaultNav: false,
     isVisible: (auth) => !auth.isMaharaj && !auth.isObserver,
   },
   {
@@ -309,6 +327,7 @@ export const NAV_GUARD_PROPS = {
   pushAccess: { pushAccess: true },
   financeAccess: { financeAccess: true },
   reportsAccess: { reportsAccess: true },
+  defaultVotesAccess: { defaultVotesAccess: true },
 }
 
 export function buildAuthSnapshot({

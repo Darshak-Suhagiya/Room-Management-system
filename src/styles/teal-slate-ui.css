@@ -4982,17 +4982,9 @@
 
   .votes-mobile-slot-card-head {
     display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 0.5rem;
-  }
-
-  .votes-mobile-slot-card-title-row {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.4rem;
-    min-width: 0;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.65rem;
   }
 
   .votes-mobile-slot-card-title {
@@ -5001,29 +4993,55 @@
     font-weight: 700;
   }
 
-  .votes-mobile-lock-badge {
-    display: inline-flex;
+  .votes-mobile-action-rail {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: color-mix(in srgb, var(--surface-muted, var(--bg)) 70%, var(--surface));
+    overflow: hidden;
+  }
+
+  .votes-mobile-action-btn {
+    display: flex;
+    flex-direction: column;
     align-items: center;
+    justify-content: center;
     gap: 0.2rem;
+    min-width: 0;
+    min-height: var(--touch-min, 2.75rem);
+    padding: 0.45rem 0.15rem;
+    border: none;
+    border-right: 1px solid var(--border);
+    background: transparent;
+    color: var(--text);
+    font: inherit;
     font-size: 0.68rem;
-    font-weight: 700;
-    padding: 0.15rem 0.45rem;
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--danger) 12%, transparent);
+    font-weight: 650;
+    line-height: 1.1;
+    cursor: pointer;
+  }
+
+  .votes-mobile-action-btn:last-child {
+    border-right: none;
+  }
+
+  .votes-mobile-action-btn span {
+    color: var(--muted);
+  }
+
+  .votes-mobile-action-btn:disabled {
+    opacity: 0.45;
+  }
+
+  .votes-mobile-action-btn.is-danger {
+    background: color-mix(in srgb, var(--danger) 10%, transparent);
     color: var(--danger);
   }
 
-  .votes-mobile-slot-card-actions {
-    display: flex;
-    align-items: center;
-    gap: 0.35rem;
-    flex-shrink: 0;
-  }
-
-  .votes-mobile-slot-card-actions .btn {
-    min-height: var(--touch-min, 2.75rem);
-    min-width: var(--touch-min, 2.75rem);
-    padding: 0.4rem;
+  .votes-mobile-action-btn.is-danger span {
+    color: var(--danger);
   }
 
   .votes-mobile-slot-card-body {

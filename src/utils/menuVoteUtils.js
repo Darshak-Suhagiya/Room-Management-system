@@ -67,17 +67,43 @@ export function buildVoteStats({
     notEating: [],
     notVotedMeal: [],
     votedMeal: [],
+    /** Members whose vote came from "Apply default votes". */
+    defaulted: [],
   }
 
   for (const user of users) {
     const p = participationByUser.get(user.id)
     const label = user.displayName || user.email || user.id
+    const isDefault = Boolean(p?.isDefault)
+    const votedAt = p?.updatedAt || null
+    const appliedBy = isDefault ? p.defaultAppliedBy?.displayName || '' : ''
+    if (isDefault) {
+      mealSummary.defaulted.push({
+        userId: user.id,
+        name: label,
+        notEating: Boolean(p.notEating),
+        appliedBy,
+        at: p.defaultAppliedBy?.at || votedAt,
+      })
+    }
     if (p?.notEating) {
-      mealSummary.notEating.push({ userId: user.id, name: label })
+      mealSummary.notEating.push({
+        userId: user.id,
+        name: label,
+        isDefault,
+        at: votedAt,
+        appliedBy,
+      })
     } else if (!p || !hasAnyVote(p, plannedItems)) {
       mealSummary.notVotedMeal.push({ userId: user.id, name: label })
     } else {
-      mealSummary.votedMeal.push({ userId: user.id, name: label })
+      mealSummary.votedMeal.push({
+        userId: user.id,
+        name: label,
+        isDefault,
+        at: votedAt,
+        appliedBy,
+      })
     }
   }
 
@@ -100,6 +126,7 @@ export function buildVoteStats({
     for (const user of users) {
       const p = participationByUser.get(user.id)
       const name = user.displayName || user.email || user.id
+      const isDefault = Boolean(p?.isDefault)
 
       if (p?.notEating) continue
 
@@ -111,15 +138,20 @@ export function buildVoteStats({
           const num = Number(val)
           if (isValidQuantity(num)) {
             stat.votedSum += num
-            stat.integerVotes.push({ userId: user.id, name, value: num })
+            stat.integerVotes.push({
+              userId: user.id,
+              name,
+              value: num,
+              isDefault,
+            })
           } else {
             stat.notVoted.push({ userId: user.id, name })
           }
         }
       } else if (val === true) {
-        stat.yes.push({ userId: user.id, name })
+        stat.yes.push({ userId: user.id, name, isDefault })
       } else if (val === false) {
-        stat.no.push({ userId: user.id, name })
+        stat.no.push({ userId: user.id, name, isDefault })
       } else {
         stat.notVoted.push({ userId: user.id, name })
       }
@@ -205,6 +237,21 @@ export function hasMealVoteComplete(participation, plannedItems) {
       participation.notEating,
     ).length === 0
   )
+}
+
+/** Saved votes for one slot, newest first. Skips anyone with no timestamp. */
+export function getSlotVoteTimeline(mealSummary) {
+  const voted = (mealSummary?.votedMeal ?? []).map((person) => ({
+    ...person,
+    notEating: false,
+  }))
+  const notEating = (mealSummary?.notEating ?? []).map((person) => ({
+    ...person,
+    notEating: true,
+  }))
+  return [...voted, ...notEating]
+    .filter((person) => person.at)
+    .sort((a, b) => (b.at || '').localeCompare(a.at || ''))
 }
 
 function hasAnyVote(participation, plannedItems) {

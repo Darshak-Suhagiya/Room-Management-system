@@ -1,0 +1,803 @@
+/**
+ * Default votes: shared chip / notices, the desktop page, the mobile page,
+ * the override calendar, and dashboard tags. Colors come from theme tokens
+ * only, so every theme and appearance works.
+ */
+
+/* ---------- Shared: chip + applied-by line ---------- */
+
+.default-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-left: 0.35rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--info-text, var(--accent));
+  background: color-mix(in srgb, var(--info, var(--accent)) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--info, var(--accent)) 30%, transparent);
+}
+
+.default-chip.is-compact {
+  margin-left: 0.25rem;
+  padding: 0.1rem 0.4rem;
+  font-size: 0.68rem;
+}
+
+.default-applied-line {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  margin: 0.15rem 0 0.5rem;
+  font-size: 0.8rem;
+  line-height: 1.35;
+  color: var(--info-text, var(--accent));
+}
+
+.default-applied-line svg {
+  flex-shrink: 0;
+  margin-top: 0.12rem;
+}
+
+.default-voted-footer strong {
+  color: var(--info-text, var(--accent));
+}
+
+/* ---------- My Meals: gate notice ---------- */
+
+.defaults-gate {
+  margin-bottom: 0.9rem;
+  padding: 0.85rem 0.9rem;
+  border: 1px solid color-mix(in srgb, var(--warning) 40%, var(--border));
+  border-radius: var(--radius, 12px);
+  background: color-mix(in srgb, var(--warning) 8%, var(--surface));
+}
+
+.defaults-gate-head {
+  display: flex;
+  gap: 0.65rem;
+  align-items: flex-start;
+}
+
+.defaults-gate-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  color: var(--warning-text, var(--warning));
+  background: color-mix(in srgb, var(--warning) 18%, transparent);
+}
+
+.defaults-gate h3 {
+  margin: 0 0 0.2rem;
+  font-size: 1rem;
+}
+
+.defaults-gate-head p {
+  margin: 0;
+  font-size: 0.86rem;
+  color: var(--muted);
+}
+
+.defaults-gate-list {
+  list-style: none;
+  margin: 0.7rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.defaults-gate-list li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.65rem;
+  font-size: 0.88rem;
+}
+
+.defaults-gate-list li span {
+  color: var(--muted);
+  font-size: 0.8rem;
+  text-align: right;
+}
+
+.defaults-gate-more {
+  margin: 0.4rem 0 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.defaults-gate-btn {
+  margin-top: 0.75rem;
+  text-decoration: none;
+}
+
+/* ---------- Page: shared notice ---------- */
+
+.defaults-needs-notice {
+  padding: 0.7rem 0.85rem;
+  border: 1px solid color-mix(in srgb, var(--warning) 40%, var(--border));
+  border-radius: var(--radius-sm, 8px);
+  background: color-mix(in srgb, var(--warning) 9%, var(--surface));
+  color: var(--warning-text, var(--text));
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+
+.defaults-not-set {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+/* ---------- Desktop page ---------- */
+
+.defaults-page .defaults-main {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.defaults-mode-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.25rem;
+}
+
+.defaults-mode-desc {
+  margin: 0.25rem 0 0;
+  max-width: 34rem;
+  font-size: 0.9rem;
+}
+
+.defaults-mode-toggle {
+  margin-bottom: 0;
+  flex-shrink: 0;
+}
+
+.defaults-mode-note {
+  margin: 0.75rem 0 0;
+  padding-top: 0.75rem;
+  border-top: 1px dashed var(--border);
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.defaults-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.defaults-filter-seg {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 8px);
+  overflow: hidden;
+  background: var(--surface);
+}
+
+.defaults-filter-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.9rem;
+  min-height: 2.5rem;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.defaults-filter-btn + .defaults-filter-btn {
+  border-left: 1px solid var(--border);
+}
+
+.defaults-filter-btn span {
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  background: var(--surface-muted);
+}
+
+.defaults-filter-btn.is-active {
+  background: var(--primary);
+  color: var(--primary-contrast);
+}
+
+.defaults-filter-btn.is-active span {
+  background: color-mix(in srgb, var(--primary-contrast) 22%, transparent);
+}
+
+.defaults-toolbar-field select,
+.defaults-toolbar-search {
+  min-height: 2.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 8px);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.88rem;
+}
+
+.defaults-toolbar-field select {
+  padding: 0 0.7rem;
+}
+
+.defaults-toolbar-search {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex: 1;
+  min-width: 11rem;
+  padding: 0 0.7rem;
+  color: var(--muted);
+}
+
+.defaults-toolbar-search input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+}
+
+.defaults-dish-row {
+  flex-wrap: wrap;
+}
+
+.defaults-dish-en {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.defaults-empty {
+  padding: 1.5rem 0;
+  text-align: center;
+}
+
+.defaults-save-bar {
+  position: sticky;
+  bottom: 0.75rem;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius, 12px);
+  background: var(--surface);
+  box-shadow: var(--card-shadow);
+}
+
+.defaults-save-bar.is-dirty {
+  border-color: color-mix(in srgb, var(--primary) 45%, var(--border));
+}
+
+.defaults-save-hint {
+  margin-right: auto;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.defaults-save-bar.is-dirty .defaults-save-hint {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.defaults-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.defaults-rail-desc {
+  margin: 0 0 0.75rem;
+  font-size: 0.84rem;
+}
+
+.defaults-gate-card .defaults-gate-list li {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.05rem;
+}
+
+.defaults-gate-card .defaults-gate-list li span {
+  text-align: left;
+}
+
+/* ---------- Mobile page (own layout, no desktop grid) ---------- */
+
+.defaults-page-mobile {
+  padding-bottom: 1rem;
+}
+
+.defaults-mobile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.defaults-mobile-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  padding: 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius, 12px);
+  background: var(--surface);
+  box-shadow: var(--card-shadow);
+}
+
+.defaults-mobile-card-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.defaults-mobile-hint {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.defaults-mobile-overrides-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  min-height: var(--touch-min, 2.75rem);
+  padding: 0.7rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 8px);
+  background: var(--surface-muted);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.defaults-mobile-overrides-row svg:first-child {
+  color: var(--primary);
+}
+
+.defaults-mobile-overrides-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.defaults-mobile-overrides-label {
+  font-weight: 600;
+  font-size: 0.92rem;
+}
+
+.defaults-mobile-overrides-sub {
+  font-size: 0.78rem;
+}
+
+.defaults-mobile-filter {
+  margin: 0;
+}
+
+.defaults-mobile-sheet {
+  padding: 0.25rem 0 1rem;
+}
+
+/* ---------- Override calendar ---------- */
+
+.default-cal {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.default-cal-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.default-cal-month {
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.default-cal-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 8px);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.default-cal-weekdays,
+.default-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.2rem;
+}
+
+.default-cal-weekdays span {
+  text-align: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.default-cal-cell {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm, 8px);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.default-cal-cell:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+
+.default-cal-cell.is-outside {
+  opacity: 0.4;
+}
+
+.default-cal-cell.is-past,
+.default-cal-cell:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.default-cal-cell.is-today {
+  border-color: var(--border-strong, var(--border));
+}
+
+.default-cal-cell.is-planned::after {
+  content: '';
+  position: absolute;
+  bottom: 0.2rem;
+  width: 0.25rem;
+  height: 0.25rem;
+  border-radius: 50%;
+  background: var(--muted);
+}
+
+.default-cal-cell.is-eating {
+  background: color-mix(in srgb, var(--success) 18%, transparent);
+  color: var(--success-text, var(--success));
+}
+
+.default-cal-cell.is-not-eating {
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+  color: var(--danger-text, var(--danger));
+}
+
+.default-cal-cell.is-selected {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--primary-contrast);
+}
+
+.default-cal-cell.is-selected.is-planned::after {
+  background: var(--primary-contrast);
+}
+
+.default-cal-cell.is-range-start,
+.default-cal-cell.is-range-end {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 35%, transparent);
+}
+
+.default-cal-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.9rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.default-cal-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.default-cal-swatch {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+}
+
+.default-cal-swatch.is-eating {
+  background: color-mix(in srgb, var(--success) 45%, transparent);
+  border-color: var(--success);
+}
+
+.default-cal-swatch.is-not-eating {
+  background: color-mix(in srgb, var(--danger) 40%, transparent);
+  border-color: var(--danger);
+}
+
+.default-cal-swatch.is-default {
+  background: transparent;
+}
+
+.default-cal-summary {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.default-cal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.default-cal-btn {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.default-cal-btn.is-eating:not(:disabled) {
+  background: var(--success);
+  border-color: var(--success);
+  color: #fff;
+}
+
+.default-cal-btn.is-not-eating:not(:disabled) {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #fff;
+}
+
+.default-cal-list {
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--border);
+}
+
+.default-cal-list-title {
+  margin: 0 0 0.4rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.default-cal-list ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  max-height: 11rem;
+  overflow-y: auto;
+}
+
+.default-cal-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.84rem;
+}
+
+.default-cal-list-dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.default-cal-list-dot.is-eating {
+  background: var(--success);
+}
+
+.default-cal-list-dot.is-not-eating {
+  background: var(--danger);
+}
+
+.default-cal-list-date {
+  flex: 1;
+  font-weight: 600;
+}
+
+.default-cal-list-mode {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.default-cal-list-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.default-cal-list-remove:hover:not(:disabled) {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+/* Mobile calendar: larger touch targets, full-width actions */
+.default-cal-mobile .default-cal-cell {
+  font-size: 0.95rem;
+  min-height: 2.6rem;
+}
+
+.default-cal-mobile .default-cal-nav-btn {
+  width: var(--touch-min, 2.75rem);
+  height: var(--touch-min, 2.75rem);
+}
+
+.default-cal-mobile .default-cal-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.default-cal-mobile .default-cal-actions .btn {
+  min-height: var(--touch-min, 2.75rem);
+}
+
+.default-cal-mobile .default-cal-actions .btn-ghost {
+  grid-column: 1 / -1;
+}
+
+.default-cal-mobile .default-cal-list ul {
+  max-height: none;
+}
+
+.default-cal-mobile .default-cal-list-remove {
+  width: var(--touch-min, 2.75rem);
+  height: var(--touch-min, 2.75rem);
+}
+
+/* ---------- Vote dashboard additions ---------- */
+
+.slot-card-apply-defaults {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.votes-mobile-apply-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.slot-detail-chip.is-default,
+.votes-mobile-who-chip.is-default {
+  border-color: color-mix(in srgb, var(--info, var(--accent)) 40%, var(--border));
+}
+
+.slot-detail-chip-tag,
+.votes-mobile-who-tag {
+  margin-left: 0.35rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--info-text, var(--accent));
+  background: color-mix(in srgb, var(--info, var(--accent)) 14%, transparent);
+}
+
+.default-votes-list {
+  margin: 0.9rem 0;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid color-mix(in srgb, var(--info, var(--accent)) 28%, var(--border));
+  border-radius: var(--radius-sm, 8px);
+  background: color-mix(in srgb, var(--info, var(--accent)) 6%, var(--surface));
+}
+
+.default-votes-list-title {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 0 0.5rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--info-text, var(--accent));
+}
+
+.default-votes-list-count {
+  padding: 0 0.45rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  background: color-mix(in srgb, var(--info, var(--accent)) 16%, transparent);
+}
+
+.default-votes-list ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.default-votes-list-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.default-votes-list-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.default-votes-list-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.default-votes-list-meta {
+  font-size: 0.76rem;
+  color: var(--muted);
+}
+
+.default-votes-list-remove {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-shrink: 0;
+  color: var(--danger-text, var(--danger));
+}
+
+.default-votes-list-mobile .default-votes-list-remove {
+  min-height: var(--touch-min, 2.75rem);
+}
+
+@media (max-width: 899px) {
+  .defaults-mode-head {
+    flex-direction: column;
+  }
+}

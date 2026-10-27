@@ -60,8 +60,19 @@ export function canLockVotes(profile) {
   return (
     isAdminRole(profile) ||
     isMaharajRole(profile) ||
-    isKitchenLeaderRole(profile)
+    isKitchenLeaderRole(profile) ||
+    isRoomLeaderRole(profile)
   )
+}
+
+/** Apply or remove default votes for members (applying also locks the slot). */
+export function canApplyDefaultVotes(profile) {
+  return canLockVotes(profile)
+}
+
+/** Members who can set their own default votes. */
+export function canSetDefaultVotes(profile) {
+  return isRoomParticipant(profile)
 }
 
 /** Adjust total counts (number / yes totals). */

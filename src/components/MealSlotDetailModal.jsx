@@ -5,14 +5,21 @@ import { formatQuantity, parseOverrideTotal } from '../utils/voteQuantityUtils'
 import { groupPlannedByCategory } from '../utils/groupMenuByCategory'
 import { MenuSlotNote } from './MenuSlotNote'
 import { Modal } from './ui/Modal'
+import { DefaultAppliedLine } from './defaults/DefaultChip'
+import { DefaultVotesList } from './defaults/DefaultVotesList'
 
 function NameChips({ people, variant = '' }) {
   if (!people?.length) return null
   return (
     <div className={`slot-detail-chips ${variant}`}>
       {people.map((p) => (
-        <span key={p.userId} className="slot-detail-chip">
+        <span
+          key={p.userId}
+          className={`slot-detail-chip${p.isDefault ? ' is-default' : ''}`}
+          title={p.isDefault ? 'Default vote' : undefined}
+        >
           {p.name}
+          {p.isDefault ? <span className="slot-detail-chip-tag">Default</span> : null}
         </span>
       ))}
     </div>
@@ -99,6 +106,7 @@ function WhoCell({ stat }) {
     const voted = stat.integerVotes.map((v) => ({
       userId: v.userId,
       name: `${v.name} — ${formatQuantity(v.value)}`,
+      isDefault: v.isDefault,
     }))
     return (
       <div className="slot-detail-who">
@@ -182,6 +190,11 @@ export function MealSlotDetailModal({
   overrideSavingId,
   onClose,
   artKey = 'votes',
+  lockDoc = null,
+  menu = null,
+  canRemoveDefaults = false,
+  onRemoveDefault,
+  removingUserId = null,
 }) {
   const toast = useToast()
   if (!stats) return null
@@ -234,6 +247,7 @@ export function MealSlotDetailModal({
       )}
 
       <div className="slot-detail-body">
+          <DefaultAppliedLine lock={lockDoc} menu={menu} slot={slot} />
           <div className="slot-detail-attendance">
             <AttendanceTile
               title="Not eating"
@@ -251,6 +265,13 @@ export function MealSlotDetailModal({
               tone="success"
             />
           </div>
+
+          <DefaultVotesList
+            people={stats.mealSummary.defaulted}
+            canRemove={canRemoveDefaults}
+            onRemove={onRemoveDefault}
+            removingUserId={removingUserId}
+          />
 
           {showAdjustCol && (
             <p className="muted modal-admin-hint">
