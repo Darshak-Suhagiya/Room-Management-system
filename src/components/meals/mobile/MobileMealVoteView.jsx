@@ -1,6 +1,7 @@
 import { Save as IconSave } from 'lucide-react'
 import { MenuSlotNote } from '../../MenuSlotNote'
 import { MenuSlotLastEdit } from '../../MenuSlotLastEdit'
+import { DefaultChip } from '../../defaults/DefaultChip'
 import { MobileActionBar } from '../../ui/MobileActionBar'
 import { getVoteValue } from '../../../utils/menuVoteUtils'
 import { MealSlotArt } from '../MealSlotArt'
@@ -14,6 +15,8 @@ export function MobileMealVoteView({
   slotLabel,
   slotNote,
   lastEdit,
+  participation,
+  defaultAppliedLine,
   grouped,
   hydrated,
   isComplete,
@@ -82,10 +85,14 @@ export function MobileMealVoteView({
           locked={locked}
           refreshing={refreshing}
           onRefresh={onRefresh}
+          defaultChip={
+            hydrated ? <DefaultChip participation={participation} compact /> : null
+          }
         />
       </div>
 
       <MenuSlotLastEdit edit={lastEdit} />
+      {defaultAppliedLine}
       <MenuSlotNote note={slotNote} slot={slot} />
 
       {blockReason && <p className="vote-block-notice">{blockReason}</p>}

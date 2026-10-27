@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
 import { MEAL_SLOTS } from '../config/menuItems'
-import { VOTE_TYPES } from '../config/voteTypes'
 import {
   formatVoteDisplay,
   getInvalidVoteItemIds,
@@ -12,10 +11,11 @@ import {
 import { groupPlannedByCategory } from '../utils/groupMenuByCategory'
 import { isPastDate } from '../utils/mealDateUtils'
 import { getItemReview, collectSlotItemReviews } from '../utils/menuReviewUtils'
-import { parseQuantityInput } from '../utils/voteQuantityUtils'
 import { MenuSlotNote } from './MenuSlotNote'
 import { MenuSlotLastEdit } from './MenuSlotLastEdit'
+import { DefaultAppliedLine, DefaultChip } from './defaults/DefaultChip'
 import { MealSlotArt } from './meals/MealSlotArt'
+import { VoteInput } from './meals/VoteInput'
 import { MobileMealVoteView } from './meals/mobile/MobileMealVoteView'
 import {
   MealFeedbackEntryRow,
@@ -42,49 +42,6 @@ import {
 } from 'lucide-react'
 
 const CAT_TONES = ['cat-tone-0', 'cat-tone-1', 'cat-tone-2', 'cat-tone-3', 'cat-tone-4']
-
-function VoteInput({ item, value, onChange, disabled, hasError, slot }) {
-  if (item.voteType === VOTE_TYPES.INTEGER) {
-    return (
-      <input
-        type="number"
-        className={`vote-inline-input vote-inline-num vote-qty-input ${hasError ? 'vote-input-error' : ''}`}
-        min={0}
-        step={0.5}
-        inputMode="decimal"
-        value={value ?? ''}
-        disabled={disabled}
-        onChange={(e) => onChange(parseQuantityInput(e.target.value))}
-      />
-    )
-  }
-
-  const yesActive = value === true
-  const noActive = value === false
-
-  return (
-    <div
-      className={`vote-yesno vote-yesno-inline slot-${slot} ${hasError ? 'vote-input-error-wrap' : ''}`}
-    >
-      <button
-        type="button"
-        className={`btn-vote btn-vote-yes ${yesActive ? 'is-active' : ''}`}
-        disabled={disabled}
-        onClick={() => onChange(true)}
-      >
-        Yes
-      </button>
-      <button
-        type="button"
-        className={`btn-vote btn-vote-no ${noActive ? 'is-active' : ''}`}
-        disabled={disabled}
-        onClick={() => onChange(false)}
-      >
-        No
-      </button>
-    </div>
-  )
-}
 
 function CategoryMenuList({ grouped, renderItem }) {
   return grouped.map(({ category, items }, catIndex) => (
@@ -118,7 +75,9 @@ export function MealVotePanel({
   menu,
   catalog,
   locked = false,
+  lockDoc = null,
   reportsBlocked = false,
+  defaultsBlocked = false,
   refreshing = false,
   onRefresh,
   displayName = '',
@@ -139,14 +98,16 @@ export function MealVotePanel({
   )
 
   const past = isPastDate(dateId)
-  const readOnly = past || locked || reportsBlocked
+  const readOnly = past || locked || reportsBlocked || defaultsBlocked
   const blockReason = reportsBlocked
     ? 'Fill older reports before voting'
     : past
       ? 'Past date — votes cannot be changed'
       : locked
         ? 'Votes locked by admin'
-        : null
+        : defaultsBlocked
+          ? 'Update default votes first'
+          : null
 
   const [participation, setParticipation] = useState(null)
   const [slotParticipations, setSlotParticipations] = useState([])
@@ -395,6 +356,10 @@ export function MealVotePanel({
         slotLabel={slotInfo.labelEn}
         slotNote={slotNote}
         lastEdit={lastEdit}
+        participation={participation}
+        defaultAppliedLine={
+          <DefaultAppliedLine lock={lockDoc} menu={menu} slot={slot} />
+        }
         grouped={grouped}
         hydrated={hydrated}
         isComplete={isComplete}
@@ -431,7 +396,7 @@ export function MealVotePanel({
 
   return (
     <article
-      className={`meal-vote-panel slot-panel-${slot} ${voteStatusClass} ${locked || reportsBlocked ? 'is-locked' : ''} ${past ? 'is-past' : ''}`}
+      className={`meal-vote-panel slot-panel-${slot} ${voteStatusClass} ${locked || reportsBlocked || defaultsBlocked ? 'is-locked' : ''} ${past ? 'is-past' : ''}`}
     >
       <div className="meal-slot-banner">
         <MealSlotArt slot={slot} />
@@ -446,8 +411,15 @@ export function MealVotePanel({
                 {isComplete ? 'Voted' : 'Not voted'}
               </span>
             )}
+            {hydrated && <DefaultChip participation={participation} />}
           </div>
           <div className="slot-card-actions">
+            {defaultsBlocked && !reportsBlocked && !locked && (
+              <span className="lock-badge">
+                <IconLock size={14} />
+                Defaults
+              </span>
+            )}
             {locked && !reportsBlocked && (
               <span className="lock-badge">
                 <IconLock size={14} />
@@ -487,6 +459,7 @@ export function MealVotePanel({
       </div>
 
       <MenuSlotLastEdit edit={lastEdit} />
+      <DefaultAppliedLine lock={lockDoc} menu={menu} slot={slot} />
       <MenuSlotNote note={slotNote} slot={slot} />
 
       {blockReason && (
