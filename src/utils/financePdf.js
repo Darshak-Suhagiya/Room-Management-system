@@ -6,7 +6,8 @@ import {
   WALLET_MOVEMENT_REASON_LABELS,
 } from '../config/constants'
 import { formatDateLabel, formatPeriodLabel, movementDateLabel, sumPaise } from './money'
-import { isExpenseFromFundPayment, roomFundExpensesForCollection } from './financeLedger'
+import { isExpenseFromFundPayment, roomFundMovementsForCollection } from './financeLedger'
+import { composePdfTableHooks, needsPaint, writeBlock } from './pdfText'
 import {
   cookLeaveFactRows,
   formatCookLeaveDate,
@@ -178,24 +179,44 @@ function drawPage1Letterhead(doc, art, { kicker, title, meta }) {
   }
 
   const textX = art.stamp ? stampX + stampSize + 12 : MARGIN
+  const textWidth = w - textX - MARGIN
   let y = PAGE1_BANNER_H + 22
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(8)
   doc.setTextColor(...TEAL)
   doc.text(kicker || 'JAY SWAMINARAYAN  ·  ROOM FINANCE', textX, y)
   y += 16
-  doc.setFontSize(15)
-  doc.setTextColor(...INK)
-  const lines = doc.splitTextToSize(title, w - textX - MARGIN)
-  doc.text(lines, textX, y)
-  y += lines.length * 17 + 4
+  if (needsPaint(title)) {
+    y = writeBlock(doc, title, textX, y, {
+      size: 15,
+      style: 'bold',
+      color: INK,
+      maxWidth: textWidth,
+      gap: 4,
+    })
+  } else {
+    doc.setFontSize(15)
+    doc.setTextColor(...INK)
+    const lines = doc.splitTextToSize(title, textWidth)
+    doc.text(lines, textX, y)
+    y += lines.length * 17 + 4
+  }
   if (meta) {
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(9)
-    doc.setTextColor(51, 65, 85)
-    const metaLines = doc.splitTextToSize(meta, w - textX - MARGIN)
-    doc.text(metaLines, textX, y)
-    y += metaLines.length * 12
+    if (needsPaint(meta)) {
+      y = writeBlock(doc, meta, textX, y, {
+        size: 9,
+        color: [51, 65, 85],
+        maxWidth: textWidth,
+        gap: 0,
+      })
+    } else {
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(9)
+      doc.setTextColor(51, 65, 85)
+      const metaLines = doc.splitTextToSize(meta, textWidth)
+      doc.text(metaLines, textX, y)
+      y += metaLines.length * 12
+    }
   }
   return Math.max(y + 10, PAGE1_CONTENT_TOP)
 }
@@ -214,8 +235,20 @@ function drawContHeader(doc, art, title) {
   doc.text('JAY SWAMINARAYAN  ·  ROOM FINANCE', textX, 20)
   doc.setFontSize(10)
   doc.setTextColor(...INK)
-  const line = doc.splitTextToSize(title, w - textX - MARGIN)[0]
-  doc.text(line, textX, 36)
+  const titleWidth = w - textX - MARGIN
+  if (needsPaint(title)) {
+    writeBlock(doc, title, textX, 36, {
+      size: 10,
+      style: 'bold',
+      color: INK,
+      maxWidth: titleWidth,
+      maxLines: 1,
+      gap: 0,
+    })
+  } else {
+    const line = doc.splitTextToSize(title, titleWidth)[0]
+    doc.text(line, textX, 36)
+  }
   drawBannerBar(doc, CONT_HEADER_H, 2)
 }
 
@@ -233,7 +266,18 @@ function drawFooter(doc, art, subtitle, page, pages) {
   doc.setFontSize(8)
   doc.setTextColor(...MUTED)
   const labelX = art.stamp ? MARGIN + 24 : MARGIN
-  doc.text(`Jay Swaminarayan  ·  ${subtitle}`, labelX, y0 + 18)
+  const footerLabel = `Jay Swaminarayan  ·  ${subtitle}`
+  if (needsPaint(footerLabel)) {
+    writeBlock(doc, footerLabel, labelX, y0 + 18, {
+      size: 8,
+      color: MUTED,
+      maxWidth: w - labelX - MARGIN - 78,
+      maxLines: 1,
+      gap: 0,
+    })
+  } else {
+    doc.text(footerLabel, labelX, y0 + 18)
+  }
   doc.text(`Page ${page} of ${pages}`, w - MARGIN, y0 + 18, { align: 'right' })
 }
 
@@ -248,11 +292,23 @@ function applyPdfChrome(doc, art, { title, subtitle }) {
 
 function addSection(doc, text, y) {
   const next = ensureSpace(doc, y, 36)
+  if (needsPaint(text)) {
+    const after = writeBlock(doc, text, MARGIN, next, {
+      size: 12,
+      style: 'bold',
+      color: INK,
+      gap: 2,
+    })
+    doc.setDrawColor(...TEAL)
+    doc.setLineWidth(0.8)
+    doc.line(MARGIN, after, MARGIN + 120, after)
+    return after + 14
+  }
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(12)
-  doc.setTextColor(15, 23, 42)
+  doc.setTextColor(...INK)
   doc.text(text, MARGIN, next)
-  doc.setDrawColor(15, 118, 110)
+  doc.setDrawColor(...TEAL)
   doc.setLineWidth(0.8)
   doc.line(MARGIN, next + 4, MARGIN + 120, next + 4)
   doc.setFont('helvetica', 'normal')
@@ -263,6 +319,15 @@ function addSection(doc, text, y) {
 
 function addParagraph(doc, text, y) {
   const width = doc.internal.pageSize.getWidth() - MARGIN * 2
+  if (needsPaint(text)) {
+    const next = ensureSpace(doc, y, 72)
+    return writeBlock(doc, text, MARGIN, next, {
+      size: 9,
+      color: [51, 65, 85],
+      maxWidth: width,
+      gap: 8,
+    })
+  }
   const lines = doc.splitTextToSize(text, width)
   const height = lines.length * 12
   const next = ensureSpace(doc, y, height + 8)
@@ -293,7 +358,7 @@ function tableOptions(doc, extra = {}) {
       fontSize: 8,
     },
     alternateRowStyles: { fillColor: [248, 250, 252] },
-    ...extra,
+    ...composePdfTableHooks(doc, extra),
   }
 }
 
@@ -802,24 +867,22 @@ function drawCookLeave(doc, autoTable, cookLeaves, y, { userId, closed = false }
   return cursor
 }
 
-function drawRoomFundExpenses(doc, autoTable, movements, y) {
+function drawRoomFundMovements(doc, autoTable, movements, y) {
   if (!movements?.length) {
-    return addParagraph(
-      doc,
-      "No room-fund expenses recorded in this collection's month.",
-      y,
-    )
+    return addParagraph(doc, "No room-fund movements in this collection's month.", y)
   }
   autoTable(doc, {
     ...tableOptions(doc, {
       startY: y,
-      head: [['When', 'Amount', 'Note']],
+      head: [['When', 'Reason', 'Person', 'Amount', 'Note']],
       body: movements.map((movement) => [
         movementDateLabel(movement) || '—',
+        WALLET_MOVEMENT_REASON_LABELS[movement.reason] || movement.reason || 'Movement',
+        movement.userName || movement.createdByName || '—',
         signedRs(movement.amountPaise),
         movement.note || '',
       ]),
-      columnStyles: { 1: { halign: 'right' } },
+      columnStyles: { 3: { halign: 'right' }, 4: { cellWidth: 140 } },
     }),
   })
   return afterTable(doc, y)
@@ -861,11 +924,16 @@ export async function exportRoomReport(report, { wallet, walletMovements } = {})
   y = addSection(doc, 'Wallet repayments before this collection', y)
   y = drawWalletRepayments(doc, autoTable, report.walletRepayments, y)
 
-  y = addSection(doc, 'Room fund expenses this month', y)
-  y = drawRoomFundExpenses(
+  y = addSection(doc, 'Room fund movements this month', y)
+  y = addParagraph(
+    doc,
+    "Every room-fund movement dated in this collection's month, including contributions, refunds, and adjustments.",
+    y,
+  )
+  y = drawRoomFundMovements(
     doc,
     autoTable,
-    roomFundExpensesForCollection(walletMovements, collection),
+    roomFundMovementsForCollection(walletMovements, collection),
     y,
   )
 

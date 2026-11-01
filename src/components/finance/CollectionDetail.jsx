@@ -10,6 +10,7 @@ import {
 import { payDueFromRoomFund, recordPayment, voidPayment } from '../../services/financePaymentService'
 import { unwaiveDue, waiveDue } from '../../services/financeDuesService'
 import { sendCollectionReminder } from '../../services/financeReminderService'
+import { listWalletMovements } from '../../services/roomWalletService'
 import { exportMemberReport, exportRoomReport } from '../../utils/financePdf'
 import { useSaveMutation } from '../../hooks/useSaveMutation'
 import { useToast } from '../../contexts/ToastContext'
@@ -110,7 +111,11 @@ export function CollectionDetail({
   const handleExportRoom = async () => {
     setExporting(true)
     try {
-      await exportRoomReport(report, { wallet, walletMovements })
+      const movements = await listWalletMovements().catch(() => walletMovements)
+      await exportRoomReport(report, {
+        wallet,
+        walletMovements: movements?.length ? movements : walletMovements,
+      })
     } catch (err) {
       toast.error(err.message || 'Could not export PDF.')
     } finally {

@@ -612,14 +612,25 @@ export function collectionMonthIds(collection) {
   return ids
 }
 
-export function roomFundExpensesForCollection(walletMovements, collection) {
+function movementMonthId(movement) {
+  const raw = movement?.occurredOn || movement?.createdAt || ''
+  if (raw && typeof raw.toDate === 'function') {
+    const date = raw.toDate()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    return `${date.getFullYear()}-${month}`
+  }
+  const match = String(raw).match(/\d{4}-\d{2}/)
+  return match ? match[0] : ''
+}
+
+export function roomFundMovementsForCollection(walletMovements, collection) {
   const months = collectionMonthIds(collection)
   if (months.size === 0) return []
   return (walletMovements || [])
     .filter((movement) => {
-      if (movement.reason !== WALLET_MOVEMENT_REASONS.EXPENSE) return false
-      const period = String(movement.occurredOn || movement.createdAt || '').slice(0, 7)
-      return months.has(period)
+      if (!movement) return false
+      const month = movementMonthId(movement)
+      return Boolean(month) && months.has(month)
     })
     .sort((a, b) => {
       const da = a.occurredOn || String(a.createdAt || '').slice(0, 10)

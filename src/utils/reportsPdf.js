@@ -14,6 +14,7 @@ import {
   REPORT_OUT_OF_CITY_REASON,
   REPORT_PDF_LAYOUT,
 } from '../config/constants'
+import { composePdfTableHooks, needsPaint, writeBlock } from './pdfText'
 
 const MARGIN = 40
 const HEAD_FILL = [15, 118, 110]
@@ -29,8 +30,6 @@ const FOOTER_RESERVE = 54
 const PDF_BANNER_SRC = '/darshan/finance.jpg'
 const PDF_STAMP_SRC = '/darshan/stamp.jpg'
 const KICKER = 'JAY SWAMINARAYAN  ·  ROOM REPORTS'
-const cellPaints = new WeakMap()
-const paintCache = new Map()
 
 function fileSafe(text) {
   return String(text || 'room-reports')
@@ -46,121 +45,6 @@ function todayLabel() {
     month: 'short',
     year: 'numeric',
   })
-}
-
-// Helvetica cannot draw Gujarati, and the file must not embed a Gujarati font. The browser paints those strings.
-function needsPaint(text) {
-  return /[\u0A80-\u0AFF]/.test(String(text ?? ''))
-}
-
-function pageFont() {
-  if (typeof document === 'undefined') return 'sans-serif'
-  return getComputedStyle(document.body).fontFamily || 'sans-serif'
-}
-
-function rgbOf(color) {
-  if (Array.isArray(color)) return color.slice(0, 3)
-  if (typeof color === 'number') return [color, color, color]
-  return INK
-}
-
-function graphemes(text) {
-  if (typeof Intl !== 'undefined' && Intl.Segmenter) {
-    return [...new Intl.Segmenter('gu', { granularity: 'grapheme' }).segment(text)].map((part) => part.segment)
-  }
-  return [...text]
-}
-
-function wrapPainted(ctx, text, maxPx) {
-  const lines = []
-  const pushFitted = (value) => {
-    let line = ''
-    for (const piece of graphemes(value)) {
-      const next = line + piece
-      if (line && ctx.measureText(next).width > maxPx) {
-        lines.push(line)
-        line = piece
-      } else {
-        line = next
-      }
-    }
-    return line
-  }
-  for (const para of String(text).replace(/\r/g, '').split('\n')) {
-    if (!para) {
-      lines.push('')
-      continue
-    }
-    let line = ''
-    for (const word of para.split(/(\s+)/)) {
-      if (word.trim() && ctx.measureText(word).width > maxPx) {
-        if (line.trim()) lines.push(line.trimEnd())
-        line = pushFitted(word)
-        continue
-      }
-      const next = line + word
-      if (line.trim() && ctx.measureText(next).width > maxPx) {
-        lines.push(line.trimEnd())
-        line = word.trimStart()
-      } else {
-        line = next
-      }
-    }
-    if (line.trim()) lines.push(line.trimEnd())
-  }
-  return lines.length ? lines : ['']
-}
-
-function paintBlock(text, { fontSize = 9, bold = false, maxWidth = 200, color = INK } = {}) {
-  const key = [text, fontSize, bold, maxWidth, color.join(',')].join('\u0001')
-  const cached = paintCache.get(key)
-  if (cached) return cached
-  const scale = 3
-  const fontPx = fontSize * (96 / 72) * scale
-  const maxPx = Math.max(24, maxWidth * (96 / 72) * scale)
-  const scratch = document.createElement('canvas').getContext('2d')
-  const font = `${bold ? '600' : '400'} ${fontPx}px ${pageFont()}`
-  scratch.font = font
-  const lines = wrapPainted(scratch, text, maxPx)
-  const lineH = fontPx * 1.35
-  const widthPx = Math.max(...lines.map((line) => scratch.measureText(line).width), 1)
-  const canvas = document.createElement('canvas')
-  canvas.width = Math.ceil(widthPx + 6)
-  canvas.height = Math.ceil(lines.length * lineH + 6)
-  const ctx = canvas.getContext('2d')
-  ctx.font = font
-  ctx.fillStyle = `rgb(${color.join(',')})`
-  ctx.textBaseline = 'top'
-  lines.forEach((line, index) => ctx.fillText(line, 2, 2 + index * lineH))
-  const painted = {
-    dataUrl: canvas.toDataURL('image/png'),
-    width: (canvas.width * 72) / (96 * scale),
-    height: (canvas.height * 72) / (96 * scale),
-  }
-  paintCache.set(key, painted)
-  return painted
-}
-
-function writeBlock(doc, text, x, y, { size = 9, style = 'normal', color = INK, maxWidth, gap = 4 } = {}) {
-  const value = String(text ?? '')
-  const width = maxWidth || doc.internal.pageSize.getWidth() - x - MARGIN
-  if (!needsPaint(value)) {
-    doc.setFont('helvetica', style)
-    doc.setFontSize(size)
-    doc.setTextColor(...color)
-    const lines = doc.splitTextToSize(value, width)
-    doc.text(lines, x, y)
-    return y + lines.length * (size + 3) + gap
-  }
-  const painted = paintBlock(value, {
-    fontSize: size,
-    bold: style === 'bold',
-    maxWidth: width,
-    color,
-  })
-  const top = y - size * 0.82
-  doc.addImage(painted.dataUrl, 'PNG', x, top, painted.width, painted.height)
-  return top + painted.height + gap
 }
 
 async function loadPdf() {
@@ -282,24 +166,44 @@ function drawPage1Letterhead(doc, art, { kicker, title, meta }) {
   }
 
   const textX = art.stamp ? stampX + stampSize + 12 : MARGIN
+  const textWidth = w - textX - MARGIN
   let y = PAGE1_BANNER_H + 22
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(8)
   doc.setTextColor(...TEAL)
   doc.text(kicker || KICKER, textX, y)
   y += 16
-  doc.setFontSize(15)
-  doc.setTextColor(...INK)
-  const lines = doc.splitTextToSize(title, w - textX - MARGIN)
-  doc.text(lines, textX, y)
-  y += lines.length * 17 + 4
+  if (needsPaint(title)) {
+    y = writeBlock(doc, title, textX, y, {
+      size: 15,
+      style: 'bold',
+      color: INK,
+      maxWidth: textWidth,
+      gap: 4,
+    })
+  } else {
+    doc.setFontSize(15)
+    doc.setTextColor(...INK)
+    const lines = doc.splitTextToSize(title, textWidth)
+    doc.text(lines, textX, y)
+    y += lines.length * 17 + 4
+  }
   if (meta) {
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(9)
-    doc.setTextColor(51, 65, 85)
-    const metaLines = doc.splitTextToSize(meta, w - textX - MARGIN)
-    doc.text(metaLines, textX, y)
-    y += metaLines.length * 12
+    if (needsPaint(meta)) {
+      y = writeBlock(doc, meta, textX, y, {
+        size: 9,
+        color: [51, 65, 85],
+        maxWidth: textWidth,
+        gap: 0,
+      })
+    } else {
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(9)
+      doc.setTextColor(51, 65, 85)
+      const metaLines = doc.splitTextToSize(meta, textWidth)
+      doc.text(metaLines, textX, y)
+      y += metaLines.length * 12
+    }
   }
   return Math.max(y + 10, PAGE1_CONTENT_TOP)
 }
@@ -318,8 +222,20 @@ function drawContHeader(doc, art, title) {
   doc.text(KICKER, textX, 20)
   doc.setFontSize(10)
   doc.setTextColor(...INK)
-  const line = doc.splitTextToSize(title, w - textX - MARGIN)[0]
-  doc.text(line, textX, 36)
+  const titleWidth = w - textX - MARGIN
+  if (needsPaint(title)) {
+    writeBlock(doc, title, textX, 36, {
+      size: 10,
+      style: 'bold',
+      color: INK,
+      maxWidth: titleWidth,
+      maxLines: 1,
+      gap: 0,
+    })
+  } else {
+    const line = doc.splitTextToSize(title, titleWidth)[0]
+    doc.text(line, textX, 36)
+  }
   drawBannerBar(doc, CONT_HEADER_H, 2)
 }
 
@@ -337,7 +253,18 @@ function drawFooter(doc, art, subtitle, page, pages) {
   doc.setFontSize(8)
   doc.setTextColor(...MUTED)
   const labelX = art.stamp ? MARGIN + 24 : MARGIN
-  doc.text(`Jay Swaminarayan  ·  ${subtitle}`, labelX, y0 + 18)
+  const footerLabel = `Jay Swaminarayan  ·  ${subtitle}`
+  if (needsPaint(footerLabel)) {
+    writeBlock(doc, footerLabel, labelX, y0 + 18, {
+      size: 8,
+      color: MUTED,
+      maxWidth: w - labelX - MARGIN - 78,
+      maxLines: 1,
+      gap: 0,
+    })
+  } else {
+    doc.text(footerLabel, labelX, y0 + 18)
+  }
   doc.text(`Page ${page} of ${pages}`, w - MARGIN, y0 + 18, { align: 'right' })
 }
 
@@ -408,41 +335,7 @@ function tableOptions(doc, extra = {}) {
       fontSize: 8,
     },
     alternateRowStyles: { fillColor: [248, 250, 252] },
-    didParseCell(data) {
-      const raw = (data.cell.text || []).join('\n')
-      if (!needsPaint(raw)) return
-      const padX = data.cell.padding('horizontal')
-      const styledWidth = data.cell.styles.cellWidth
-      const limit = typeof styledWidth === 'number' ? styledWidth - padX : 188
-      const painted = paintBlock(raw, {
-        fontSize: data.cell.styles.fontSize || 8.5,
-        bold: data.cell.styles.fontStyle === 'bold',
-        maxWidth: Math.max(48, limit),
-        color: rgbOf(data.cell.styles.textColor),
-      })
-      cellPaints.set(data.cell, painted)
-      data.cell.text = ['']
-      data.cell.styles.minCellWidth = painted.width + padX
-      data.cell.styles.minCellHeight = painted.height + data.cell.padding('vertical')
-    },
-    willDrawCell(data) {
-      if (cellPaints.has(data.cell)) data.cell.text = ['']
-    },
-    didDrawCell(data) {
-      const painted = cellPaints.get(data.cell)
-      if (!painted) return
-      const maxW = data.cell.width - data.cell.padding('horizontal')
-      const scale = painted.width > maxW && maxW > 8 ? maxW / painted.width : 1
-      doc.addImage(
-        painted.dataUrl,
-        'PNG',
-        data.cell.x + data.cell.padding('left'),
-        data.cell.y + data.cell.padding('top'),
-        painted.width * scale,
-        painted.height * scale,
-      )
-    },
-    ...extra,
+    ...composePdfTableHooks(doc, extra),
   }
 }
 
